@@ -18,3 +18,4 @@
 - [2025-11-08T08:06:45Z] docs(architecture): update pipeline latency benchmark figures
 - [2025-11-10T04:18:08Z] perf(db): add partial index on unprocessed transaction queue
 - [2025-11-10T07:26:27Z] test(eval): assert precision/recall curve stability across drift splits
+- [2025-11-11T04:13:57Z] test(eval): assert precision/recall curve stability across drift splits
