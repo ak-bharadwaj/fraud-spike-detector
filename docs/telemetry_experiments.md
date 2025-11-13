@@ -21,3 +21,4 @@
 - [2025-11-11T04:13:57Z] test(eval): assert precision/recall curve stability across drift splits
 - [2025-11-11T06:31:33Z] feat(detector): add sliding window quantile tracker for velocity spikes
 - [2025-11-13T05:13:19Z] feat(detector): add sliding window quantile tracker for velocity spikes
+- [2025-11-13T06:52:47Z] test(rules): add test matrix for borderline fraud score thresholds
