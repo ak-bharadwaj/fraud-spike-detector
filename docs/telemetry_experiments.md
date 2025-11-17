@@ -26,3 +26,4 @@
 - [2025-11-15T07:12:06Z] fix(alerts): prevent event replay on webhook retry
 - [2025-11-15T08:12:30Z] perf(db): add partial index on unprocessed transaction queue
 - [2025-11-17T04:34:52Z] feat(scoring): add Bayesian risk prior for new entity accounts
+- [2025-11-17T06:04:57Z] docs(architecture): update pipeline latency benchmark figures
