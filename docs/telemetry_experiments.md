@@ -29,3 +29,4 @@
 - [2025-11-17T06:04:57Z] docs(architecture): update pipeline latency benchmark figures
 - [2025-11-17T08:24:54Z] feat(rules): implement rule conflict resolution with priority weights
 - [2025-11-17T12:29:21Z] perf(pipeline): vectorize isolation forest input batching
+- [2025-11-17T15:09:54Z] refactor(features): optimize entropy calculations for transaction chains
