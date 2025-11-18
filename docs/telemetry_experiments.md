@@ -32,3 +32,4 @@
 - [2025-11-17T15:09:54Z] refactor(features): optimize entropy calculations for transaction chains
 - [2025-11-18T05:20:04Z] feat(detector): add sliding window quantile tracker for velocity spikes
 - [2025-11-18T06:04:18Z] test(rules): add test matrix for borderline fraud score thresholds
+- [2025-11-18T09:03:06Z] fix(alerts): prevent event replay on webhook retry
