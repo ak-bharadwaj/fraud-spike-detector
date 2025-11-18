@@ -31,3 +31,4 @@
 - [2025-11-17T12:29:21Z] perf(pipeline): vectorize isolation forest input batching
 - [2025-11-17T15:09:54Z] refactor(features): optimize entropy calculations for transaction chains
 - [2025-11-18T05:20:04Z] feat(detector): add sliding window quantile tracker for velocity spikes
+- [2025-11-18T06:04:18Z] test(rules): add test matrix for borderline fraud score thresholds
