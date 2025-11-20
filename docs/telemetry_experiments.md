@@ -35,3 +35,4 @@
 - [2025-11-18T09:03:06Z] fix(alerts): prevent event replay on webhook retry
 - [2025-11-20T04:18:32Z] refactor(features): optimize entropy calculations for transaction chains
 - [2025-11-20T06:06:57Z] feat(scoring): add Bayesian risk prior for new entity accounts
+- [2025-11-20T08:48:03Z] docs(architecture): update pipeline latency benchmark figures
