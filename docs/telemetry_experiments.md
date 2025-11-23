@@ -37,3 +37,4 @@
 - [2025-11-20T06:06:57Z] feat(scoring): add Bayesian risk prior for new entity accounts
 - [2025-11-20T08:48:03Z] docs(architecture): update pipeline latency benchmark figures
 - [2025-11-23T05:01:18Z] perf(db): add partial index on unprocessed transaction queue
+- [2025-11-23T07:25:12Z] test(eval): assert precision/recall curve stability across drift splits
