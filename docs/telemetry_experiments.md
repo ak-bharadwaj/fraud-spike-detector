@@ -43,3 +43,4 @@
 - [2025-11-24T06:57:22Z] perf(pipeline): vectorize isolation forest input batching
 - [2025-11-24T09:24:12Z] refactor(features): optimize entropy calculations for transaction chains
 - [2025-11-25T05:17:41Z] test(rules): add test matrix for borderline fraud score thresholds
+- [2025-11-25T06:17:08Z] fix(alerts): prevent event replay on webhook retry
