@@ -47,3 +47,4 @@
 - [2025-11-25T09:42:37Z] perf(db): add partial index on unprocessed transaction queue
 - [2025-11-27T05:11:52Z] feat(scoring): add Bayesian risk prior for new entity accounts
 - [2025-11-27T07:40:27Z] docs(architecture): update pipeline latency benchmark figures
+- [2025-11-28T04:43:42Z] docs(architecture): update pipeline latency benchmark figures
