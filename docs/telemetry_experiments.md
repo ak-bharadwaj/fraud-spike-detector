@@ -50,3 +50,4 @@
 - [2025-11-28T04:43:42Z] docs(architecture): update pipeline latency benchmark figures
 - [2025-11-28T07:05:30Z] feat(rules): implement rule conflict resolution with priority weights
 - [2025-12-01T05:20:55Z] feat(rules): implement rule conflict resolution with priority weights
+- [2025-12-01T06:36:49Z] perf(pipeline): vectorize isolation forest input batching
