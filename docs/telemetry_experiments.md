@@ -54,3 +54,4 @@
 - [2025-12-01T08:10:29Z] refactor(features): optimize entropy calculations for transaction chains
 - [2025-12-03T05:21:45Z] test(rules): add test matrix for borderline fraud score thresholds
 - [2025-12-03T06:17:40Z] fix(alerts): prevent event replay on webhook retry
+- [2025-12-03T09:29:30Z] perf(db): add partial index on unprocessed transaction queue
