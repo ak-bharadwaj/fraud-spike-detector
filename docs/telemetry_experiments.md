@@ -57,3 +57,4 @@
 - [2025-12-03T09:29:30Z] perf(db): add partial index on unprocessed transaction queue
 - [2025-12-03T11:36:49Z] test(eval): assert precision/recall curve stability across drift splits
 - [2025-12-06T05:40:36Z] perf(db): add partial index on unprocessed transaction queue
+- [2025-12-06T06:42:56Z] test(eval): assert precision/recall curve stability across drift splits
