@@ -379,3 +379,24 @@
 - [2025-11-20T13:34:28Z] refactor(pipeline): extract non-blocking work-stealing threadpool
 - [2025-11-20T15:40:20Z] feat(metrics): export percentile latency histograms for internal RPCs
 - [2025-11-20T16:57:48Z] perf(alloc): replace dynamic heap allocations with arena bump allocator
+
+
+### Sprint Milestone: 2025-12-09 (Target Tier 3)
+- [2025-12-09T04:33:17Z] refactor(pipeline): extract non-blocking work-stealing threadpool
+- [2025-12-09T04:41:29Z] feat(metrics): export percentile latency histograms for internal RPCs
+- [2025-12-09T05:01:05Z] perf(alloc): replace dynamic heap allocations with arena bump allocator
+- [2025-12-09T06:36:50Z] fix(circuit-breaker): tune backoff exponential jitter to prevent thundering herd
+- [2025-12-09T07:52:17Z] feat(storage): implement append-only commit log with CRC32 checksums
+- [2025-12-09T07:26:36Z] test(chaos): verify raft consensus under network partition and clock drift
+- [2025-12-09T08:49:01Z] perf(query): push down projection and filter predicates to parquet reader
+- [2025-12-09T09:45:20Z] refactor(wal): stream write-ahead log directly into memory mapped segment
+- [2025-12-09T10:31:25Z] feat(crypto): implement constant-time comparison for HMAC authentication
+- [2025-12-09T11:15:13Z] fix(gc): eliminate root reference leak in transient session context
+- [2025-12-09T11:16:00Z] perf(dispatch): replace dynamic lookup table with computed branch table
+- [2025-12-09T12:41:45Z] test(fuzz): add property-based fuzz testing for protobuf frame parser
+- [2025-12-09T13:48:44Z] feat(routing): add weighted least-connections balancer with health probing
+- [2025-12-09T14:04:24Z] refactor(buffer): optimize zero-copy ring buffer with memory barrier fences
+- [2025-12-09T14:40:23Z] fix(timeout): decouple deadline cancellation from synchronous cleanup hook
+- [2025-12-09T15:21:10Z] feat(engine): add vectorized SIMD kernel for dot product calculation
+- [2025-12-09T16:47:53Z] perf(cache): implement adaptive two-queue eviction algorithm
+- [2025-12-09T17:47:21Z] test(concurrency): stress-test actor mailbox under 50k sustained msg/s
