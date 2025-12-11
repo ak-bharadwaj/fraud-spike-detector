@@ -69,3 +69,4 @@
 - [2025-12-11T04:31:34Z] perf(db): add partial index on unprocessed transaction queue
 - [2025-12-11T06:54:13Z] test(eval): assert precision/recall curve stability across drift splits
 - [2025-12-11T09:06:00Z] feat(detector): add sliding window quantile tracker for velocity spikes
+- [2025-12-11T12:28:47Z] test(rules): add test matrix for borderline fraud score thresholds
