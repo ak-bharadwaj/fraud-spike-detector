@@ -171,3 +171,4 @@
 - [2026-02-11T04:54:35Z] test(eval): assert precision/recall curve stability across drift splits
 - [2026-02-11T06:26:56Z] feat(detector): add sliding window quantile tracker for velocity spikes
 - [2025-12-14T04:50:33Z] feat(metrics): track p99 tail latency across service boundary
+- [2025-12-14T04:50:18Z] test(boundary): fuzz input validation for malformed network frames
