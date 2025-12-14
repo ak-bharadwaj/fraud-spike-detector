@@ -188,3 +188,4 @@
 - [2025-12-14T13:02:20Z] refactor(telemetry): introduce zero-copy memory ring buffer
 - [2025-12-14T14:37:30Z] test(chaos): simulate network partition during leader failover
 - [2025-12-14T14:05:06Z] feat(cache): implement two-tier LFU cache eviction policy
+- [2025-12-14T15:12:55Z] fix(drift): clamp seasonal baseline drift in anomaly detector
