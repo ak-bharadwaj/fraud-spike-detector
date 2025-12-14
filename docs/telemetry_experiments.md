@@ -72,3 +72,4 @@
 - [2025-12-11T12:28:47Z] test(rules): add test matrix for borderline fraud score thresholds
 - [2025-12-12T05:04:02Z] feat(detector): add sliding window quantile tracker for velocity spikes
 - [2025-12-12T07:19:07Z] test(rules): add test matrix for borderline fraud score thresholds
+- [2025-12-14T05:08:31Z] test(rules): add test matrix for borderline fraud score thresholds
