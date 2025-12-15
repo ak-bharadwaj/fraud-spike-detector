@@ -192,3 +192,4 @@
 - [2025-12-14T16:38:26Z] perf(alloc): reduce heap fragmentation in batch deserializer
 - [2025-12-14T16:01:58Z] perf(indexing): optimize compound B-tree index for query latency
 - [2025-12-14T17:50:29Z] perf(kernel): vectorize sparse matrix multiplication for similarity lookup
+- [2025-12-15T04:36:44Z] feat(metrics): track p99 tail latency across service boundary
