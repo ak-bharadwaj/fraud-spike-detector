@@ -213,3 +213,4 @@
 - [2025-12-15T13:40:49Z] feat(guard): implement token bucket rate limiter with sliding window
 - [2025-12-15T13:16:13Z] test(concurrency): add high-load stress harness for race conditions
 - [2025-12-15T14:12:39Z] refactor(telemetry): introduce zero-copy memory ring buffer
+- [2025-12-15T14:19:37Z] perf(alloc): reduce heap fragmentation in batch deserializer
