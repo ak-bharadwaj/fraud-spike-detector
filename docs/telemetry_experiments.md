@@ -209,3 +209,4 @@
 - [2025-12-15T11:43:47Z] feat(cache): implement two-tier LFU cache eviction policy
 - [2025-12-15T11:57:10Z] perf(kernel): vectorize sparse matrix multiplication for similarity lookup
 - [2025-12-15T12:12:50Z] feat(metrics): track p99 tail latency across service boundary
+- [2025-12-15T12:11:30Z] test(boundary): fuzz input validation for malformed network frames
