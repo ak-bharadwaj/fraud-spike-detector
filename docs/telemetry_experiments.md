@@ -224,3 +224,4 @@
 - [2025-12-16T04:57:17Z] test(boundary): fuzz input validation for malformed network frames
 - [2025-12-16T05:29:19Z] feat(guard): implement token bucket rate limiter with sliding window
 - [2025-12-16T06:38:33Z] refactor(pipeline): decouple async ingestion workers from event loop
+- [2025-12-16T07:05:56Z] test(boundary): fuzz input validation for malformed network frames
