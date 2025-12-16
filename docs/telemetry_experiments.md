@@ -235,3 +235,4 @@
 - [2025-12-16T13:08:05Z] feat(cache): implement two-tier LFU cache eviction policy
 - [2025-12-16T14:10:26Z] fix(drift): clamp seasonal baseline drift in anomaly detector
 - [2025-12-16T14:51:57Z] feat(metrics): track p99 tail latency across service boundary
+- [2025-12-16T15:19:36Z] perf(indexing): optimize compound B-tree index for query latency
