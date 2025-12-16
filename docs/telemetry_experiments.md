@@ -237,3 +237,4 @@
 - [2025-12-16T14:51:57Z] feat(metrics): track p99 tail latency across service boundary
 - [2025-12-16T15:19:36Z] perf(indexing): optimize compound B-tree index for query latency
 - [2025-12-16T16:12:20Z] perf(kernel): vectorize sparse matrix multiplication for similarity lookup
+- [2025-12-16T17:27:02Z] feat(metrics): track p99 tail latency across service boundary
