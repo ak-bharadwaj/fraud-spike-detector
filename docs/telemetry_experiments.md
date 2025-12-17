@@ -81,3 +81,4 @@
 - [2025-12-16T11:05:31Z] perf(pipeline): vectorize isolation forest input batching
 - [2025-12-17T05:06:54Z] feat(rules): implement rule conflict resolution with priority weights
 - [2025-12-17T06:10:00Z] perf(pipeline): vectorize isolation forest input batching
+- [2025-12-17T08:03:46Z] refactor(features): optimize entropy calculations for transaction chains
