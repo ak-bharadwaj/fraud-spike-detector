@@ -86,3 +86,4 @@
 - [2025-12-19T07:33:48Z] fix(alerts): prevent event replay on webhook retry
 - [2025-12-19T09:23:23Z] perf(db): add partial index on unprocessed transaction queue
 - [2025-12-19T11:15:51Z] test(eval): assert precision/recall curve stability across drift splits
+- [2025-12-19T14:34:06Z] feat(detector): add sliding window quantile tracker for velocity spikes
