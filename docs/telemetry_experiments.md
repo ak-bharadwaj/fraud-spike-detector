@@ -89,3 +89,4 @@
 - [2025-12-19T14:34:06Z] feat(detector): add sliding window quantile tracker for velocity spikes
 - [2025-12-20T05:19:07Z] docs(architecture): update pipeline latency benchmark figures
 - [2025-12-20T07:14:56Z] feat(rules): implement rule conflict resolution with priority weights
+- [2025-12-20T08:22:40Z] perf(pipeline): vectorize isolation forest input batching
