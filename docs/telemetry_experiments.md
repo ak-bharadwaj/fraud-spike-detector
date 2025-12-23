@@ -92,3 +92,4 @@
 - [2025-12-20T08:22:40Z] perf(pipeline): vectorize isolation forest input batching
 - [2025-12-23T04:55:44Z] feat(detector): add sliding window quantile tracker for velocity spikes
 - [2025-12-23T06:31:36Z] test(rules): add test matrix for borderline fraud score thresholds
+- [2025-12-23T09:10:15Z] fix(alerts): prevent event replay on webhook retry
