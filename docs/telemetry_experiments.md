@@ -95,3 +95,4 @@
 - [2025-12-23T09:10:15Z] fix(alerts): prevent event replay on webhook retry
 - [2025-12-24T04:04:26Z] refactor(features): optimize entropy calculations for transaction chains
 - [2025-12-24T06:26:46Z] feat(scoring): add Bayesian risk prior for new entity accounts
+- [2025-12-26T05:33:58Z] feat(scoring): add Bayesian risk prior for new entity accounts
