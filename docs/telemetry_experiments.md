@@ -97,3 +97,4 @@
 - [2025-12-24T06:26:46Z] feat(scoring): add Bayesian risk prior for new entity accounts
 - [2025-12-26T05:33:58Z] feat(scoring): add Bayesian risk prior for new entity accounts
 - [2025-12-26T06:13:36Z] docs(architecture): update pipeline latency benchmark figures
+- [2025-12-26T08:04:35Z] feat(rules): implement rule conflict resolution with priority weights
