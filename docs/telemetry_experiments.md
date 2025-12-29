@@ -100,3 +100,4 @@
 - [2025-12-26T08:04:35Z] feat(rules): implement rule conflict resolution with priority weights
 - [2025-12-27T04:27:49Z] test(eval): assert precision/recall curve stability across drift splits
 - [2025-12-27T07:54:07Z] feat(detector): add sliding window quantile tracker for velocity spikes
+- [2025-12-29T04:16:43Z] feat(detector): add sliding window quantile tracker for velocity spikes
