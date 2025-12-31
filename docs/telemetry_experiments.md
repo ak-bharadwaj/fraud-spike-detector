@@ -104,3 +104,4 @@
 - [2025-12-29T07:15:52Z] test(rules): add test matrix for borderline fraud score thresholds
 - [2025-12-29T09:07:11Z] fix(alerts): prevent event replay on webhook retry
 - [2025-12-31T05:50:08Z] refactor(features): optimize entropy calculations for transaction chains
+- [2025-12-31T06:34:04Z] feat(scoring): add Bayesian risk prior for new entity accounts
