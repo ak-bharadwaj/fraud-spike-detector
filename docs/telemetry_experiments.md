@@ -114,3 +114,4 @@
 - [2026-01-02T06:27:50Z] test(rules): add test matrix for borderline fraud score thresholds
 - [2026-01-05T04:16:12Z] test(rules): add test matrix for borderline fraud score thresholds
 - [2026-01-05T06:39:05Z] fix(alerts): prevent event replay on webhook retry
+- [2026-01-05T09:53:55Z] perf(db): add partial index on unprocessed transaction queue
