@@ -113,3 +113,4 @@
 - [2026-01-02T04:44:43Z] feat(detector): add sliding window quantile tracker for velocity spikes
 - [2026-01-02T06:27:50Z] test(rules): add test matrix for borderline fraud score thresholds
 - [2026-01-05T04:16:12Z] test(rules): add test matrix for borderline fraud score thresholds
+- [2026-01-05T06:39:05Z] fix(alerts): prevent event replay on webhook retry
