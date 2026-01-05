@@ -112,3 +112,4 @@
 - [2026-01-01T08:46:46Z] perf(pipeline): vectorize isolation forest input batching
 - [2026-01-02T04:44:43Z] feat(detector): add sliding window quantile tracker for velocity spikes
 - [2026-01-02T06:27:50Z] test(rules): add test matrix for borderline fraud score thresholds
+- [2026-01-05T04:16:12Z] test(rules): add test matrix for borderline fraud score thresholds
