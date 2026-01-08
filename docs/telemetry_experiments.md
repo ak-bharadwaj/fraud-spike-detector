@@ -118,3 +118,4 @@
 - [2026-01-08T05:04:29Z] feat(scoring): add Bayesian risk prior for new entity accounts
 - [2026-01-08T06:36:25Z] docs(architecture): update pipeline latency benchmark figures
 - [2026-01-08T09:22:17Z] feat(rules): implement rule conflict resolution with priority weights
+- [2026-01-08T11:09:46Z] perf(pipeline): vectorize isolation forest input batching
