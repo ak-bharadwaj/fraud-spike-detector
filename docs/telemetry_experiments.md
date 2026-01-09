@@ -120,3 +120,4 @@
 - [2026-01-08T09:22:17Z] feat(rules): implement rule conflict resolution with priority weights
 - [2026-01-08T11:09:46Z] perf(pipeline): vectorize isolation forest input batching
 - [2026-01-09T04:13:56Z] feat(rules): implement rule conflict resolution with priority weights
+- [2026-01-09T06:17:30Z] perf(pipeline): vectorize isolation forest input batching
