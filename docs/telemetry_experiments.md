@@ -127,3 +127,4 @@
 - [2026-01-14T05:32:08Z] fix(alerts): prevent event replay on webhook retry
 - [2026-01-14T06:29:51Z] perf(db): add partial index on unprocessed transaction queue
 - [2026-01-14T08:49:41Z] test(eval): assert precision/recall curve stability across drift splits
+- [2026-01-15T04:19:46Z] docs(architecture): update pipeline latency benchmark figures
