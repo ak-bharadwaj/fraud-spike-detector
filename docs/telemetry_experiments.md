@@ -129,3 +129,4 @@
 - [2026-01-14T08:49:41Z] test(eval): assert precision/recall curve stability across drift splits
 - [2026-01-15T04:19:46Z] docs(architecture): update pipeline latency benchmark figures
 - [2026-01-15T06:10:06Z] feat(rules): implement rule conflict resolution with priority weights
+- [2026-01-15T08:43:00Z] perf(pipeline): vectorize isolation forest input batching
