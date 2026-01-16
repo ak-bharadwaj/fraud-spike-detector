@@ -426,3 +426,24 @@
 - [2025-12-27T13:36:22Z] fix(circuit-breaker): tune backoff exponential jitter to prevent thundering herd
 - [2025-12-27T15:22:25Z] feat(storage): implement append-only commit log with CRC32 checksums
 - [2025-12-27T16:48:21Z] test(chaos): verify raft consensus under network partition and clock drift
+
+
+### Sprint Milestone: 2026-01-16 (Target Tier 3)
+- [2026-01-16T04:14:35Z] fix(circuit-breaker): tune backoff exponential jitter to prevent thundering herd
+- [2026-01-16T04:43:15Z] feat(storage): implement append-only commit log with CRC32 checksums
+- [2026-01-16T05:08:04Z] test(chaos): verify raft consensus under network partition and clock drift
+- [2026-01-16T06:08:36Z] perf(query): push down projection and filter predicates to parquet reader
+- [2026-01-16T07:57:08Z] refactor(wal): stream write-ahead log directly into memory mapped segment
+- [2026-01-16T07:16:32Z] feat(crypto): implement constant-time comparison for HMAC authentication
+- [2026-01-16T08:42:01Z] fix(gc): eliminate root reference leak in transient session context
+- [2026-01-16T09:50:07Z] perf(dispatch): replace dynamic lookup table with computed branch table
+- [2026-01-16T10:17:34Z] test(fuzz): add property-based fuzz testing for protobuf frame parser
+- [2026-01-16T11:41:39Z] feat(routing): add weighted least-connections balancer with health probing
+- [2026-01-16T11:07:18Z] refactor(buffer): optimize zero-copy ring buffer with memory barrier fences
+- [2026-01-16T12:22:33Z] fix(timeout): decouple deadline cancellation from synchronous cleanup hook
+- [2026-01-16T13:21:02Z] feat(engine): add vectorized SIMD kernel for dot product calculation
+- [2026-01-16T14:39:18Z] perf(cache): implement adaptive two-queue eviction algorithm
+- [2026-01-16T14:55:15Z] test(concurrency): stress-test actor mailbox under 50k sustained msg/s
+- [2026-01-16T15:40:03Z] refactor(pipeline): extract non-blocking work-stealing threadpool
+- [2026-01-16T16:17:46Z] feat(metrics): export percentile latency histograms for internal RPCs
+- [2026-01-16T17:56:12Z] perf(alloc): replace dynamic heap allocations with arena bump allocator
