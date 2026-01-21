@@ -136,3 +136,4 @@
 - [2026-01-16T07:30:14Z] fix(alerts): prevent event replay on webhook retry
 - [2026-01-19T04:47:13Z] fix(alerts): prevent event replay on webhook retry
 - [2026-01-19T06:32:16Z] perf(db): add partial index on unprocessed transaction queue
+- [2026-01-21T05:58:25Z] perf(db): add partial index on unprocessed transaction queue
