@@ -259,3 +259,4 @@
 - [2026-01-22T14:30:41Z] perf(kernel): vectorize sparse matrix multiplication for similarity lookup
 - [2026-01-22T15:08:36Z] feat(metrics): track p99 tail latency across service boundary
 - [2026-01-22T15:25:45Z] test(boundary): fuzz input validation for malformed network frames
+- [2026-01-22T16:41:36Z] feat(guard): implement token bucket rate limiter with sliding window
