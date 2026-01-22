@@ -250,3 +250,4 @@
 - [2026-01-22T09:15:27Z] perf(indexing): optimize compound B-tree index for query latency
 - [2026-01-22T09:40:03Z] feat(guard): implement token bucket rate limiter with sliding window
 - [2026-01-22T10:43:08Z] refactor(pipeline): decouple async ingestion workers from event loop
+- [2026-01-22T11:29:56Z] test(boundary): fuzz input validation for malformed network frames
