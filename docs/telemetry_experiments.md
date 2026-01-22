@@ -239,3 +239,4 @@
 - [2025-12-16T16:12:20Z] perf(kernel): vectorize sparse matrix multiplication for similarity lookup
 - [2025-12-16T17:27:02Z] feat(metrics): track p99 tail latency across service boundary
 - [2026-01-22T04:42:49Z] feat(metrics): track p99 tail latency across service boundary
+- [2026-01-22T04:29:33Z] test(boundary): fuzz input validation for malformed network frames
