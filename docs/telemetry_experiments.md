@@ -290,3 +290,4 @@
 - [2026-01-23T14:46:51Z] fix(drift): clamp seasonal baseline drift in anomaly detector
 - [2026-01-23T15:09:48Z] perf(alloc): reduce heap fragmentation in batch deserializer
 - [2026-01-23T15:05:20Z] perf(indexing): optimize compound B-tree index for query latency
+- [2026-01-23T16:07:12Z] perf(kernel): vectorize sparse matrix multiplication for similarity lookup
