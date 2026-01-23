@@ -279,3 +279,4 @@
 - [2026-01-23T10:42:50Z] perf(indexing): optimize compound B-tree index for query latency
 - [2026-01-23T10:58:10Z] feat(guard): implement token bucket rate limiter with sliding window
 - [2026-01-23T11:30:23Z] refactor(pipeline): decouple async ingestion workers from event loop
+- [2026-01-23T11:18:36Z] refactor(telemetry): introduce zero-copy memory ring buffer
