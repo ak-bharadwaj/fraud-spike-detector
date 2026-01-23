@@ -278,3 +278,4 @@
 - [2026-01-23T09:01:23Z] feat(metrics): track p99 tail latency across service boundary
 - [2026-01-23T10:42:50Z] perf(indexing): optimize compound B-tree index for query latency
 - [2026-01-23T10:58:10Z] feat(guard): implement token bucket rate limiter with sliding window
+- [2026-01-23T11:30:23Z] refactor(pipeline): decouple async ingestion workers from event loop
