@@ -287,3 +287,4 @@
 - [2026-01-23T13:39:24Z] test(boundary): fuzz input validation for malformed network frames
 - [2026-01-23T14:51:20Z] feat(guard): implement token bucket rate limiter with sliding window
 - [2026-01-23T14:54:20Z] test(concurrency): add high-load stress harness for race conditions
+- [2026-01-23T14:46:51Z] fix(drift): clamp seasonal baseline drift in anomaly detector
