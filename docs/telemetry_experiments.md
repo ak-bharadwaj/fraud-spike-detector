@@ -262,3 +262,4 @@
 - [2026-01-22T16:41:36Z] feat(guard): implement token bucket rate limiter with sliding window
 - [2026-01-22T16:09:53Z] test(concurrency): add high-load stress harness for race conditions
 - [2026-01-22T17:31:14Z] refactor(telemetry): introduce zero-copy memory ring buffer
+- [2026-01-23T04:19:21Z] feat(metrics): track p99 tail latency across service boundary
