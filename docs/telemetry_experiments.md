@@ -293,3 +293,4 @@
 - [2026-01-23T16:07:12Z] perf(kernel): vectorize sparse matrix multiplication for similarity lookup
 - [2026-01-23T16:08:29Z] refactor(pipeline): decouple async ingestion workers from event loop
 - [2026-01-23T17:42:24Z] test(boundary): fuzz input validation for malformed network frames
+- [2026-01-23T17:41:14Z] test(chaos): simulate network partition during leader failover
