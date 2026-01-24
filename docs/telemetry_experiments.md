@@ -310,3 +310,4 @@
 - [2026-01-24T13:05:51Z] perf(kernel): vectorize sparse matrix multiplication for similarity lookup
 - [2026-01-24T13:12:03Z] refactor(pipeline): decouple async ingestion workers from event loop
 - [2026-01-24T14:30:19Z] test(boundary): fuzz input validation for malformed network frames
+- [2026-01-24T15:09:05Z] feat(guard): implement token bucket rate limiter with sliding window
