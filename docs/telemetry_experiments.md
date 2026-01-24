@@ -305,3 +305,4 @@
 - [2026-01-24T09:23:52Z] perf(alloc): reduce heap fragmentation in batch deserializer
 - [2026-01-24T10:53:43Z] feat(cache): implement two-tier LFU cache eviction policy
 - [2026-01-24T11:14:20Z] fix(drift): clamp seasonal baseline drift in anomaly detector
+- [2026-01-24T11:38:02Z] feat(metrics): track p99 tail latency across service boundary
