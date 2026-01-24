@@ -308,3 +308,4 @@
 - [2026-01-24T11:38:02Z] feat(metrics): track p99 tail latency across service boundary
 - [2026-01-24T12:58:01Z] perf(indexing): optimize compound B-tree index for query latency
 - [2026-01-24T13:05:51Z] perf(kernel): vectorize sparse matrix multiplication for similarity lookup
+- [2026-01-24T13:12:03Z] refactor(pipeline): decouple async ingestion workers from event loop
