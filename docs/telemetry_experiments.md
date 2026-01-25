@@ -145,3 +145,4 @@
 - [2026-01-22T14:27:08Z] perf(db): add partial index on unprocessed transaction queue
 - [2026-01-25T04:22:25Z] refactor(features): optimize entropy calculations for transaction chains
 - [2026-01-25T06:11:02Z] feat(scoring): add Bayesian risk prior for new entity accounts
+- [2026-01-25T08:28:45Z] docs(architecture): update pipeline latency benchmark figures
