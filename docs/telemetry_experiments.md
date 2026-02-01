@@ -154,3 +154,4 @@
 - [2026-01-30T05:29:39Z] perf(pipeline): vectorize isolation forest input batching
 - [2026-01-30T07:37:23Z] refactor(features): optimize entropy calculations for transaction chains
 - [2026-02-01T04:29:49Z] refactor(features): optimize entropy calculations for transaction chains
+- [2026-02-01T06:19:40Z] feat(scoring): add Bayesian risk prior for new entity accounts
