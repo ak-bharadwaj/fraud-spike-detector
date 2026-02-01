@@ -155,3 +155,4 @@
 - [2026-01-30T07:37:23Z] refactor(features): optimize entropy calculations for transaction chains
 - [2026-02-01T04:29:49Z] refactor(features): optimize entropy calculations for transaction chains
 - [2026-02-01T06:19:40Z] feat(scoring): add Bayesian risk prior for new entity accounts
+- [2026-02-01T09:19:55Z] docs(architecture): update pipeline latency benchmark figures
