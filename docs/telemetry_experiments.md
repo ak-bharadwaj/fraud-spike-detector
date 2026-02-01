@@ -153,3 +153,4 @@
 - [2026-01-27T12:40:57Z] refactor(features): optimize entropy calculations for transaction chains
 - [2026-01-30T05:29:39Z] perf(pipeline): vectorize isolation forest input batching
 - [2026-01-30T07:37:23Z] refactor(features): optimize entropy calculations for transaction chains
+- [2026-02-01T04:29:49Z] refactor(features): optimize entropy calculations for transaction chains
