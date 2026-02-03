@@ -158,3 +158,4 @@
 - [2026-02-01T09:19:55Z] docs(architecture): update pipeline latency benchmark figures
 - [2026-02-03T05:48:09Z] perf(db): add partial index on unprocessed transaction queue
 - [2026-02-03T06:34:48Z] test(eval): assert precision/recall curve stability across drift splits
+- [2026-02-03T09:37:38Z] feat(detector): add sliding window quantile tracker for velocity spikes
