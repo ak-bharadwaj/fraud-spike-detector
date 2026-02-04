@@ -160,3 +160,4 @@
 - [2026-02-03T06:34:48Z] test(eval): assert precision/recall curve stability across drift splits
 - [2026-02-03T09:37:38Z] feat(detector): add sliding window quantile tracker for velocity spikes
 - [2026-02-04T04:29:16Z] feat(rules): implement rule conflict resolution with priority weights
+- [2026-02-04T06:33:45Z] perf(pipeline): vectorize isolation forest input batching
