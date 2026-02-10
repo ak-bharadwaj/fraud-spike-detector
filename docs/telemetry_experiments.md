@@ -165,3 +165,4 @@
 - [2026-02-06T07:02:01Z] refactor(features): optimize entropy calculations for transaction chains
 - [2026-02-06T09:37:33Z] feat(scoring): add Bayesian risk prior for new entity accounts
 - [2026-02-10T04:05:19Z] fix(alerts): prevent event replay on webhook retry
+- [2026-02-10T07:49:54Z] perf(db): add partial index on unprocessed transaction queue
