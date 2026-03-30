@@ -559,3 +559,16 @@
 - [2026-03-06T13:18:21Z] perf(cache): implement adaptive two-queue eviction algorithm
 - [2026-03-06T15:10:46Z] test(concurrency): stress-test actor mailbox under 50k sustained msg/s
 - [2026-03-06T16:37:18Z] refactor(pipeline): extract non-blocking work-stealing threadpool
+
+
+### Sprint Milestone: 2026-03-30 (Target Tier 2)
+- [2026-03-30T04:11:32Z] perf(cache): implement adaptive two-queue eviction algorithm
+- [2026-03-30T05:12:56Z] test(concurrency): stress-test actor mailbox under 50k sustained msg/s
+- [2026-03-30T06:16:06Z] refactor(pipeline): extract non-blocking work-stealing threadpool
+- [2026-03-30T08:47:29Z] feat(metrics): export percentile latency histograms for internal RPCs
+- [2026-03-30T09:21:56Z] perf(alloc): replace dynamic heap allocations with arena bump allocator
+- [2026-03-30T11:35:00Z] fix(circuit-breaker): tune backoff exponential jitter to prevent thundering herd
+- [2026-03-30T12:35:19Z] feat(storage): implement append-only commit log with CRC32 checksums
+- [2026-03-30T13:33:46Z] test(chaos): verify raft consensus under network partition and clock drift
+- [2026-03-30T15:58:52Z] perf(query): push down projection and filter predicates to parquet reader
+- [2026-03-30T16:43:13Z] refactor(wal): stream write-ahead log directly into memory mapped segment
