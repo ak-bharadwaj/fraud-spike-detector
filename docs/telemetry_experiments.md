@@ -593,3 +593,16 @@
 - [2026-04-20T15:14:53Z] perf(alloc): replace dynamic heap allocations with arena bump allocator
 - [2026-04-20T16:18:54Z] fix(circuit-breaker): tune backoff exponential jitter to prevent thundering herd
 - [2026-04-20T17:52:06Z] feat(storage): implement append-only commit log with CRC32 checksums
+
+
+### Sprint Milestone: 2026-04-12 (Target Tier 2)
+- [2026-04-12T04:41:11Z] feat(routing): add weighted least-connections balancer with health probing
+- [2026-04-12T05:20:43Z] refactor(buffer): optimize zero-copy ring buffer with memory barrier fences
+- [2026-04-12T06:44:25Z] fix(timeout): decouple deadline cancellation from synchronous cleanup hook
+- [2026-04-12T08:29:52Z] feat(engine): add vectorized SIMD kernel for dot product calculation
+- [2026-04-12T09:52:31Z] perf(cache): implement adaptive two-queue eviction algorithm
+- [2026-04-12T11:04:38Z] test(concurrency): stress-test actor mailbox under 50k sustained msg/s
+- [2026-04-12T12:16:28Z] refactor(pipeline): extract non-blocking work-stealing threadpool
+- [2026-04-12T13:11:30Z] feat(metrics): export percentile latency histograms for internal RPCs
+- [2026-04-12T15:03:25Z] perf(alloc): replace dynamic heap allocations with arena bump allocator
+- [2026-04-12T16:49:53Z] fix(circuit-breaker): tune backoff exponential jitter to prevent thundering herd
