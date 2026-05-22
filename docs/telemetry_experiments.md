@@ -606,3 +606,34 @@
 - [2026-04-12T13:11:30Z] feat(metrics): export percentile latency histograms for internal RPCs
 - [2026-04-12T15:03:25Z] perf(alloc): replace dynamic heap allocations with arena bump allocator
 - [2026-04-12T16:49:53Z] fix(circuit-breaker): tune backoff exponential jitter to prevent thundering herd
+
+
+### Sprint Milestone: 2026-05-22 (Target Tier 4)
+- [2026-05-22T04:29:46Z] feat(metrics): export percentile latency histograms for internal RPCs
+- [2026-05-22T04:00:37Z] perf(alloc): replace dynamic heap allocations with arena bump allocator
+- [2026-05-22T05:09:40Z] fix(circuit-breaker): tune backoff exponential jitter to prevent thundering herd
+- [2026-05-22T05:21:07Z] feat(storage): implement append-only commit log with CRC32 checksums
+- [2026-05-22T06:10:03Z] test(chaos): verify raft consensus under network partition and clock drift
+- [2026-05-22T06:12:48Z] perf(query): push down projection and filter predicates to parquet reader
+- [2026-05-22T07:39:20Z] refactor(wal): stream write-ahead log directly into memory mapped segment
+- [2026-05-22T07:17:04Z] feat(crypto): implement constant-time comparison for HMAC authentication
+- [2026-05-22T08:55:06Z] fix(gc): eliminate root reference leak in transient session context
+- [2026-05-22T08:40:42Z] perf(dispatch): replace dynamic lookup table with computed branch table
+- [2026-05-22T09:04:50Z] test(fuzz): add property-based fuzz testing for protobuf frame parser
+- [2026-05-22T09:48:17Z] feat(routing): add weighted least-connections balancer with health probing
+- [2026-05-22T10:45:08Z] refactor(buffer): optimize zero-copy ring buffer with memory barrier fences
+- [2026-05-22T10:47:37Z] fix(timeout): decouple deadline cancellation from synchronous cleanup hook
+- [2026-05-22T11:21:42Z] feat(engine): add vectorized SIMD kernel for dot product calculation
+- [2026-05-22T11:28:48Z] perf(cache): implement adaptive two-queue eviction algorithm
+- [2026-05-22T12:46:23Z] test(concurrency): stress-test actor mailbox under 50k sustained msg/s
+- [2026-05-22T12:52:33Z] refactor(pipeline): extract non-blocking work-stealing threadpool
+- [2026-05-22T13:41:52Z] feat(metrics): export percentile latency histograms for internal RPCs
+- [2026-05-22T13:36:25Z] perf(alloc): replace dynamic heap allocations with arena bump allocator
+- [2026-05-22T14:42:09Z] fix(circuit-breaker): tune backoff exponential jitter to prevent thundering herd
+- [2026-05-22T14:40:13Z] feat(storage): implement append-only commit log with CRC32 checksums
+- [2026-05-22T15:42:27Z] test(chaos): verify raft consensus under network partition and clock drift
+- [2026-05-22T15:53:38Z] perf(query): push down projection and filter predicates to parquet reader
+- [2026-05-22T16:46:47Z] refactor(wal): stream write-ahead log directly into memory mapped segment
+- [2026-05-22T16:08:08Z] feat(crypto): implement constant-time comparison for HMAC authentication
+- [2026-05-22T17:11:23Z] fix(gc): eliminate root reference leak in transient session context
+- [2026-05-22T17:01:34Z] perf(dispatch): replace dynamic lookup table with computed branch table
