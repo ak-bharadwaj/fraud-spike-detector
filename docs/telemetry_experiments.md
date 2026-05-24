@@ -658,3 +658,16 @@
 - [2026-05-28T15:08:01Z] test(chaos): verify raft consensus under network partition and clock drift
 - [2026-05-28T16:33:53Z] perf(query): push down projection and filter predicates to parquet reader
 - [2026-05-28T17:52:22Z] refactor(wal): stream write-ahead log directly into memory mapped segment
+
+
+### Sprint Milestone: 2026-05-24 (Target Tier 2)
+- [2026-05-24T04:28:27Z] feat(engine): add vectorized SIMD kernel for dot product calculation
+- [2026-05-24T05:10:49Z] perf(cache): implement adaptive two-queue eviction algorithm
+- [2026-05-24T06:33:30Z] test(concurrency): stress-test actor mailbox under 50k sustained msg/s
+- [2026-05-24T08:17:58Z] refactor(pipeline): extract non-blocking work-stealing threadpool
+- [2026-05-24T09:05:34Z] feat(metrics): export percentile latency histograms for internal RPCs
+- [2026-05-24T11:21:10Z] perf(alloc): replace dynamic heap allocations with arena bump allocator
+- [2026-05-24T12:12:55Z] fix(circuit-breaker): tune backoff exponential jitter to prevent thundering herd
+- [2026-05-24T13:24:44Z] feat(storage): implement append-only commit log with CRC32 checksums
+- [2026-05-24T15:14:13Z] test(chaos): verify raft consensus under network partition and clock drift
+- [2026-05-24T16:28:45Z] perf(query): push down projection and filter predicates to parquet reader
