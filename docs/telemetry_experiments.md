@@ -637,3 +637,24 @@
 - [2026-05-22T16:08:08Z] feat(crypto): implement constant-time comparison for HMAC authentication
 - [2026-05-22T17:11:23Z] fix(gc): eliminate root reference leak in transient session context
 - [2026-05-22T17:01:34Z] perf(dispatch): replace dynamic lookup table with computed branch table
+
+
+### Sprint Milestone: 2026-05-28 (Target Tier 3)
+- [2026-05-28T04:50:57Z] feat(crypto): implement constant-time comparison for HMAC authentication
+- [2026-05-28T04:08:12Z] fix(gc): eliminate root reference leak in transient session context
+- [2026-05-28T05:18:30Z] perf(dispatch): replace dynamic lookup table with computed branch table
+- [2026-05-28T06:03:52Z] test(fuzz): add property-based fuzz testing for protobuf frame parser
+- [2026-05-28T07:41:20Z] feat(routing): add weighted least-connections balancer with health probing
+- [2026-05-28T07:15:20Z] refactor(buffer): optimize zero-copy ring buffer with memory barrier fences
+- [2026-05-28T08:42:41Z] fix(timeout): decouple deadline cancellation from synchronous cleanup hook
+- [2026-05-28T09:11:38Z] feat(engine): add vectorized SIMD kernel for dot product calculation
+- [2026-05-28T10:49:34Z] perf(cache): implement adaptive two-queue eviction algorithm
+- [2026-05-28T11:49:09Z] test(concurrency): stress-test actor mailbox under 50k sustained msg/s
+- [2026-05-28T11:08:38Z] refactor(pipeline): extract non-blocking work-stealing threadpool
+- [2026-05-28T12:21:17Z] feat(metrics): export percentile latency histograms for internal RPCs
+- [2026-05-28T13:56:40Z] perf(alloc): replace dynamic heap allocations with arena bump allocator
+- [2026-05-28T14:02:36Z] fix(circuit-breaker): tune backoff exponential jitter to prevent thundering herd
+- [2026-05-28T14:05:20Z] feat(storage): implement append-only commit log with CRC32 checksums
+- [2026-05-28T15:08:01Z] test(chaos): verify raft consensus under network partition and clock drift
+- [2026-05-28T16:33:53Z] perf(query): push down projection and filter predicates to parquet reader
+- [2026-05-28T17:52:22Z] refactor(wal): stream write-ahead log directly into memory mapped segment
