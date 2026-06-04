@@ -692,3 +692,16 @@
 - [2026-06-05T15:05:28Z] feat(metrics): export percentile latency histograms for internal RPCs
 - [2026-06-05T16:35:53Z] perf(alloc): replace dynamic heap allocations with arena bump allocator
 - [2026-06-05T17:57:16Z] fix(circuit-breaker): tune backoff exponential jitter to prevent thundering herd
+
+
+### Sprint Milestone: 2026-06-04 (Target Tier 2)
+- [2026-06-04T04:18:39Z] test(fuzz): add property-based fuzz testing for protobuf frame parser
+- [2026-06-04T05:16:25Z] feat(routing): add weighted least-connections balancer with health probing
+- [2026-06-04T06:34:05Z] refactor(buffer): optimize zero-copy ring buffer with memory barrier fences
+- [2026-06-04T08:47:35Z] fix(timeout): decouple deadline cancellation from synchronous cleanup hook
+- [2026-06-04T09:45:03Z] feat(engine): add vectorized SIMD kernel for dot product calculation
+- [2026-06-04T11:29:35Z] perf(cache): implement adaptive two-queue eviction algorithm
+- [2026-06-04T12:16:49Z] test(concurrency): stress-test actor mailbox under 50k sustained msg/s
+- [2026-06-04T13:39:41Z] refactor(pipeline): extract non-blocking work-stealing threadpool
+- [2026-06-04T15:37:19Z] feat(metrics): export percentile latency histograms for internal RPCs
+- [2026-06-04T16:14:43Z] perf(alloc): replace dynamic heap allocations with arena bump allocator
