@@ -705,3 +705,16 @@
 - [2026-06-04T13:39:41Z] refactor(pipeline): extract non-blocking work-stealing threadpool
 - [2026-06-04T15:37:19Z] feat(metrics): export percentile latency histograms for internal RPCs
 - [2026-06-04T16:14:43Z] perf(alloc): replace dynamic heap allocations with arena bump allocator
+
+
+### Sprint Milestone: 2026-06-26 (Target Tier 2)
+- [2026-06-26T04:36:13Z] refactor(pipeline): extract non-blocking work-stealing threadpool
+- [2026-06-26T05:17:14Z] feat(metrics): export percentile latency histograms for internal RPCs
+- [2026-06-26T06:26:39Z] perf(alloc): replace dynamic heap allocations with arena bump allocator
+- [2026-06-26T08:55:18Z] fix(circuit-breaker): tune backoff exponential jitter to prevent thundering herd
+- [2026-06-26T09:31:02Z] feat(storage): implement append-only commit log with CRC32 checksums
+- [2026-06-26T11:06:21Z] test(chaos): verify raft consensus under network partition and clock drift
+- [2026-06-26T12:28:35Z] perf(query): push down projection and filter predicates to parquet reader
+- [2026-06-26T13:23:26Z] refactor(wal): stream write-ahead log directly into memory mapped segment
+- [2026-06-26T15:10:06Z] feat(crypto): implement constant-time comparison for HMAC authentication
+- [2026-06-26T16:27:23Z] fix(gc): eliminate root reference leak in transient session context
