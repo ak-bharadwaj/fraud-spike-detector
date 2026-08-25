@@ -12,7 +12,43 @@ from src.contracts.contracts import (
     RiskScore,
     Alert,
     AuditRecord,
+    derive_severity_level,
 )
+
+
+def test_ground_truth_event_severity_derivation():
+    """Verify severity level derivation (Section 14: LOW < 2, MEDIUM 2..4, HIGH >= 4)."""
+    assert derive_severity_level(1.5) == "LOW"
+    assert derive_severity_level(2.0) == "MEDIUM"
+    assert derive_severity_level(3.9) == "MEDIUM"
+    assert derive_severity_level(4.0) == "HIGH"
+    assert derive_severity_level(5.5) == "HIGH"
+
+    now = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
+
+    # Event with magnitude M = 1.2 -> LOW
+    gt_low = GroundTruthEvent(
+        event_id="EVT-1",
+        merchant_id="M1",
+        anomaly_type="volume_spike",
+        start_time=now,
+        end_time=now,
+        severity=1.2,
+    )
+    assert gt_low.severity == 1.2
+    assert gt_low.severity_level == "LOW"
+
+    # Event with magnitude M = 4.5 -> HIGH
+    gt_high = GroundTruthEvent(
+        event_id="EVT-2",
+        merchant_id="M1",
+        anomaly_type="velocity_burst",
+        start_time=now,
+        end_time=now,
+        severity=4.5,
+    )
+    assert gt_high.severity == 4.5
+    assert gt_high.severity_level == "HIGH"
 
 
 def test_risk_score_nullability():
@@ -91,17 +127,3 @@ def test_transaction_contract():
         device_id="DEV-99",
     )
     assert tx.amount == 150.50
-
-
-def test_ground_truth_event_contract():
-    now = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
-    gt = GroundTruthEvent(
-        event_id="EVT-1",
-        merchant_id="M1",
-        anomaly_type="volume_spike",
-        start_time=now,
-        end_time=now,
-        severity=4.5,
-        parameters={"multiplier": 3.0},
-    )
-    assert gt.severity == 4.5

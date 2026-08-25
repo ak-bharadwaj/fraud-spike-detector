@@ -1,47 +1,60 @@
-"""Configuration schemas for YAML validation using Pydantic."""
+"""Configuration schemas for YAML validation using Pydantic.
+
+Structural schemas define configuration shapes and requirements. Operating values
+must be explicitly supplied via external YAML configuration files and selected during
+development sweeps (Days 4-7). No research parameters are hardcoded into Python schemas.
+"""
 
 from typing import Any, Optional
 from pydantic import BaseModel, Field
 
 
 class ScorerConfig(BaseModel):
-    type: str = "HybridEWMAScorer"
-    alpha: float = 0.3
-    persistence: int = 2
-    static_threshold: float = 3.5
+    """Configuration shape for anomaly scoring strategy."""
+    type: str
+    alpha: Optional[float] = None
+    persistence: Optional[int] = None
+    static_threshold: Optional[float] = None
 
 
 class EvidenceConfig(BaseModel):
-    min_history_count: int = 50
-    min_window_count: int = 5
+    """Configuration shape for evidence requirements."""
+    min_history_count: int
+    min_window_count: int
 
 
 class StateMachineConfig(BaseModel):
-    cooldown_windows: int = 5
+    """Configuration shape for alert state machine transitions."""
+    cooldown_windows: int
 
 
 class DetectorConfig(BaseModel):
-    version: str = "1.0.0"
-    scorer: ScorerConfig = Field(default_factory=ScorerConfig)
-    evidence: EvidenceConfig = Field(default_factory=EvidenceConfig)
-    state_machine: StateMachineConfig = Field(default_factory=StateMachineConfig)
+    """Root configuration structure for detector pipeline."""
+    version: str
+    scorer: ScorerConfig
+    evidence: EvidenceConfig
+    state_machine: StateMachineConfig
 
 
 class MerchantConfig(BaseModel):
+    """Configuration shape for synthetic merchant benchmark archetype."""
     id: str
     archetype: str
 
 
 class GeneratorConfig(BaseModel):
-    seed: int = 42
+    """Root configuration structure for synthetic generator."""
+    seed: int
     merchants: list[MerchantConfig] = Field(default_factory=list)
 
 
 class CostModelConfig(BaseModel):
-    fp_review_cost: float = 50.0
-    fn_exposure_factor: float = 1.0
+    """Configuration shape for illustrative business risk evaluation cost model."""
+    fp_review_cost: float
+    fn_exposure_factor: float
 
 
 class EvaluationConfig(BaseModel):
+    """Root configuration structure for evaluation metrics and horizons."""
     horizons: dict[str, int] = Field(default_factory=dict)
-    cost_model: CostModelConfig = Field(default_factory=CostModelConfig)
+    cost_model: CostModelConfig
