@@ -2,6 +2,7 @@
 
 from src.evaluation.evaluator import AnomalyEvaluator
 from src.evaluation.calibration import DetectorCalibrator, CalibrationDataset
+from src.evaluation.ablation import AblationRunner
 from src.evaluation.holdout import (
     HoldoutManifest,
     HoldoutProtection,
@@ -17,6 +18,7 @@ __all__ = [
     "AnomalyEvaluator",
     "DetectorCalibrator",
     "CalibrationDataset",
+    "AblationRunner",
     "HoldoutManifest",
     "HoldoutProtection",
     "HoldoutEvaluator",

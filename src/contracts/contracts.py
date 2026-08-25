@@ -147,3 +147,25 @@ class CalibrationResult(BaseModel):
     status: str  # SUCCESS, INSUFFICIENT_EVIDENCE, FALLBACK
 
 
+class AblationVariantConfig(BaseModel):
+    """Configuration for a single isolated ablation study variant."""
+    variant_id: str
+    description: str
+    disable_ewma: bool = False
+    persistence: int = 2
+    cooldown_windows: int = 5
+    feature_subset: Optional[list[str]] = None
+    static_threshold: float = 3.5
+
+
+class AblationResult(BaseModel):
+    """Result contract comparing an ablation variant against the full pipeline control."""
+    variant_id: str
+    metrics: EvaluationMetrics
+    delta_f1: float
+    delta_precision: float
+    delta_recall: float
+    delta_latency_seconds: Optional[float] = None
+
+
+
