@@ -1,10 +1,10 @@
 """Comprehensive unit tests for Day 2 Synthetic Benchmark Generator.
 
 Validates:
-1. Completed-interval ground-truth emission (Blocker 1).
-2. Independent severity verification without generator helper reuse (Blocker 2).
-3. Option A whole-minute anomaly duration validation (Blocker 3).
-4. Event ID determinism and dimension uniqueness (Blocker 4).
+1. Ground truth event lifecycle (schedule returns event_id: str, completion emits GroundTruthEvent).
+2. Independent severity verification without generator helper reuse.
+3. Option A whole-minute anomaly duration validation.
+4. Event ID determinism and dimension uniqueness.
 5. 100% field-by-field window partitioning identity.
 6. Behavioral verification for all 6 archetypes and 7 anomaly classes.
 7. Overlap rejection and reproducibility invariants.
@@ -41,27 +41,31 @@ from src.stream.clock import VirtualClock
 
 
 # =====================================================================
-# BLOCKER 1: Completed-Interval Ground Truth Emission
+# BLOCKER 1: Ground Truth Lifecycle (schedule -> handle, completion -> GT)
 # =====================================================================
 
-def test_completed_interval_ground_truth_emission():
-    """Verify GroundTruthEvent is emitted ONLY after the complete [start_time, end_time) interval has finished."""
+def test_ground_truth_lifecycle_schedule_handle_completion_emission():
+    """Verify schedule_anomaly returns event_id handle (str), and GroundTruthEvent is emitted ONLY on completion."""
     st = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
     gen = SyntheticStreamGenerator(42, [{"id": "M1", "archetype": "stable"}], VirtualClock(initial_time=st))
 
-    # Anomaly duration: 300 seconds (5 minutes)
     spec = AnomalySpec("volume_spike", st, 300.0, 4.0, {"rate_multiplier": 3.0})
-    gen.schedule_anomaly("M1", spec, "EVT-COMPLETED")
+    handle = gen.schedule_anomaly("M1", spec, "EVT-HANDLE-1")
 
-    # Generate 1-minute steps: minutes 1..4 should emit NO events
+    # schedule_anomaly returns handle string
+    assert isinstance(handle, str)
+    assert handle == "EVT-HANDLE-1"
+
+    # Intermediate steps emit no events
     for m in range(1, 5):
         _, evs = gen.generate_window(1.0)
-        assert len(evs) == 0, f"Minute {m} should NOT emit ground-truth event before full interval completion."
+        assert len(evs) == 0
 
-    # Minute 5 (completion of 300s interval): emits finalized GroundTruthEvent
+    # Completion step emits finalized GroundTruthEvent
     _, evs_final = gen.generate_window(1.0)
     assert len(evs_final) == 1
-    assert evs_final[0].event_id == "EVT-COMPLETED"
+    assert isinstance(evs_final[0], GroundTruthEvent)
+    assert evs_final[0].event_id == "EVT-HANDLE-1"
     assert evs_final[0].severity > 0.0
 
 
@@ -81,11 +85,10 @@ def test_independent_severity_verification_growing_merchant():
     assert len(events) == 1
     gt = events[0]
 
-    # Independent calculation writing explicit growth formula directly in test
+    # Independent calculation writing explicit math directly in test without helper calls
     prof = gen.profiles["M_growing"]
     base_rate = prof.base_rate_per_min
 
-    # Formula: rate(t) = base_rate * (1.0 + 0.02 * elapsed_days)
     expected_total_count_ind = 0.0
     for m in range(5):
         dt_m = st + timedelta(minutes=m)
@@ -115,7 +118,6 @@ def test_independent_severity_verification_seasonal_merchant():
     assert len(events) == 1
     gt = events[0]
 
-    # Independent calculation writing explicit diurnal and weekly seasonal formulas directly in test
     prof = gen.profiles["M_seasonal"]
     base_rate = prof.base_rate_per_min
 
@@ -147,12 +149,10 @@ def test_anomaly_duration_whole_minute_validation():
     st = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
     gen = SyntheticStreamGenerator(42, [{"id": "M1", "archetype": "stable"}], VirtualClock(initial_time=st))
 
-    # 90 seconds (1.5 minutes) -> rejected
     spec_90s = AnomalySpec("velocity_spike", st, 90.0, 3.0)
     with pytest.raises(ValueError, match="Anomaly duration_seconds must be a positive whole number of minutes"):
         gen.schedule_anomaly("M1", spec_90s)
 
-    # 0 seconds -> rejected
     spec_0s = AnomalySpec("velocity_spike", st, 0.0, 3.0)
     with pytest.raises(ValueError, match="Anomaly duration_seconds must be a positive whole number of minutes"):
         gen.schedule_anomaly("M1", spec_0s)
@@ -170,16 +170,16 @@ def test_event_id_determinism_and_dimension_uniqueness():
 
     spec1 = AnomalySpec("velocity_spike", st, 120.0, 3.0, {"rate_multiplier": 3.0})
     spec2 = AnomalySpec("velocity_spike", st, 120.0, 3.0, {"rate_multiplier": 3.0})
-    e1 = gen1.schedule_anomaly("M1", spec1)
-    e2 = gen2.schedule_anomaly("M1", spec2)
-    assert e1.event_id == e2.event_id
-    assert len(e1.event_id.split("-")[-1]) == 32
+    eid1 = gen1.schedule_anomaly("M1", spec1)
+    eid2 = gen2.schedule_anomaly("M1", spec2)
+    assert eid1 == eid2
+    assert len(eid1.split("-")[-1]) == 32
 
     gen3 = SyntheticStreamGenerator(42, [{"id": "M1", "archetype": "stable"}, {"id": "M2", "archetype": "stable"}], VirtualClock(initial_time=st))
 
     e_m1 = gen3.schedule_anomaly("M1", AnomalySpec("velocity_spike", st, 120.0, 3.0))
     e_m2 = gen3.schedule_anomaly("M2", AnomalySpec("velocity_spike", st, 120.0, 3.0))
-    assert e_m1.event_id != e_m2.event_id
+    assert e_m1 != e_m2
 
 
 # =====================================================================

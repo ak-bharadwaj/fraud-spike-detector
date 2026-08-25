@@ -5,8 +5,10 @@ Generates deterministic transaction streams and ground-truth events using Virtua
 Key Invariants:
 - Uses VirtualClock for time management.
 - Enforces No Overlapping Active Events per merchant.
+- schedule_anomaly returns ONLY the scheduling handle (event_id: str).
+- GroundTruthEvents are created and emitted ONLY after the complete [start_time, end_time) interval has finished.
 - Derives realized ground-truth magnitude from actual generated transaction stream statistics over the anomaly's exact temporal interval [start_time, end_time).
-- Emits finalized GroundTruthEvents ONLY after the complete [start_time, end_time) interval has finished.
+- Integrates time-varying legitimate expectation (including surge state) over the entire anomaly interval [start_time, end_time).
 - Validates Option A whole-minute anomaly durations (duration_seconds % 60 == 0).
 - Guarantees exact window-partitioning identity via minute-indexed RNG states.
 - 128-bit SHA-256 deterministic collision-resistant Event IDs.
@@ -82,8 +84,8 @@ class SyntheticStreamGenerator:
         merchant_id: str,
         spec: AnomalySpec,
         event_id: Optional[str] = None,
-    ) -> GroundTruthEvent:
-        """Schedule an anomaly for a merchant, enforcing the No Overlapping Active Events invariant."""
+    ) -> str:
+        """Schedule an anomaly for a merchant and return the scheduling handle (event_id: str)."""
         if merchant_id not in self.profiles:
             raise KeyError(f"Merchant '{merchant_id}' not configured in generator.")
 
@@ -124,8 +126,7 @@ class SyntheticStreamGenerator:
         self.scheduled_specs[merchant_id].append((eid, spec))
         self.anomaly_tx_history[eid] = []
 
-        # Return placeholder specification event
-        return create_ground_truth_event(eid, merchant_id, spec, realized_magnitude=spec.target_magnitude)
+        return eid
 
     def generate_window(
         self,
@@ -256,7 +257,7 @@ class SyntheticStreamGenerator:
                         total_duration_min_int = max(1, int(round(spec.duration_seconds / 60.0)))
                         total_duration_min = max(0.1, spec.duration_seconds / 60.0)
 
-                        # Integrated expected rate over full anomaly duration [start_time, end_time)
+                        # Integrated expected rate over full anomaly duration [start_time, end_time) using surge state
                         expected_total_count = sum(
                             compute_legitimate_rate(
                                 profile=profile,
