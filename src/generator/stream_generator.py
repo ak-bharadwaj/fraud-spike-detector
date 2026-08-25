@@ -6,7 +6,9 @@ Key Invariants:
 - Uses VirtualClock for time management.
 - Enforces No Overlapping Active Events per merchant.
 - schedule_anomaly returns ONLY the scheduling handle (event_id: str).
+- Enforces global event_id uniqueness across generator instance.
 - GroundTruthEvents are created and emitted ONLY after the complete [start_time, end_time) interval has finished.
+- Exact continuous Poisson intensity lam=effective_rate (no integer rounding before Poisson sampling).
 - Derives realized ground-truth magnitude from actual generated transaction stream statistics over the anomaly's exact temporal interval [start_time, end_time).
 - Integrates time-varying legitimate expectation (including surge state) over the entire anomaly interval [start_time, end_time).
 - Validates Option A whole-minute anomaly durations (duration_seconds % 60 == 0).
@@ -71,6 +73,7 @@ class SyntheticStreamGenerator:
         self.anomaly_tx_history: dict[str, list[Transaction]] = {}
         self.finalized_events: dict[str, list[GroundTruthEvent]] = {}
         self.completed_eids: set[str] = set()
+        self.all_scheduled_eids: set[str] = set()
 
         for cfg in merchant_configs:
             m_id = cfg["id"]
@@ -122,6 +125,12 @@ class SyntheticStreamGenerator:
         spec_key = f"{self.global_seed}:{merchant_id}:{spec.anomaly_type}:{st.isoformat()}:{et.isoformat()}:{sorted(spec.parameters.items())}"
         hash_hex = hashlib.sha256(spec_key.encode("utf-8")).hexdigest()[:32]
         eid = event_id or f"EVT-{merchant_id}-{hash_hex}"
+
+        if eid in self.all_scheduled_eids:
+            raise ValueError(
+                f"Duplicate event_id '{eid}' rejected. Event IDs must be globally unique across generator instance."
+            )
+        self.all_scheduled_eids.add(eid)
 
         self.scheduled_specs[merchant_id].append((eid, spec))
         self.anomaly_tx_history[eid] = []
@@ -199,9 +208,8 @@ class SyntheticStreamGenerator:
                         if "payment_method" in params:
                             override_payment = params["payment_method"]
 
-                effective_rate = legit_rate * rate_multiplier
-                expected_count = int(np.round(effective_rate * 1.0))
-                tx_count = max(0, int(rng.poisson(lam=max(0.1, expected_count))))
+                effective_rate = float(legit_rate * rate_multiplier)
+                tx_count = max(0, int(rng.poisson(lam=max(0.0, effective_rate))))
 
                 step_txs: list[Transaction] = []
                 for i in range(tx_count):
