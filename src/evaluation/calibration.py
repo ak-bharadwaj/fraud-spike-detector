@@ -2,12 +2,13 @@
 
 Key Invariants:
 - Calibrates static threshold T on calibration/validation dataset (NOT holdout!).
-- Candidate threshold sweep: default T in [1.0, 10.0] with step 0.5.
+- Structural Holdout Protection: Accepts CalibrationDataset or scores/events; rejects is_holdout=True datasets with HoldoutAccessError.
+- Candidate threshold search grid: T in [1.0, 10.0] with step 0.5.
+- Calibration mechanism: Replays candidate threshold T through AlertStateMachine using frozen persistence P=2 and cooldown C=5.
 - Selection objective: Maximize F1-score evaluated using AnomalyEvaluator.
 - Tie-breaking rule: On equal F1-score, choose HIGHER threshold (more conservative, lower FP).
 - Minimum evidence rule: Minimum min_samples=10 scores required; if sample_count < 10, retains default_threshold=3.5 with status="INSUFFICIENT_EVIDENCE".
-- Holdout protection: Accessing holdout during calibration raises HoldoutAccessError.
-- No upstream mutation: Calibrator does NOT alter FeatureEngine, BaselineEngine, Scorer, or StateMachine.
+- Upstream component immutability: Calibrator does NOT alter FeatureEngine, BaselineEngine, Scorer, or StateMachine.
 - Deterministic: Identical calibration dataset produces 100% identical CalibrationResult.
 """
 
@@ -17,7 +18,24 @@ import numpy as np
 
 from src.contracts.contracts import RiskScore, GroundTruthEvent, Alert, CalibrationResult
 from src.evaluation.evaluator import AnomalyEvaluator
+from src.evaluation.holdout import HoldoutAccessError
 from src.state.alert_state_machine import AlertStateMachine
+
+
+class CalibrationDataset:
+    """Container for calibration dataset streams enforcing holdout protection."""
+
+    def __init__(
+        self,
+        scores_with_timestamps: List[Tuple[str, datetime, RiskScore]],
+        ground_truth_events: List[GroundTruthEvent],
+        is_holdout: bool = False,
+    ):
+        if is_holdout:
+            raise HoldoutAccessError("Holdout access denied: Locked holdout datasets cannot be passed for calibration.")
+        self.scores_with_timestamps = scores_with_timestamps
+        self.ground_truth_events = ground_truth_events
+        self.is_holdout = is_holdout
 
 
 class DetectorCalibrator:
@@ -45,8 +63,16 @@ class DetectorCalibrator:
         scores_with_timestamps: List[Tuple[str, datetime, RiskScore]],
         ground_truth_events: List[GroundTruthEvent],
         candidate_thresholds: Optional[List[float]] = None,
+        is_holdout: bool = False,
     ) -> CalibrationResult:
-        """Calibrate static threshold over candidate_thresholds and return CalibrationResult."""
+        """Calibrate static threshold over candidate_thresholds and return CalibrationResult.
+
+        Raises HoldoutAccessError if is_holdout is True.
+        """
+        # Structural Holdout Isolation Enforcement
+        if is_holdout:
+            raise HoldoutAccessError("Holdout access denied: DetectorCalibrator cannot consume locked holdout data.")
+
         if candidate_thresholds is None:
             candidate_thresholds = [float(t) for t in np.arange(1.0, 10.5, 0.5)]
 
@@ -87,6 +113,19 @@ class DetectorCalibrator:
             calibrated_recall=best_recall,
             sample_count=sample_count,
             status="SUCCESS",
+        )
+
+    def calibrate_dataset(
+        self,
+        dataset: CalibrationDataset,
+        candidate_thresholds: Optional[List[float]] = None,
+    ) -> CalibrationResult:
+        """Calibrate threshold using a CalibrationDataset object."""
+        return self.calibrate(
+            scores_with_timestamps=dataset.scores_with_timestamps,
+            ground_truth_events=dataset.ground_truth_events,
+            candidate_thresholds=candidate_thresholds,
+            is_holdout=dataset.is_holdout,
         )
 
     def _evaluate_threshold(
