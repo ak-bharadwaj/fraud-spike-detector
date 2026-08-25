@@ -3,9 +3,9 @@
 Consumes historical FeatureSnapshot objects to compute BaselineSnapshot objects.
 
 Key Invariants:
+- Config-driven: evidence thresholds (min_history_count, min_window_count) are loaded from config/detector.yaml via DetectorConfig.
 - Baseline evidence eligibility: EMPTY snapshots (volume == 0) are EXCLUDED from median and MAD calculations.
 - Evidence state ownership: INSUFFICIENT, DEGRADED, SUFFICIENT.
-- Provenance: min_history_count (50) and min_window_count (5) are config-driven from config/detector.yaml & Section 15.
 - Historical-only updates: current window baseline depends strictly on past eligible snapshots (t_past < t_current).
 - Zero future leakage: adding future snapshots does not affect past/current baseline state.
 - GroundTruth & Holdout isolation: NO imports of GroundTruthEvent, AnomalySpec, ground truth code, or holdout code.
@@ -15,10 +15,13 @@ Key Invariants:
 """
 
 from datetime import datetime
-from typing import Dict, List, Optional
+from pathlib import Path
+from typing import Dict, List, Optional, Union
 import numpy as np
 
 from src.contracts.contracts import FeatureSnapshot, BaselineSnapshot
+from src.contracts.config_schemas import DetectorConfig
+from src.contracts.config_loader import load_detector_config
 
 
 class BaselineEngine:
@@ -26,21 +29,44 @@ class BaselineEngine:
 
     def __init__(
         self,
-        min_history_count: int = 50,
-        min_window_count: int = 5,
+        config: Optional[DetectorConfig] = None,
+        min_history_count: Optional[int] = None,
+        min_window_count: Optional[int] = None,
         max_history_window: Optional[int] = 500,
     ):
-        if min_history_count <= 0:
-            raise ValueError(f"min_history_count must be positive, got {min_history_count}")
-        if min_window_count < 0:
-            raise ValueError(f"min_window_count must be non-negative, got {min_window_count}")
+        if config is None and (min_history_count is None or min_window_count is None):
+            default_config_path = Path(__file__).parent.parent.parent / "config" / "detector.yaml"
+            config = load_detector_config(default_config_path)
 
-        self.min_history_count = min_history_count
-        self.min_window_count = min_window_count
+        if config is not None:
+            self.min_history_count = min_history_count if min_history_count is not None else config.evidence.min_history_count
+            self.min_window_count = min_window_count if min_window_count is not None else config.evidence.min_window_count
+        else:
+            self.min_history_count = min_history_count if min_history_count is not None else 50
+            self.min_window_count = min_window_count if min_window_count is not None else 5
+
+        if self.min_history_count <= 0:
+            raise ValueError(f"min_history_count must be positive, got {self.min_history_count}")
+        if self.min_window_count < 0:
+            raise ValueError(f"min_window_count must be non-negative, got {self.min_window_count}")
+
         self.max_history_window = max_history_window
 
         # Per-merchant history storage: merchant_id -> list of FeatureSnapshots
         self.histories: Dict[str, List[FeatureSnapshot]] = {}
+
+    @classmethod
+    def from_config(
+        cls,
+        config_path_or_obj: Union[str, Path, DetectorConfig],
+        max_history_window: Optional[int] = 500,
+    ) -> "BaselineEngine":
+        """Factory method to construct BaselineEngine directly from detector configuration."""
+        if isinstance(config_path_or_obj, DetectorConfig):
+            cfg = config_path_or_obj
+        else:
+            cfg = load_detector_config(config_path_or_obj)
+        return cls(config=cfg, max_history_window=max_history_window)
 
     def get_baseline(
         self,

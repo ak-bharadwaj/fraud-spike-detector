@@ -1,20 +1,21 @@
 """Comprehensive behavioral unit tests for Day 4 BaselineEngine.
 
 Validates all 14 required baseline dimensions:
-1. Evidence-state transition (INSUFFICIENT -> SUFFICIENT -> DEGRADED).
-2. Minimum-history requirement (min_history_count=50, min_window_count=5 from config/detector.yaml).
-3. Baseline evidence eligibility (EMPTY/zero-volume snapshots excluded from median/MAD calculations).
-4. Historical-only updates (current snapshot does not inflate its own expected baseline).
-5. Future-leakage prevention (adding t_future does not change t_now baseline).
-6. Baseline statistic correctness (sample median expected_values).
-7. Scale/dispersion correctness (MAD with robust floor).
-8. Legitimate growth handling (smooth baseline tracking).
-9. Genuine deterministic seasonal handling (diurnal baseline bounds).
-10. Sparse merchant handling (insufficient evidence until history count met).
-11. Merchant isolation (Merchant A vs B independence).
-12. Deterministic replay.
-13. GroundTruth & Holdout isolation (zero ground-truth or holdout imports in src/baseline).
-14. BaselineSnapshot Pydantic schema compliance.
+1. Config-driven injection (detector.yaml evidence thresholds dynamically alter engine behavior).
+2. Evidence-state transition (INSUFFICIENT -> SUFFICIENT -> DEGRADED).
+3. Minimum-history requirement (min_history_count=50, min_window_count=5 from config/detector.yaml).
+4. Baseline evidence eligibility (EMPTY/zero-volume snapshots excluded from median/MAD calculations).
+5. Historical-only updates (current snapshot does not inflate its own expected baseline).
+6. Future-leakage prevention (adding t_future does not change t_now baseline).
+7. Baseline statistic correctness (sample median expected_values).
+8. Scale/dispersion correctness (MAD with robust floor).
+9. Legitimate growth handling (smooth baseline tracking with math.isclose).
+10. Genuine deterministic seasonal handling (diurnal baseline bounds).
+11. Sparse merchant handling (insufficient evidence until history count met).
+12. Merchant isolation (Merchant A vs B independence).
+13. Deterministic replay.
+14. GroundTruth & Holdout isolation (zero ground-truth/holdout imports and HoldoutAccessError enforcement).
+15. BaselineSnapshot Pydantic schema compliance.
 """
 
 import ast
@@ -25,8 +26,9 @@ import numpy as np
 import pytest
 
 from src.contracts.contracts import FeatureSnapshot, BaselineSnapshot
+from src.contracts.config_schemas import DetectorConfig, EvidenceConfig, ScorerConfig, StateMachineConfig
 from src.baseline.baseline_engine import BaselineEngine
-from src.features.feature_engine import FeatureEngine
+from src.evaluation.holdout import HoldoutProtection, HoldoutManifest, HoldoutAccessError
 from src.generator.archetypes import create_merchant_profile, compute_legitimate_rate
 from src.generator.stream_generator import SyntheticStreamGenerator
 from src.stream.clock import VirtualClock
@@ -65,7 +67,36 @@ def make_dummy_snapshot(
 
 
 # =====================================================================
-# 1. Baseline Evidence Eligibility (EMPTY Windows Excluded)
+# 1. Config-Driven Injection (Blocker 1)
+# =====================================================================
+
+def test_config_driven_baseline_engine_injection():
+    """Verify BaselineEngine loads thresholds from DetectorConfig and changing config alters threshold dynamically."""
+    custom_cfg = DetectorConfig(
+        version="1.0.0",
+        scorer=ScorerConfig(type="HybridEWMAScorer", alpha=0.3, persistence=2, static_threshold=3.5),
+        evidence=EvidenceConfig(min_history_count=25, min_window_count=3),
+        state_machine=StateMachineConfig(cooldown_windows=5),
+    )
+
+    engine = BaselineEngine.from_config(custom_cfg)
+    assert engine.min_history_count == 25
+    assert engine.min_window_count == 3
+
+    st = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
+    for i in range(25):
+        engine.update(make_dummy_snapshot("M1", st + timedelta(minutes=i), volume=10.0))
+
+    snap = make_dummy_snapshot("M1", st + timedelta(minutes=25), volume=10.0)
+    base = engine.get_baseline("M1", snap)
+
+    # Threshold of 25 is met, so state is SUFFICIENT (whereas default 50 would be INSUFFICIENT)
+    assert base.evidence_state == "SUFFICIENT"
+    assert base.history_count == 25
+
+
+# =====================================================================
+# 2. Baseline Evidence Eligibility (EMPTY Windows Excluded)
 # =====================================================================
 
 def test_baseline_evidence_eligibility_empty_windows_excluded():
@@ -73,25 +104,22 @@ def test_baseline_evidence_eligibility_empty_windows_excluded():
     st = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
     engine = BaselineEngine(min_history_count=4, min_window_count=1)
 
-    # 4 Legitimate GOOD snapshots with volume around 10.0
     good_vols = [10.0, 11.0, 9.0, 10.0]
     for i, v in enumerate(good_vols):
         engine.update(make_dummy_snapshot("M1", st + timedelta(minutes=i), volume=v, data_quality="GOOD"))
 
-    # Add 50 EMPTY snapshots (volume=0, data_quality="EMPTY")
     for i in range(50):
         engine.update(make_dummy_snapshot("M1", st + timedelta(minutes=10 + i), volume=0.0, data_quality="EMPTY"))
 
     snap_now = make_dummy_snapshot("M1", st + timedelta(minutes=100), volume=10.0)
     base = engine.get_baseline("M1", snap_now)
 
-    # Baseline expected volume MUST be median of eligible GOOD history (10.0), NOT 0.0!
     assert base.expected_values["volume"] == 10.0
     assert base.history_count == 4
 
 
 # =====================================================================
-# 2. Evidence-State Transition & Minimum-History Requirement
+# 3. Evidence-State Transition & Minimum-History Requirement
 # =====================================================================
 
 def test_evidence_state_transitions_and_minimum_history():
@@ -99,7 +127,6 @@ def test_evidence_state_transitions_and_minimum_history():
     st = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
     engine = BaselineEngine(min_history_count=50, min_window_count=5)
 
-    # 1. History count < 50 -> INSUFFICIENT
     for i in range(49):
         snap = make_dummy_snapshot("M1", st + timedelta(minutes=i), volume=10.0)
         base = engine.get_baseline("M1", snap)
@@ -109,25 +136,22 @@ def test_evidence_state_transitions_and_minimum_history():
 
     engine.update(make_dummy_snapshot("M1", st + timedelta(minutes=49), volume=10.0))
 
-    # 2. History count = 50, current volume=10 (>=5) -> SUFFICIENT
     current_good = make_dummy_snapshot("M1", st + timedelta(minutes=50), volume=10.0)
     base_good = engine.get_baseline("M1", current_good)
     assert base_good.evidence_state == "SUFFICIENT"
     assert base_good.history_count == 50
 
-    # 3. History count = 50, current volume=2 (<5) -> DEGRADED
     current_low = make_dummy_snapshot("M1", st + timedelta(minutes=51), volume=2.0)
     base_degraded = engine.get_baseline("M1", current_low)
     assert base_degraded.evidence_state == "DEGRADED"
 
-    # 4. History count = 50, current data_quality="EMPTY" -> DEGRADED
     current_empty = make_dummy_snapshot("M1", st + timedelta(minutes=52), volume=0.0, data_quality="EMPTY")
     base_empty = engine.get_baseline("M1", current_empty)
     assert base_empty.evidence_state == "DEGRADED"
 
 
 # =====================================================================
-# 3. Historical-Only Updates
+# 4. Historical-Only Updates
 # =====================================================================
 
 def test_historical_only_updates_current_snapshot_excluded():
@@ -146,7 +170,7 @@ def test_historical_only_updates_current_snapshot_excluded():
 
 
 # =====================================================================
-# 4. Future-Leakage Prevention
+# 5. Future-Leakage Prevention
 # =====================================================================
 
 def test_future_leakage_prevention_adding_future_snapshots():
@@ -172,7 +196,7 @@ def test_future_leakage_prevention_adding_future_snapshots():
 
 
 # =====================================================================
-# 5. Baseline Statistic Correctness & 6. Scale/Dispersion Correctness
+# 6. Baseline Statistic & Scale Correctness
 # =====================================================================
 
 def test_baseline_statistic_and_robust_scale_correctness():
@@ -192,8 +216,29 @@ def test_baseline_statistic_and_robust_scale_correctness():
 
 
 # =====================================================================
-# 7. Legitimate Growth Handling & 8. Genuine Seasonal Handling
+# 7. Legitimate Growth & 8. Seasonal Baseline Tracking (Blocker 2)
 # =====================================================================
+
+def test_legitimate_growth_baseline_tracking():
+    """Verify BaselineEngine computes exact expected median and MAD for linear growth history using math.isclose."""
+    st = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
+    engine = BaselineEngine(min_history_count=10, min_window_count=1)
+
+    vols = [10.0 + 0.1 * i for i in range(100)]
+    for i, v in enumerate(vols):
+        engine.update(make_dummy_snapshot("M_growing", st + timedelta(minutes=i), volume=v))
+
+    snap_later = make_dummy_snapshot("M_growing", st + timedelta(minutes=100), volume=20.0)
+    base_later = engine.get_baseline("M_growing", snap_later)
+
+    vols_arr = np.array(vols)
+    expected_med_ind = float(np.median(vols_arr))
+    expected_mad_ind = float(np.median(np.abs(vols_arr - expected_med_ind)))
+    expected_scale_ind = max(max(0.5, 0.2 * expected_med_ind), expected_mad_ind)
+
+    assert math.isclose(base_later.expected_values["volume"], expected_med_ind, abs_tol=1e-4)
+    assert math.isclose(base_later.robust_scale["volume"], expected_scale_ind, abs_tol=1e-4)
+
 
 def test_seasonal_merchant_baseline_tracking():
     """Verify BaselineEngine computes expected_values and robust_scale for a genuine diurnal seasonal merchant."""
@@ -201,7 +246,6 @@ def test_seasonal_merchant_baseline_tracking():
     prof = create_merchant_profile(42, "M_seasonal", "seasonal")
     engine = BaselineEngine(min_history_count=20, min_window_count=1)
 
-    # Generate 24 hours (1440 minutes) of diurnal seasonal rates
     rates_list = []
     for m in range(0, 1440, 30):
         t_m = st + timedelta(minutes=m)
@@ -212,16 +256,12 @@ def test_seasonal_merchant_baseline_tracking():
     snap_now = make_dummy_snapshot("M_seasonal", st + timedelta(minutes=1440), volume=5.0)
     base = engine.get_baseline("M_seasonal", snap_now)
 
-    exp_med = base.expected_values["volume"]
-    robust_scale = base.robust_scale["volume"]
-
-    # Verify diurnal baseline median and MAD capture the diurnal variation bounds
     rates_arr = np.array(rates_list)
     expected_med_ind = float(np.median(rates_arr))
     expected_mad_ind = float(np.median(np.abs(rates_arr - expected_med_ind)))
 
-    assert math.isclose(exp_med, expected_med_ind, abs_tol=1e-4)
-    assert math.isclose(robust_scale, expected_mad_ind, abs_tol=1e-4)
+    assert math.isclose(base.expected_values["volume"], expected_med_ind, abs_tol=1e-4)
+    assert math.isclose(base.robust_scale["volume"], expected_mad_ind, abs_tol=1e-4)
 
 
 # =====================================================================
@@ -291,7 +331,7 @@ def test_deterministic_baseline_replay():
 
 
 # =====================================================================
-# 12. GroundTruth & Holdout Isolation (AST Architectural Check)
+# 12. GroundTruth & Holdout Isolation (AST & Holdout Protection Check)
 # =====================================================================
 
 def test_ground_truth_and_holdout_isolation_in_baseline_package():
@@ -317,22 +357,18 @@ def test_ground_truth_and_holdout_isolation_in_baseline_package():
                     assert "holdout" not in alias.name and "Holdout" not in alias.name, f"Holdout element import violation in {file_path}: {alias.name}"
 
 
-# =====================================================================
-# 13. Holdout Isolation Execution Test
-# =====================================================================
+def test_holdout_protection_access_denial_boundary():
+    """Verify HoldoutProtection.verify_access raises HoldoutAccessError when explicit_evaluation_mode=False."""
+    manifest = HoldoutManifest(
+        dataset_hash="hash123",
+        generator_version="1.0.0",
+        seed=42,
+        schema_version="1.0.0",
+        created_at="2026-01-01T00:00:00Z",
+    )
 
-def test_holdout_isolation_no_dependencies():
-    """Verify BaselineEngine operates without holdout access or dependencies."""
-    st = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
-    engine = BaselineEngine(min_history_count=5, min_window_count=1)
-
-    for i in range(5):
-        engine.update(make_dummy_snapshot("M1", st + timedelta(minutes=i)))
-
-    snap = make_dummy_snapshot("M1", st + timedelta(minutes=5))
-    base = engine.get_baseline("M1", snap)
-
-    assert isinstance(base, BaselineSnapshot)
+    with pytest.raises(HoldoutAccessError, match="Holdout access denied"):
+        HoldoutProtection.verify_access(manifest, "hash123", explicit_evaluation_mode=False)
 
 
 # =====================================================================
