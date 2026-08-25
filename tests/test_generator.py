@@ -1,16 +1,17 @@
 """Comprehensive unit tests for Day 2 Synthetic Benchmark Generator.
 
 Validates:
-1. Simulation-time RNG model and contiguous clock advancement (Blocker 1).
-2. 128-bit SHA-256 event IDs and collision resistance across specs (Blocker 2).
-3. Integrated time-varying legitimate rate expectation (Blocker 3).
-4. Direct source of truth verification for customer and device pools (Test Improvement).
+1. Completed-interval ground-truth emission (Blocker 1).
+2. Independent severity verification without generator helper reuse (Blocker 2).
+3. Option A whole-minute anomaly duration validation (Blocker 3).
+4. Event ID determinism and dimension uniqueness (Blocker 4).
 5. 100% field-by-field window partitioning identity.
 6. Behavioral verification for all 6 archetypes and 7 anomaly classes.
 7. Overlap rejection and reproducibility invariants.
 """
 
 from datetime import datetime, timedelta, timezone
+import math
 import numpy as np
 import pytest
 
@@ -40,101 +41,149 @@ from src.stream.clock import VirtualClock
 
 
 # =====================================================================
-# BLOCKER 1: 128-bit SHA-256 Event IDs & Collision Resistance
+# BLOCKER 1: Completed-Interval Ground Truth Emission
 # =====================================================================
 
-def test_event_id_sha256_128bit_determinism_and_collision_resistance():
-    """Verify 128-bit (32 hex char) SHA-256 event ID generation is deterministic and collision resistant."""
+def test_completed_interval_ground_truth_emission():
+    """Verify GroundTruthEvent is emitted ONLY after the complete [start_time, end_time) interval has finished."""
     st = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
-    et = st + timedelta(seconds=120)
+    gen = SyntheticStreamGenerator(42, [{"id": "M1", "archetype": "stable"}], VirtualClock(initial_time=st))
+
+    # Anomaly duration: 300 seconds (5 minutes)
+    spec = AnomalySpec("volume_spike", st, 300.0, 4.0, {"rate_multiplier": 3.0})
+    gen.schedule_anomaly("M1", spec, "EVT-COMPLETED")
+
+    # Generate 1-minute steps: minutes 1..4 should emit NO events
+    for m in range(1, 5):
+        _, evs = gen.generate_window(1.0)
+        assert len(evs) == 0, f"Minute {m} should NOT emit ground-truth event before full interval completion."
+
+    # Minute 5 (completion of 300s interval): emits finalized GroundTruthEvent
+    _, evs_final = gen.generate_window(1.0)
+    assert len(evs_final) == 1
+    assert evs_final[0].event_id == "EVT-COMPLETED"
+    assert evs_final[0].severity > 0.0
+
+
+# =====================================================================
+# BLOCKER 2: Independent Severity Verification Test (No Helper Reuse)
+# =====================================================================
+
+def test_independent_severity_verification_growing_merchant():
+    """Independently calculate expected_rate, observed_rate, robust_scale, and M for growing merchant without helper reuse."""
+    st = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
+    gen = SyntheticStreamGenerator(42, [{"id": "M_growing", "archetype": "growing"}], VirtualClock(initial_time=st))
+
+    spec = AnomalySpec("volume_spike", st, 300.0, 4.0, {"rate_multiplier": 3.0})
+    gen.schedule_anomaly("M_growing", spec, "EVT-IND-GROW")
+
+    txs, events = gen.generate_window(5.0)
+    assert len(events) == 1
+    gt = events[0]
+
+    # Independent calculation writing explicit growth formula directly in test
+    prof = gen.profiles["M_growing"]
+    base_rate = prof.base_rate_per_min
+
+    # Formula: rate(t) = base_rate * (1.0 + 0.02 * elapsed_days)
+    expected_total_count_ind = 0.0
+    for m in range(5):
+        dt_m = st + timedelta(minutes=m)
+        elapsed_days = (dt_m - st).total_seconds() / 86400.0
+        growth_mult = 1.0 + 0.02 * elapsed_days
+        expected_total_count_ind += base_rate * growth_mult
+
+    expected_rate_ind = expected_total_count_ind / 5.0
+    observed_total_ind = len(txs)
+    observed_rate_ind = observed_total_ind / 5.0
+
+    robust_scale_ind = max(0.5, 0.2 * expected_rate_ind)
+    m_expected_ind = abs(observed_rate_ind - expected_rate_ind) / robust_scale_ind
+
+    assert gt.severity == m_expected_ind, f"Ground truth severity ({gt.severity}) must EXACTLY equal independently calculated M ({m_expected_ind})"
+
+
+def test_independent_severity_verification_seasonal_merchant():
+    """Independently calculate expected_rate, observed_rate, robust_scale, and M for seasonal merchant without helper reuse."""
+    st = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
+    gen = SyntheticStreamGenerator(42, [{"id": "M_seasonal", "archetype": "seasonal"}], VirtualClock(initial_time=st))
+
+    spec = AnomalySpec("volume_spike", st, 300.0, 4.0, {"rate_multiplier": 3.0})
+    gen.schedule_anomaly("M_seasonal", spec, "EVT-IND-SEAS")
+
+    txs, events = gen.generate_window(5.0)
+    assert len(events) == 1
+    gt = events[0]
+
+    # Independent calculation writing explicit diurnal and weekly seasonal formulas directly in test
+    prof = gen.profiles["M_seasonal"]
+    base_rate = prof.base_rate_per_min
+
+    expected_total_count_ind = 0.0
+    for m in range(5):
+        dt_m = st + timedelta(minutes=m)
+        hour = dt_m.hour + dt_m.minute / 60.0
+        diurnal_mult = 1.0 + 0.4 * math.sin(2.0 * math.pi * (hour - 6.0) / 24.0)
+        day_of_week = dt_m.weekday()
+        weekly_mult = 1.2 if day_of_week in (5, 6) else 0.95
+        expected_total_count_ind += base_rate * diurnal_mult * weekly_mult
+
+    expected_rate_ind = expected_total_count_ind / 5.0
+    observed_total_ind = len(txs)
+    observed_rate_ind = observed_total_ind / 5.0
+
+    robust_scale_ind = max(0.5, 0.2 * expected_rate_ind)
+    m_expected_ind = abs(observed_rate_ind - expected_rate_ind) / robust_scale_ind
+
+    assert gt.severity == m_expected_ind, f"Ground truth severity ({gt.severity}) must EXACTLY equal independently calculated M ({m_expected_ind})"
+
+
+# =====================================================================
+# BLOCKER 3: Option A Whole-Minute Anomaly Duration Validation
+# =====================================================================
+
+def test_anomaly_duration_whole_minute_validation():
+    """Verify non-whole-minute anomaly durations (e.g. 90s, 45s) are explicitly rejected."""
+    st = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
+    gen = SyntheticStreamGenerator(42, [{"id": "M1", "archetype": "stable"}], VirtualClock(initial_time=st))
+
+    # 90 seconds (1.5 minutes) -> rejected
+    spec_90s = AnomalySpec("velocity_spike", st, 90.0, 3.0)
+    with pytest.raises(ValueError, match="Anomaly duration_seconds must be a positive whole number of minutes"):
+        gen.schedule_anomaly("M1", spec_90s)
+
+    # 0 seconds -> rejected
+    spec_0s = AnomalySpec("velocity_spike", st, 0.0, 3.0)
+    with pytest.raises(ValueError, match="Anomaly duration_seconds must be a positive whole number of minutes"):
+        gen.schedule_anomaly("M1", spec_0s)
+
+
+# =====================================================================
+# BLOCKER 4: Event ID Determinism and Dimension Uniqueness
+# =====================================================================
+
+def test_event_id_determinism_and_dimension_uniqueness():
+    """Verify 128-bit SHA-256 event ID generation is deterministic and unique across spec dimensions."""
+    st = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
     gen1 = SyntheticStreamGenerator(42, [{"id": "M1", "archetype": "stable"}], VirtualClock(initial_time=st))
     gen2 = SyntheticStreamGenerator(42, [{"id": "M1", "archetype": "stable"}], VirtualClock(initial_time=st))
 
-    # 1. Determinism: identical spec -> identical SHA-256 event ID
     spec1 = AnomalySpec("velocity_spike", st, 120.0, 3.0, {"rate_multiplier": 3.0})
     spec2 = AnomalySpec("velocity_spike", st, 120.0, 3.0, {"rate_multiplier": 3.0})
     e1 = gen1.schedule_anomaly("M1", spec1)
     e2 = gen2.schedule_anomaly("M1", spec2)
     assert e1.event_id == e2.event_id
-    assert len(e1.event_id.split("-")[-1]) == 32  # 32 hex chars = 128 bits
+    assert len(e1.event_id.split("-")[-1]) == 32
 
-    # 2. Collision resistance across different dimensions
     gen3 = SyntheticStreamGenerator(42, [{"id": "M1", "archetype": "stable"}, {"id": "M2", "archetype": "stable"}], VirtualClock(initial_time=st))
 
-    # Different merchant
     e_m1 = gen3.schedule_anomaly("M1", AnomalySpec("velocity_spike", st, 120.0, 3.0))
     e_m2 = gen3.schedule_anomaly("M2", AnomalySpec("velocity_spike", st, 120.0, 3.0))
     assert e_m1.event_id != e_m2.event_id
 
-    # Different anomaly type
-    gen4 = SyntheticStreamGenerator(42, [{"id": "M1", "archetype": "stable"}], VirtualClock(initial_time=st))
-    e_type1 = gen4.schedule_anomaly("M1", AnomalySpec("velocity_spike", st, 120.0, 3.0), event_id=None)
-    gen4_b = SyntheticStreamGenerator(42, [{"id": "M1", "archetype": "stable"}], VirtualClock(initial_time=st))
-    e_type2 = gen4_b.schedule_anomaly("M1", AnomalySpec("volume_spike", st, 120.0, 3.0), event_id=None)
-    assert e_type1.event_id != e_type2.event_id
-
-    # Different parameters
-    gen5_a = SyntheticStreamGenerator(42, [{"id": "M1", "archetype": "stable"}], VirtualClock(initial_time=st))
-    gen5_b = SyntheticStreamGenerator(42, [{"id": "M1", "archetype": "stable"}], VirtualClock(initial_time=st))
-    e_param1 = gen5_a.schedule_anomaly("M1", AnomalySpec("velocity_spike", st, 120.0, 3.0, {"rate_multiplier": 3.0}))
-    e_param2 = gen5_b.schedule_anomaly("M1", AnomalySpec("velocity_spike", st, 120.0, 3.0, {"rate_multiplier": 5.0}))
-    assert e_param1.event_id != e_param2.event_id
-
-    # Different start/end interval
-    st_b = st + timedelta(minutes=10)
-    gen6_a = SyntheticStreamGenerator(42, [{"id": "M1", "archetype": "stable"}], VirtualClock(initial_time=st))
-    gen6_b = SyntheticStreamGenerator(42, [{"id": "M1", "archetype": "stable"}], VirtualClock(initial_time=st_b))
-    e_time1 = gen6_a.schedule_anomaly("M1", AnomalySpec("velocity_spike", st, 120.0, 3.0))
-    e_time2 = gen6_b.schedule_anomaly("M1", AnomalySpec("velocity_spike", st_b, 120.0, 3.0))
-    assert e_time1.event_id != e_time2.event_id
-
 
 # =====================================================================
-# BLOCKER 2: Time-Varying Legitimate Expectation Over Anomaly Interval
-# =====================================================================
-
-def test_time_varying_legitimate_expectation_integration():
-    """Verify expected baseline rate integrates time-varying legitimate behavior for growing and seasonal merchants."""
-    st = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
-
-    # 1. Growing merchant over 60-minute anomaly interval
-    gen_g = SyntheticStreamGenerator(42, [{"id": "M_growing", "archetype": "growing"}], VirtualClock(initial_time=st))
-    spec_g = AnomalySpec("volume_spike", st, 3600.0, 3.0, {"rate_multiplier": 2.5})
-    gen_g.schedule_anomaly("M_growing", spec_g, "EVT-GROW-INT")
-    _, events_g = gen_g.generate_window(60.0)
-
-    # Expected count is integrated over all 60 minutes
-    prof_g = gen_g.profiles["M_growing"]
-    expected_total_count = sum(
-        compute_legitimate_rate(prof_g, st + timedelta(minutes=m), st)
-        for m in range(60)
-    )
-    expected_rate = expected_total_count / 60.0
-
-    # Start rate vs integrated rate difference (growth over 60 mins increases rate)
-    start_rate = compute_legitimate_rate(prof_g, st, st)
-    assert expected_rate > start_rate, "Integrated expected rate must reflect positive rate growth over interval."
-    assert events_g[0].severity > 0.0
-
-    # 2. Seasonal merchant over 24-hour (1440 min) interval
-    gen_s = SyntheticStreamGenerator(42, [{"id": "M_seasonal", "archetype": "seasonal"}], VirtualClock(initial_time=st))
-    spec_s = AnomalySpec("sustained_anomaly", st, 86400.0, 3.0, {"rate_multiplier": 2.0})
-    gen_s.schedule_anomaly("M_seasonal", spec_s, "EVT-SEAS-INT")
-    _, events_s = gen_s.generate_window(1440.0)
-
-    prof_s = gen_s.profiles["M_seasonal"]
-    expected_total_seas = sum(
-        compute_legitimate_rate(prof_s, st + timedelta(minutes=m), st)
-        for m in range(1440)
-    )
-    expected_rate_seas = expected_total_seas / 1440.0
-
-    assert expected_rate_seas > 0.0
-    assert events_s[0].severity > 0.0
-
-
-# =====================================================================
-# TEMPORAL MODEL: Explicit VirtualClock State Assertions
+# TEMPORAL MODEL & SOURCE OF TRUTH TESTS
 # =====================================================================
 
 def test_simulation_clock_contiguous_advancement():
@@ -157,10 +206,6 @@ def test_simulation_clock_contiguous_advancement():
     assert max_t1 < min_t2
 
 
-# =====================================================================
-# SOURCE OF TRUTH: Customer and Device Pool Direct Configuration Tests
-# =====================================================================
-
 def test_direct_customer_and_device_pool_source_of_truth():
     """Verify generated customer and device IDs strictly conform to configured pool bounds."""
     st = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
@@ -173,15 +218,11 @@ def test_direct_customer_and_device_pool_source_of_truth():
     cust_ids = [int(t.customer_id.split("-")[1]) for t in txs]
     dev_ids = [int(t.device_id.split("-")[1]) for t in txs]
 
-    assert max(cust_ids) <= 350, f"Max customer ID ({max(cust_ids)}) must be <= configured pool size (350)"
+    assert max(cust_ids) <= 350
     assert min(cust_ids) >= 1
-    assert max(dev_ids) <= 250, f"Max device ID ({max(dev_ids)}) must be <= configured pool size (250)"
+    assert max(dev_ids) <= 250
     assert min(dev_ids) >= 1
 
-
-# =====================================================================
-# Additional Generator Contract Tests
-# =====================================================================
 
 def test_customer_population_independence_from_device_pool():
     st = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)

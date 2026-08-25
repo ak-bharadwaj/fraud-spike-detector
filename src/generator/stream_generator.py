@@ -6,12 +6,12 @@ Key Invariants:
 - Uses VirtualClock for time management.
 - Enforces No Overlapping Active Events per merchant.
 - Derives realized ground-truth magnitude from actual generated transaction stream statistics over the anomaly's exact temporal interval [start_time, end_time).
-- Integrates time-varying legitimate expectation over the entire anomaly interval [start_time, end_time).
-- Guarantees exact window-partitioning identity (sev1 == sev2) via minute-indexed RNG states.
+- Emits finalized GroundTruthEvents ONLY after the complete [start_time, end_time) interval has finished.
+- Validates Option A whole-minute anomaly durations (duration_seconds % 60 == 0).
+- Guarantees exact window-partitioning identity via minute-indexed RNG states.
 - 128-bit SHA-256 deterministic collision-resistant Event IDs.
 - Customer population independent of device population.
 - Full 3-tier legitimate payment distribution (credit/debit/prepaid).
-- Strict validation of attribute anomaly specs.
 - Completely isolated from detector code.
 """
 
@@ -67,14 +67,15 @@ class SyntheticStreamGenerator:
         self.profiles: dict[str, MerchantProfile] = {}
         self.scheduled_specs: dict[str, list[tuple[str, AnomalySpec]]] = {}
         self.anomaly_tx_history: dict[str, list[Transaction]] = {}
-        self.active_events: dict[str, list[GroundTruthEvent]] = {}
+        self.finalized_events: dict[str, list[GroundTruthEvent]] = {}
+        self.completed_eids: set[str] = set()
 
         for cfg in merchant_configs:
             m_id = cfg["id"]
             arch = cfg.get("archetype", "stable")
             self.profiles[m_id] = create_merchant_profile(global_seed, m_id, arch)
             self.scheduled_specs[m_id] = []
-            self.active_events[m_id] = []
+            self.finalized_events[m_id] = []
 
     def schedule_anomaly(
         self,
@@ -85,6 +86,11 @@ class SyntheticStreamGenerator:
         """Schedule an anomaly for a merchant, enforcing the No Overlapping Active Events invariant."""
         if merchant_id not in self.profiles:
             raise KeyError(f"Merchant '{merchant_id}' not configured in generator.")
+
+        if spec.duration_seconds <= 0 or float(spec.duration_seconds) % 60.0 != 0.0:
+            raise ValueError(
+                f"Anomaly duration_seconds must be a positive whole number of minutes (multiple of 60s), got {spec.duration_seconds}"
+            )
 
         st = spec.start_time if spec.start_time.tzinfo else spec.start_time.replace(tzinfo=timezone.utc)
         et = spec.end_time if spec.end_time.tzinfo else spec.end_time.replace(tzinfo=timezone.utc)
@@ -118,9 +124,8 @@ class SyntheticStreamGenerator:
         self.scheduled_specs[merchant_id].append((eid, spec))
         self.anomaly_tx_history[eid] = []
 
-        gt_event = create_ground_truth_event(eid, merchant_id, spec, realized_magnitude=spec.target_magnitude)
-        self.active_events[merchant_id].append(gt_event)
-        return gt_event
+        # Return placeholder specification event
+        return create_ground_truth_event(eid, merchant_id, spec, realized_magnitude=spec.target_magnitude)
 
     def generate_window(
         self,
@@ -136,7 +141,7 @@ class SyntheticStreamGenerator:
         window_end = window_start + timedelta(minutes=duration_minutes)
 
         all_txs: list[Transaction] = []
-        emitted_events: set[str] = set()
+        emitted_events: list[GroundTruthEvent] = []
 
         num_minute_steps = int(duration_minutes)
         for step in range(num_minute_steps):
@@ -237,7 +242,7 @@ class SyntheticStreamGenerator:
 
                 all_txs.extend(step_txs)
 
-                # Record transactions for scheduled anomalies during step
+                # Record transactions and finalize completed events when step_end reaches end_time
                 for eid, spec in current_specs:
                     st = spec.start_time if spec.start_time.tzinfo else spec.start_time.replace(tzinfo=timezone.utc)
                     et = spec.end_time if spec.end_time.tzinfo else spec.end_time.replace(tzinfo=timezone.utc)
@@ -245,98 +250,85 @@ class SyntheticStreamGenerator:
                     txs_in_spec = [t for t in step_txs if st <= t.timestamp < et]
                     self.anomaly_tx_history[eid].extend(txs_in_spec)
 
-                    accumulated_txs = self.anomaly_tx_history[eid]
-                    total_duration_min_int = max(1, int(round(spec.duration_seconds / 60.0)))
-                    total_duration_min = max(0.1, spec.duration_seconds / 60.0)
+                    # Finalize realized severity ONLY when the complete [start_time, end_time) interval has finished
+                    if step_end >= et and eid not in self.completed_eids:
+                        accumulated_txs = self.anomaly_tx_history[eid]
+                        total_duration_min_int = max(1, int(round(spec.duration_seconds / 60.0)))
+                        total_duration_min = max(0.1, spec.duration_seconds / 60.0)
 
-                    # Compute expected rate by summing/integrating legitimate rate over all minutes in [start_time, end_time)
-                    expected_total_count = sum(
-                        compute_legitimate_rate(
-                            profile=profile,
-                            current_time=st + timedelta(minutes=m),
-                            simulation_start=self.simulation_start,
-                            is_surge_active=is_surge_active.get(m_id, False),
+                        # Integrated expected rate over full anomaly duration [start_time, end_time)
+                        expected_total_count = sum(
+                            compute_legitimate_rate(
+                                profile=profile,
+                                current_time=st + timedelta(minutes=m),
+                                simulation_start=self.simulation_start,
+                                is_surge_active=is_surge_active.get(m_id, False),
+                            )
+                            for m in range(total_duration_min_int)
                         )
-                        for m in range(total_duration_min_int)
-                    )
-                    expected_spec_rate = expected_total_count / total_duration_min
+                        expected_spec_rate = expected_total_count / total_duration_min
 
-                    elapsed_min = min(total_duration_min, max(0.1, (step_end - st).total_seconds() / 60.0))
-                    obs_rate = len(accumulated_txs) / elapsed_min
-                    scale_rate = max(0.5, 0.2 * expected_spec_rate)
-                    m_rate = compute_standardized_magnitude(obs_rate, expected_spec_rate, scale_rate)
+                        obs_rate = len(accumulated_txs) / total_duration_min
+                        scale_rate = max(0.5, 0.2 * expected_spec_rate)
+                        m_rate = compute_standardized_magnitude(obs_rate, expected_spec_rate, scale_rate)
 
-                    obs_amounts = [t.amount for t in accumulated_txs] if accumulated_txs else [profile.base_mean_amount]
-                    obs_mean_amt = float(np.mean(obs_amounts))
-                    expected_amt = profile.base_mean_amount
-                    scale_amt = max(1.0, profile.base_std_amount)
-                    m_amt = compute_standardized_magnitude(obs_mean_amt, expected_amt, scale_amt)
+                        obs_amounts = [t.amount for t in accumulated_txs] if accumulated_txs else [profile.base_mean_amount]
+                        obs_mean_amt = float(np.mean(obs_amounts))
+                        expected_amt = profile.base_mean_amount
+                        scale_amt = max(1.0, profile.base_std_amount)
+                        m_amt = compute_standardized_magnitude(obs_mean_amt, expected_amt, scale_amt)
 
-                    # Device ratio deviation derived from legitimate occupancy baseline
-                    n_txs = max(1, len(accumulated_txs))
-                    expected_dev_ratio = compute_expected_device_ratio(n_txs, profile.legit_device_pool_size)
-                    scale_dev_ratio = compute_robust_scale_device_ratio(expected_dev_ratio)
-                    obs_dev_ratio = len({t.device_id for t in accumulated_txs}) / n_txs
-                    m_dev = compute_standardized_magnitude(obs_dev_ratio, expected_dev_ratio, scale_dev_ratio)
+                        n_txs = max(1, len(accumulated_txs))
+                        expected_dev_ratio = compute_expected_device_ratio(n_txs, profile.legit_device_pool_size)
+                        scale_dev_ratio = compute_robust_scale_device_ratio(expected_dev_ratio)
+                        obs_dev_ratio = len({t.device_id for t in accumulated_txs}) / n_txs
+                        m_dev = compute_standardized_magnitude(obs_dev_ratio, expected_dev_ratio, scale_dev_ratio)
 
-                    # Country ratio deviation
-                    high_risk_country_count = len([t for t in accumulated_txs if t.country == "HIGH_RISK_GEO"])
-                    obs_country_ratio = high_risk_country_count / n_txs
-                    expected_country_ratio = compute_expected_country_ratio(profile.p_high_risk_country)
-                    scale_country_ratio = compute_robust_scale_country_ratio(profile.p_high_risk_country, n_txs)
-                    m_country = compute_standardized_magnitude(obs_country_ratio, expected_country_ratio, scale_country_ratio)
+                        high_risk_country_count = len([t for t in accumulated_txs if t.country == "HIGH_RISK_GEO"])
+                        obs_country_ratio = high_risk_country_count / n_txs
+                        expected_country_ratio = compute_expected_country_ratio(profile.p_high_risk_country)
+                        scale_country_ratio = compute_robust_scale_country_ratio(profile.p_high_risk_country, n_txs)
+                        m_country = compute_standardized_magnitude(obs_country_ratio, expected_country_ratio, scale_country_ratio)
 
-                    # Payment method ratio deviation
-                    prepaid_count = len([t for t in accumulated_txs if t.payment_method == "PREPAID_CARD"])
-                    obs_payment_ratio = prepaid_count / n_txs
-                    expected_payment_ratio = compute_expected_payment_ratio(profile.p_prepaid_payment)
-                    scale_payment_ratio = compute_robust_scale_payment_ratio(profile.p_prepaid_payment, n_txs)
-                    m_payment = compute_standardized_magnitude(obs_payment_ratio, expected_payment_ratio, scale_payment_ratio)
+                        prepaid_count = len([t for t in accumulated_txs if t.payment_method == "PREPAID_CARD"])
+                        obs_payment_ratio = prepaid_count / n_txs
+                        expected_payment_ratio = compute_expected_payment_ratio(profile.p_prepaid_payment)
+                        scale_payment_ratio = compute_robust_scale_payment_ratio(profile.p_prepaid_payment, n_txs)
+                        m_payment = compute_standardized_magnitude(obs_payment_ratio, expected_payment_ratio, scale_payment_ratio)
 
-                    atype = spec.anomaly_type
-                    params = spec.parameters
+                        atype = spec.anomaly_type
+                        params = spec.parameters
 
-                    if atype == "compound_anomaly":
-                        active_signals = [m_rate, m_amt, m_dev]
-                        if "country" in params:
-                            active_signals.append(m_country)
-                        if "payment_method" in params:
-                            active_signals.append(m_payment)
-                        realized_m = compute_compound_severity(active_signals)
-                    elif atype in ("velocity_spike", "volume_spike", "sustained_anomaly"):
-                        realized_m = m_rate
-                    elif atype == "amount_spike":
-                        realized_m = m_amt
-                    elif atype == "behavioral_shift":
-                        realized_m = m_dev
-                    elif atype == "attribute_anomaly":
-                        attr_signals = []
-                        if "country" in params:
-                            attr_signals.append(m_country)
-                        if "payment_method" in params:
-                            attr_signals.append(m_payment)
-                        realized_m = compute_compound_severity(attr_signals or [m_country])
-                    else:
-                        realized_m = spec.target_magnitude
+                        if atype == "compound_anomaly":
+                            active_signals = [m_rate, m_amt, m_dev]
+                            if "country" in params:
+                                active_signals.append(m_country)
+                            if "payment_method" in params:
+                                active_signals.append(m_payment)
+                            realized_m = compute_compound_severity(active_signals)
+                        elif atype in ("velocity_spike", "volume_spike", "sustained_anomaly"):
+                            realized_m = m_rate
+                        elif atype == "amount_spike":
+                            realized_m = m_amt
+                        elif atype == "behavioral_shift":
+                            realized_m = m_dev
+                        elif atype == "attribute_anomaly":
+                            attr_signals = []
+                            if "country" in params:
+                                attr_signals.append(m_country)
+                            if "payment_method" in params:
+                                attr_signals.append(m_payment)
+                            realized_m = compute_compound_severity(attr_signals or [m_country])
+                        else:
+                            realized_m = spec.target_magnitude
 
-                    realized_gt = create_ground_truth_event(eid, m_id, spec, realized_magnitude=realized_m)
-
-                    # Update active_events list for merchant with realized_gt
-                    for idx, ex_gt in enumerate(self.active_events[m_id]):
-                        if ex_gt.event_id == eid:
-                            self.active_events[m_id][idx] = realized_gt
-
-        # Collect active ground-truth events for the window
-        active_gt_events: list[GroundTruthEvent] = []
-        for m_id in self.profiles:
-            for gt in self.active_events[m_id]:
-                if max(window_start, gt.start_time) < min(window_end, gt.end_time):
-                    if gt.event_id not in emitted_events:
-                        active_gt_events.append(gt)
-                        emitted_events.add(gt.event_id)
+                        finalized_gt = create_ground_truth_event(eid, m_id, spec, realized_magnitude=realized_m)
+                        self.finalized_events[m_id].append(finalized_gt)
+                        self.completed_eids.add(eid)
+                        emitted_events.append(finalized_gt)
 
         # Advance virtual clock
         self.clock.advance(duration_minutes * 60.0)
 
         all_txs.sort(key=lambda x: x.timestamp)
-        return all_txs, active_gt_events
+        return all_txs, emitted_events
