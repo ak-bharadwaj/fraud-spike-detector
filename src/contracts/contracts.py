@@ -168,28 +168,4 @@ class AblationResult(BaseModel):
     delta_latency_seconds: Optional[float] = None
 
 
-class DriftConditionConfig(BaseModel):
-    """Configuration for a single isolated drift characterization condition."""
-    condition_id: str
-    description: str
-    changed_factor: str
-    magnitude: float
-    start_minute: float = 0.0
-    duration_minutes: float = 60.0
-
-
-class DriftResult(BaseModel):
-    """Result contract comparing control vs drifted detector execution under statistical regime shift."""
-    condition_id: str
-    control_metrics: EvaluationMetrics
-    drifted_metrics: EvaluationMetrics
-    delta_f1: float
-    delta_precision: float
-    delta_recall: float
-    delta_latency_seconds: Optional[float] = None
-    adaptation_window_count: int
-    false_alert_count: int
-
-
-
 
