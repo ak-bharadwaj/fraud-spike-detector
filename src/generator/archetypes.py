@@ -25,6 +25,10 @@ class MerchantProfile:
     base_rate_per_min: float
     base_mean_amount: float
     base_std_amount: float
+    expected_device_ratio: float = 0.90
+    robust_scale_device_ratio: float = 0.10
+    expected_high_risk_country_ratio: float = 0.02
+    robust_scale_country_ratio: float = 0.05
 
 
 def create_merchant_profile(global_seed: int, merchant_id: str, archetype: str) -> MerchantProfile:
@@ -103,7 +107,6 @@ def compute_legitimate_rate(
     elif arch == "growing":
         effective_rate = rate * growth_mult
     elif arch == "volatile":
-        # Volatile has rate fluctuation
         noise = 1.0 + 0.3 * math.sin(2.0 * math.pi * elapsed_days * 3.0)
         effective_rate = rate * noise
     elif arch == "sparse":
@@ -113,7 +116,6 @@ def compute_legitimate_rate(
     else:
         effective_rate = rate
 
-    # Legitimate promotional surge
     if is_surge_active:
         effective_rate *= surge_multiplier
 
@@ -123,7 +125,6 @@ def compute_legitimate_rate(
 def sample_legitimate_amount(profile: MerchantProfile, rng: np.random.Generator) -> float:
     """Sample a legitimate transaction amount based on merchant profile."""
     if profile.archetype == "volatile":
-        # Volatile uses log-normal distribution for wide positive skew
         sigma = 0.5
         mu = math.log(max(1.0, profile.base_mean_amount)) - 0.5 * (sigma ** 2)
         val = rng.lognormal(mean=mu, sigma=sigma)
