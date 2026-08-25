@@ -2,7 +2,7 @@
 
 Key Invariants:
 - Calibrates static threshold T on calibration/validation dataset (NOT holdout!).
-- Structural Holdout Protection: Accepts CalibrationDataset or scores/events; rejects is_holdout=True datasets with HoldoutAccessError.
+- Structural Holdout Protection: Requires CalibrationDataset as single public entry point; rejects holdout streams with HoldoutAccessError.
 - Candidate threshold search grid: T in [1.0, 10.0] with step 0.5.
 - Calibration mechanism: Replays candidate threshold T through AlertStateMachine using frozen persistence P=2 and cooldown C=5.
 - Selection objective: Maximize F1-score evaluated using AnomalyEvaluator.
@@ -23,7 +23,7 @@ from src.state.alert_state_machine import AlertStateMachine
 
 
 class CalibrationDataset:
-    """Container for calibration dataset streams enforcing holdout protection."""
+    """Container for calibration dataset streams enforcing structural holdout protection."""
 
     def __init__(
         self,
@@ -32,10 +32,25 @@ class CalibrationDataset:
         is_holdout: bool = False,
     ):
         if is_holdout:
-            raise HoldoutAccessError("Holdout access denied: Locked holdout datasets cannot be passed for calibration.")
+            raise HoldoutAccessError(
+                "Holdout access denied: Locked holdout dataset cannot be used for calibration."
+            )
         self.scores_with_timestamps = scores_with_timestamps
         self.ground_truth_events = ground_truth_events
         self.is_holdout = is_holdout
+
+    @classmethod
+    def from_development_stream(
+        cls,
+        scores_with_timestamps: List[Tuple[str, datetime, RiskScore]],
+        ground_truth_events: List[GroundTruthEvent],
+    ) -> "CalibrationDataset":
+        """Factory creating a verified development CalibrationDataset."""
+        return cls(
+            scores_with_timestamps=scores_with_timestamps,
+            ground_truth_events=ground_truth_events,
+            is_holdout=False,
+        )
 
 
 class DetectorCalibrator:
@@ -60,18 +75,21 @@ class DetectorCalibrator:
 
     def calibrate(
         self,
-        scores_with_timestamps: List[Tuple[str, datetime, RiskScore]],
-        ground_truth_events: List[GroundTruthEvent],
+        dataset: CalibrationDataset,
         candidate_thresholds: Optional[List[float]] = None,
-        is_holdout: bool = False,
     ) -> CalibrationResult:
-        """Calibrate static threshold over candidate_thresholds and return CalibrationResult.
+        """Calibrate static threshold over candidate_thresholds using CalibrationDataset.
 
-        Raises HoldoutAccessError if is_holdout is True.
+        Requires CalibrationDataset input contract. Raises HoldoutAccessError if dataset is holdout.
         """
-        # Structural Holdout Isolation Enforcement
-        if is_holdout:
+        if not isinstance(dataset, CalibrationDataset):
+            raise TypeError(f"calibrate() requires CalibrationDataset input, got {type(dataset).__name__}")
+
+        if dataset.is_holdout:
             raise HoldoutAccessError("Holdout access denied: DetectorCalibrator cannot consume locked holdout data.")
+
+        scores_with_timestamps = dataset.scores_with_timestamps
+        ground_truth_events = dataset.ground_truth_events
 
         if candidate_thresholds is None:
             candidate_thresholds = [float(t) for t in np.arange(1.0, 10.5, 0.5)]
@@ -113,19 +131,6 @@ class DetectorCalibrator:
             calibrated_recall=best_recall,
             sample_count=sample_count,
             status="SUCCESS",
-        )
-
-    def calibrate_dataset(
-        self,
-        dataset: CalibrationDataset,
-        candidate_thresholds: Optional[List[float]] = None,
-    ) -> CalibrationResult:
-        """Calibrate threshold using a CalibrationDataset object."""
-        return self.calibrate(
-            scores_with_timestamps=dataset.scores_with_timestamps,
-            ground_truth_events=dataset.ground_truth_events,
-            candidate_thresholds=candidate_thresholds,
-            is_holdout=dataset.is_holdout,
         )
 
     def _evaluate_threshold(
