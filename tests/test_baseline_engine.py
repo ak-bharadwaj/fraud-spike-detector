@@ -1,10 +1,10 @@
 """Comprehensive behavioral unit tests for Day 4 BaselineEngine.
 
 Validates all 14 required baseline dimensions:
-1. Config-driven injection (detector.yaml evidence thresholds dynamically alter engine behavior).
+1. Config-driven injection & explicit precedence (explicit kwargs > DetectorConfig > detector.yaml).
 2. Evidence-state transition (INSUFFICIENT -> SUFFICIENT -> DEGRADED).
 3. Minimum-history requirement (min_history_count=50, min_window_count=5 from config/detector.yaml).
-4. Baseline evidence eligibility (EMPTY/zero-volume snapshots excluded from median/MAD calculations).
+4. Baseline evidence eligibility (DEGRADED volume > 0 included, EMPTY/zero-volume excluded).
 5. Historical-only updates (current snapshot does not inflate its own expected baseline).
 6. Future-leakage prevention (adding t_future does not change t_now baseline).
 7. Baseline statistic correctness (sample median expected_values).
@@ -67,11 +67,11 @@ def make_dummy_snapshot(
 
 
 # =====================================================================
-# 1. Config-Driven Injection (Blocker 1)
+# 1. Config-Driven Injection & Precedence (Check 1)
 # =====================================================================
 
-def test_config_driven_baseline_engine_injection():
-    """Verify BaselineEngine loads thresholds from DetectorConfig and changing config alters threshold dynamically."""
+def test_config_driven_baseline_engine_injection_and_precedence():
+    """Verify explicit kwargs override DetectorConfig, which overrides default config/detector.yaml file."""
     custom_cfg = DetectorConfig(
         version="1.0.0",
         scorer=ScorerConfig(type="HybridEWMAScorer", alpha=0.3, persistence=2, static_threshold=3.5),
@@ -79,43 +79,54 @@ def test_config_driven_baseline_engine_injection():
         state_machine=StateMachineConfig(cooldown_windows=5),
     )
 
-    engine = BaselineEngine.from_config(custom_cfg)
-    assert engine.min_history_count == 25
-    assert engine.min_window_count == 3
+    # 1. Config object overrides default detector.yaml (25 vs 50)
+    engine_config = BaselineEngine.from_config(custom_cfg)
+    assert engine_config.min_history_count == 25
+    assert engine_config.min_window_count == 3
+
+    # 2. Explicit kwarg overrides DetectorConfig (15 vs 25)
+    engine_override = BaselineEngine.from_config(custom_cfg, min_history_count=15)
+    assert engine_override.min_history_count == 15
+    assert engine_override.min_window_count == 3
 
     st = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
-    for i in range(25):
-        engine.update(make_dummy_snapshot("M1", st + timedelta(minutes=i), volume=10.0))
+    for i in range(15):
+        engine_override.update(make_dummy_snapshot("M1", st + timedelta(minutes=i), volume=10.0))
 
-    snap = make_dummy_snapshot("M1", st + timedelta(minutes=25), volume=10.0)
-    base = engine.get_baseline("M1", snap)
+    snap = make_dummy_snapshot("M1", st + timedelta(minutes=15), volume=10.0)
+    base = engine_override.get_baseline("M1", snap)
 
-    # Threshold of 25 is met, so state is SUFFICIENT (whereas default 50 would be INSUFFICIENT)
+    # Precedence threshold 15 is met -> state is SUFFICIENT
     assert base.evidence_state == "SUFFICIENT"
-    assert base.history_count == 25
+    assert base.history_count == 15
 
 
 # =====================================================================
-# 2. Baseline Evidence Eligibility (EMPTY Windows Excluded)
+# 2. Baseline Evidence Eligibility & DEGRADED Status (Check 2)
 # =====================================================================
 
-def test_baseline_evidence_eligibility_empty_windows_excluded():
-    """Verify EMPTY windows (volume=0) do NOT contaminate baseline expected_values or robust_scale."""
+def test_degraded_low_volume_windows_included_in_eligible_history():
+    """Verify non-zero DEGRADED low-volume windows (0 < volume < 5) ARE included in eligible history, while EMPTY/zero-volume are excluded."""
     st = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
-    engine = BaselineEngine(min_history_count=4, min_window_count=1)
+    engine = BaselineEngine(min_history_count=4, min_window_count=5)
 
-    good_vols = [10.0, 11.0, 9.0, 10.0]
-    for i, v in enumerate(good_vols):
-        engine.update(make_dummy_snapshot("M1", st + timedelta(minutes=i), volume=v, data_quality="GOOD"))
+    # 2 GOOD snapshots (volume = 10.0) + 2 DEGRADED low-volume snapshots (volume = 2.0)
+    engine.update(make_dummy_snapshot("M1", st + timedelta(minutes=0), volume=10.0, data_quality="GOOD"))
+    engine.update(make_dummy_snapshot("M1", st + timedelta(minutes=1), volume=10.0, data_quality="GOOD"))
+    engine.update(make_dummy_snapshot("M1", st + timedelta(minutes=2), volume=2.0, data_quality="GOOD"))
+    engine.update(make_dummy_snapshot("M1", st + timedelta(minutes=3), volume=2.0, data_quality="GOOD"))
 
-    for i in range(50):
+    # Add 20 EMPTY snapshots (volume = 0.0, data_quality = "EMPTY")
+    for i in range(20):
         engine.update(make_dummy_snapshot("M1", st + timedelta(minutes=10 + i), volume=0.0, data_quality="EMPTY"))
 
     snap_now = make_dummy_snapshot("M1", st + timedelta(minutes=100), volume=10.0)
     base = engine.get_baseline("M1", snap_now)
 
-    assert base.expected_values["volume"] == 10.0
+    # Eligible history includes the 4 non-zero snapshots (2 good + 2 degraded), excluding the 20 EMPTY snapshots
     assert base.history_count == 4
+    # Median of [10.0, 10.0, 2.0, 2.0] = 6.0 (proving DEGRADED low-volume snapshots were included in median calculation)
+    assert base.expected_values["volume"] == 6.0
 
 
 # =====================================================================
@@ -216,7 +227,7 @@ def test_baseline_statistic_and_robust_scale_correctness():
 
 
 # =====================================================================
-# 7. Legitimate Growth & 8. Seasonal Baseline Tracking (Blocker 2)
+# 7. Legitimate Growth & 8. Seasonal Baseline Tracking
 # =====================================================================
 
 def test_legitimate_growth_baseline_tracking():
