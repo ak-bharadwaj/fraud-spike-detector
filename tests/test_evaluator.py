@@ -208,6 +208,14 @@ def test_zero_denominator_metrics_matrix():
     assert r2.recall == 0.0
     assert r2.f1_score == 0.0
 
+    # 3. 1 alert, 0 GT events -> Precision=0.0, Recall=1.0, F1=0.0
+    alt = make_dummy_alert("M1", st)
+    r3 = evaluator.evaluate([alt], [])
+    assert r3.precision == 0.0
+    assert r3.recall == 1.0
+    assert r3.f1_score == 0.0
+
+
 
 # =====================================================================
 # 4. No-Threshold-Tuning Invariant & GroundTruth Isolation

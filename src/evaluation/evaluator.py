@@ -10,9 +10,10 @@ Key Invariants:
 - Unmatched events: GT event with zero matching alerts = FN.
 - Latency calculation: (first_matching_alert.timestamp - event.start_time).total_seconds().
 - Zero-denominator semantics:
-  - If TP + FP == 0: Precision = 1.0 if FN == 0 else 0.0.
-  - If TP + FN == 0: Recall = 1.0 if FP == 0 else 0.0.
-  - If P + R == 0: F1 = 0.0.
+  - empty/empty (TP=0, FP=0, FN=0) -> P=1, R=1, F1=1.
+  - events/no alerts (TP=0, FP=0, FN>0) -> P=0, R=0, F1=0.
+  - alerts/no events (TP=0, FP>0, FN=0) -> P=0, R=1, F1=0.
+  - P + R == 0 -> F1 = 0.
 - No threshold tuning: Evaluator ONLY measures performance, does NOT modify detector parameters.
 - GroundTruth isolation: Ground truth flows ONLY into evaluation, NEVER into detector.
 """
@@ -107,7 +108,7 @@ class AnomalyEvaluator:
             precision = float(tp / (tp + fp))
 
         if tp + fn == 0:
-            recall = 1.0 if fp == 0 else 0.0
+            recall = 1.0
         else:
             recall = float(tp / (tp + fn))
 
