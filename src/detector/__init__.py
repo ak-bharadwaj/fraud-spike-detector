@@ -1,5 +1,5 @@
-"""Detector package for anomaly risk scoring."""
+"""Detector package export."""
 
-from src.scoring.hybrid_ewma import HybridEWMAScorer
+from src.detector.pipeline import StreamingDetectorPipeline
 
-__all__ = ["HybridEWMAScorer"]
+__all__ = ["StreamingDetectorPipeline"]

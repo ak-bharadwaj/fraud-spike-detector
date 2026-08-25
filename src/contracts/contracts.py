@@ -12,7 +12,8 @@ Contradictory severity levels (e.g. M=4.5 with severity_level='LOW') are rejecte
 """
 
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any, Optional, Union
+import uuid
 from pydantic import BaseModel, Field, model_validator
 
 
@@ -109,17 +110,38 @@ class Alert(BaseModel):
 
 
 class AuditRecord(BaseModel):
-    audit_id: str
+    audit_id: Optional[str] = None
     alert_id: Optional[str] = None
     merchant_id: str
     timestamp: datetime
     risk_score: Optional[float] = None  # Explicit float | None requirement
     confidence: float
-    features: dict[str, Any] = Field(default_factory=dict)
-    baseline: dict[str, Any] = Field(default_factory=dict)
+    features: Union[dict[str, Any], FeatureSnapshot, Any] = Field(default_factory=dict)
+    baseline: Union[dict[str, Any], BaselineSnapshot, Any] = Field(default_factory=dict)
     triggered_signals: list[str] = Field(default_factory=list)
     detector_version: str
     data_quality_status: str
+
+    @model_validator(mode="after")
+    def populate_ids(self) -> "AuditRecord":
+        if self.audit_id is None and self.alert_id is not None:
+            self.audit_id = self.alert_id
+        elif self.audit_id is None and self.alert_id is None:
+            self.audit_id = f"AUD-{uuid.uuid4().hex[:16]}"
+        if self.alert_id is None:
+            self.alert_id = self.audit_id
+        return self
+
+
+class FrozenDetectorConfig(BaseModel):
+    """Immutable frozen detector configuration shared contract."""
+    static_threshold: float = 3.5
+    ewma_alpha: float = 0.3
+    persistence: int = 2
+    cooldown_windows: int = 5
+    min_window_count: int = 5
+    temporal_tolerance_seconds: float = 0.0
+    detector_version: str = "1.0.0"
 
 
 class EvaluationMetrics(BaseModel):
@@ -166,6 +188,3 @@ class AblationResult(BaseModel):
     delta_precision: float
     delta_recall: float
     delta_latency_seconds: Optional[float] = None
-
-
-
