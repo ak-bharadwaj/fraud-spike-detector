@@ -6,8 +6,9 @@ Key Invariants:
 - Uses VirtualClock for time management.
 - Enforces No Overlapping Active Events per merchant.
 - Derives realized ground-truth magnitude from actual generated transaction stream statistics over the anomaly's exact temporal interval [start_time, end_time).
+- Integrates time-varying legitimate expectation over the entire anomaly interval [start_time, end_time).
 - Guarantees exact window-partitioning identity (sev1 == sev2) via minute-indexed RNG states.
-- SHA-256 deterministic collision-resistant Event IDs.
+- 128-bit SHA-256 deterministic collision-resistant Event IDs.
 - Customer population independent of device population.
 - Full 3-tier legitimate payment distribution (credit/debit/prepaid).
 - Strict validation of attribute anomaly specs.
@@ -111,7 +112,7 @@ class SyntheticStreamGenerator:
                 )
 
         spec_key = f"{self.global_seed}:{merchant_id}:{spec.anomaly_type}:{st.isoformat()}:{et.isoformat()}:{sorted(spec.parameters.items())}"
-        hash_hex = hashlib.sha256(spec_key.encode("utf-8")).hexdigest()[:10]
+        hash_hex = hashlib.sha256(spec_key.encode("utf-8")).hexdigest()[:32]
         eid = event_id or f"EVT-{merchant_id}-{hash_hex}"
 
         self.scheduled_specs[merchant_id].append((eid, spec))
@@ -245,14 +246,20 @@ class SyntheticStreamGenerator:
                     self.anomaly_tx_history[eid].extend(txs_in_spec)
 
                     accumulated_txs = self.anomaly_tx_history[eid]
+                    total_duration_min_int = max(1, int(round(spec.duration_seconds / 60.0)))
                     total_duration_min = max(0.1, spec.duration_seconds / 60.0)
 
-                    expected_spec_rate = compute_legitimate_rate(
-                        profile=profile,
-                        current_time=st,
-                        simulation_start=self.simulation_start,
-                        is_surge_active=is_surge_active.get(m_id, False),
+                    # Compute expected rate by summing/integrating legitimate rate over all minutes in [start_time, end_time)
+                    expected_total_count = sum(
+                        compute_legitimate_rate(
+                            profile=profile,
+                            current_time=st + timedelta(minutes=m),
+                            simulation_start=self.simulation_start,
+                            is_surge_active=is_surge_active.get(m_id, False),
+                        )
+                        for m in range(total_duration_min_int)
                     )
+                    expected_spec_rate = expected_total_count / total_duration_min
 
                     elapsed_min = min(total_duration_min, max(0.1, (step_end - st).total_seconds() / 60.0))
                     obs_rate = len(accumulated_txs) / elapsed_min

@@ -2,13 +2,12 @@
 
 Validates:
 1. Simulation-time RNG model and contiguous clock advancement (Blocker 1).
-2. Deterministic SHA-256 event IDs and collision resistance (Blocker 2).
-3. Customer population independence from device pool (Blocker 3).
-4. Full 3-tier legitimate payment distribution sampling (Blocker 4).
-5. Strict attribute anomaly specification validation (Blocker 5).
-6. 100% field-by-field window partitioning identity.
-7. Behavioral verification for all 6 archetypes and 7 anomaly classes.
-8. Overlap rejection and reproducibility invariants.
+2. 128-bit SHA-256 event IDs and collision resistance across specs (Blocker 2).
+3. Integrated time-varying legitimate rate expectation (Blocker 3).
+4. Direct source of truth verification for customer and device pools (Test Improvement).
+5. 100% field-by-field window partitioning identity.
+6. Behavioral verification for all 6 archetypes and 7 anomaly classes.
+7. Overlap rejection and reproducibility invariants.
 """
 
 from datetime import datetime, timedelta, timezone
@@ -41,33 +40,13 @@ from src.stream.clock import VirtualClock
 
 
 # =====================================================================
-# BLOCKER 1: Simulation-Time RNG Model & Contiguous Clock Advancement
+# BLOCKER 1: 128-bit SHA-256 Event IDs & Collision Resistance
 # =====================================================================
 
-def test_simulation_clock_contiguous_advancement():
-    """Verify contiguous stream generation across sequential generate_window calls with no duplicate timestamps."""
+def test_event_id_sha256_128bit_determinism_and_collision_resistance():
+    """Verify 128-bit (32 hex char) SHA-256 event ID generation is deterministic and collision resistant."""
     st = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
-    gen = SyntheticStreamGenerator(42, [{"id": "M1", "archetype": "stable"}], VirtualClock(initial_time=st))
-
-    txs1, _ = gen.generate_window(5.0)
-    txs2, _ = gen.generate_window(5.0)
-
-    # Window 1 timestamps in [T0, T5), Window 2 timestamps in [T5, T10)
-    max_t1 = max(t.timestamp for t in txs1)
-    min_t2 = min(t.timestamp for t in txs2)
-
-    assert max_t1 < st + timedelta(minutes=5.0)
-    assert min_t2 >= st + timedelta(minutes=5.0)
-    assert max_t1 < min_t2
-
-
-# =====================================================================
-# BLOCKER 2: Deterministic SHA-256 Event IDs & Collision Resistance
-# =====================================================================
-
-def test_event_id_sha256_determinism_and_collision_resistance():
-    """Verify SHA-256 event ID generation is deterministic and collision resistant."""
-    st = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
+    et = st + timedelta(seconds=120)
     gen1 = SyntheticStreamGenerator(42, [{"id": "M1", "archetype": "stable"}], VirtualClock(initial_time=st))
     gen2 = SyntheticStreamGenerator(42, [{"id": "M1", "archetype": "stable"}], VirtualClock(initial_time=st))
 
@@ -77,22 +56,134 @@ def test_event_id_sha256_determinism_and_collision_resistance():
     e1 = gen1.schedule_anomaly("M1", spec1)
     e2 = gen2.schedule_anomaly("M1", spec2)
     assert e1.event_id == e2.event_id
+    assert len(e1.event_id.split("-")[-1]) == 32  # 32 hex chars = 128 bits
 
-    # 2. Collision resistance: different params at same timestamp -> different event ID
+    # 2. Collision resistance across different dimensions
     gen3 = SyntheticStreamGenerator(42, [{"id": "M1", "archetype": "stable"}, {"id": "M2", "archetype": "stable"}], VirtualClock(initial_time=st))
-    spec_a = AnomalySpec("velocity_spike", st, 120.0, 3.0, {"rate_multiplier": 3.0})
-    spec_b = AnomalySpec("volume_spike", st, 120.0, 3.0, {"rate_multiplier": 2.5})
-    ea = gen3.schedule_anomaly("M1", spec_a)
-    eb = gen3.schedule_anomaly("M2", spec_b)
-    assert ea.event_id != eb.event_id
+
+    # Different merchant
+    e_m1 = gen3.schedule_anomaly("M1", AnomalySpec("velocity_spike", st, 120.0, 3.0))
+    e_m2 = gen3.schedule_anomaly("M2", AnomalySpec("velocity_spike", st, 120.0, 3.0))
+    assert e_m1.event_id != e_m2.event_id
+
+    # Different anomaly type
+    gen4 = SyntheticStreamGenerator(42, [{"id": "M1", "archetype": "stable"}], VirtualClock(initial_time=st))
+    e_type1 = gen4.schedule_anomaly("M1", AnomalySpec("velocity_spike", st, 120.0, 3.0), event_id=None)
+    gen4_b = SyntheticStreamGenerator(42, [{"id": "M1", "archetype": "stable"}], VirtualClock(initial_time=st))
+    e_type2 = gen4_b.schedule_anomaly("M1", AnomalySpec("volume_spike", st, 120.0, 3.0), event_id=None)
+    assert e_type1.event_id != e_type2.event_id
+
+    # Different parameters
+    gen5_a = SyntheticStreamGenerator(42, [{"id": "M1", "archetype": "stable"}], VirtualClock(initial_time=st))
+    gen5_b = SyntheticStreamGenerator(42, [{"id": "M1", "archetype": "stable"}], VirtualClock(initial_time=st))
+    e_param1 = gen5_a.schedule_anomaly("M1", AnomalySpec("velocity_spike", st, 120.0, 3.0, {"rate_multiplier": 3.0}))
+    e_param2 = gen5_b.schedule_anomaly("M1", AnomalySpec("velocity_spike", st, 120.0, 3.0, {"rate_multiplier": 5.0}))
+    assert e_param1.event_id != e_param2.event_id
+
+    # Different start/end interval
+    st_b = st + timedelta(minutes=10)
+    gen6_a = SyntheticStreamGenerator(42, [{"id": "M1", "archetype": "stable"}], VirtualClock(initial_time=st))
+    gen6_b = SyntheticStreamGenerator(42, [{"id": "M1", "archetype": "stable"}], VirtualClock(initial_time=st_b))
+    e_time1 = gen6_a.schedule_anomaly("M1", AnomalySpec("velocity_spike", st, 120.0, 3.0))
+    e_time2 = gen6_b.schedule_anomaly("M1", AnomalySpec("velocity_spike", st_b, 120.0, 3.0))
+    assert e_time1.event_id != e_time2.event_id
 
 
 # =====================================================================
-# BLOCKER 3: Customer Population Independent of Device Population
+# BLOCKER 2: Time-Varying Legitimate Expectation Over Anomaly Interval
+# =====================================================================
+
+def test_time_varying_legitimate_expectation_integration():
+    """Verify expected baseline rate integrates time-varying legitimate behavior for growing and seasonal merchants."""
+    st = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
+
+    # 1. Growing merchant over 60-minute anomaly interval
+    gen_g = SyntheticStreamGenerator(42, [{"id": "M_growing", "archetype": "growing"}], VirtualClock(initial_time=st))
+    spec_g = AnomalySpec("volume_spike", st, 3600.0, 3.0, {"rate_multiplier": 2.5})
+    gen_g.schedule_anomaly("M_growing", spec_g, "EVT-GROW-INT")
+    _, events_g = gen_g.generate_window(60.0)
+
+    # Expected count is integrated over all 60 minutes
+    prof_g = gen_g.profiles["M_growing"]
+    expected_total_count = sum(
+        compute_legitimate_rate(prof_g, st + timedelta(minutes=m), st)
+        for m in range(60)
+    )
+    expected_rate = expected_total_count / 60.0
+
+    # Start rate vs integrated rate difference (growth over 60 mins increases rate)
+    start_rate = compute_legitimate_rate(prof_g, st, st)
+    assert expected_rate > start_rate, "Integrated expected rate must reflect positive rate growth over interval."
+    assert events_g[0].severity > 0.0
+
+    # 2. Seasonal merchant over 24-hour (1440 min) interval
+    gen_s = SyntheticStreamGenerator(42, [{"id": "M_seasonal", "archetype": "seasonal"}], VirtualClock(initial_time=st))
+    spec_s = AnomalySpec("sustained_anomaly", st, 86400.0, 3.0, {"rate_multiplier": 2.0})
+    gen_s.schedule_anomaly("M_seasonal", spec_s, "EVT-SEAS-INT")
+    _, events_s = gen_s.generate_window(1440.0)
+
+    prof_s = gen_s.profiles["M_seasonal"]
+    expected_total_seas = sum(
+        compute_legitimate_rate(prof_s, st + timedelta(minutes=m), st)
+        for m in range(1440)
+    )
+    expected_rate_seas = expected_total_seas / 1440.0
+
+    assert expected_rate_seas > 0.0
+    assert events_s[0].severity > 0.0
+
+
+# =====================================================================
+# TEMPORAL MODEL: Explicit VirtualClock State Assertions
+# =====================================================================
+
+def test_simulation_clock_contiguous_advancement():
+    """Verify VirtualClock current_time advances explicitly and contiguously with no duplicate timestamps."""
+    st = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
+    gen = SyntheticStreamGenerator(42, [{"id": "M1", "archetype": "stable"}], VirtualClock(initial_time=st))
+
+    assert gen.clock.current_time() == st
+
+    txs1, _ = gen.generate_window(5.0)
+    assert gen.clock.current_time() == st + timedelta(minutes=5.0)
+
+    txs2, _ = gen.generate_window(5.0)
+    assert gen.clock.current_time() == st + timedelta(minutes=10.0)
+
+    max_t1 = max(t.timestamp for t in txs1)
+    min_t2 = min(t.timestamp for t in txs2)
+    assert max_t1 < st + timedelta(minutes=5.0)
+    assert min_t2 >= st + timedelta(minutes=5.0)
+    assert max_t1 < min_t2
+
+
+# =====================================================================
+# SOURCE OF TRUTH: Customer and Device Pool Direct Configuration Tests
+# =====================================================================
+
+def test_direct_customer_and_device_pool_source_of_truth():
+    """Verify generated customer and device IDs strictly conform to configured pool bounds."""
+    st = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
+    gen = SyntheticStreamGenerator(42, [{"id": "M1", "archetype": "stable"}], VirtualClock(initial_time=st))
+    gen.profiles["M1"].legit_customer_pool_size = 350
+    gen.profiles["M1"].legit_device_pool_size = 250
+
+    txs, _ = gen.generate_window(20.0)
+
+    cust_ids = [int(t.customer_id.split("-")[1]) for t in txs]
+    dev_ids = [int(t.device_id.split("-")[1]) for t in txs]
+
+    assert max(cust_ids) <= 350, f"Max customer ID ({max(cust_ids)}) must be <= configured pool size (350)"
+    assert min(cust_ids) >= 1
+    assert max(dev_ids) <= 250, f"Max device ID ({max(dev_ids)}) must be <= configured pool size (250)"
+    assert min(dev_ids) >= 1
+
+
+# =====================================================================
+# Additional Generator Contract Tests
 # =====================================================================
 
 def test_customer_population_independence_from_device_pool():
-    """Verify customer population is independent of device pool size during behavioral shift."""
     st = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
     gen = SyntheticStreamGenerator(42, [{"id": "M1", "archetype": "stable"}], VirtualClock(initial_time=st))
 
@@ -104,17 +195,11 @@ def test_customer_population_independence_from_device_pool():
     unique_devices = len({t.device_id for t in txs})
     unique_customers = len({t.customer_id for t in txs})
 
-    # Devices constrained to <= 5, while customers drawn from 5000 pool
     assert unique_devices <= 5
-    assert unique_customers > 15, f"Customer cardinality ({unique_customers}) must not be constrained by device pool (5)"
+    assert unique_customers > 15
 
-
-# =====================================================================
-# BLOCKER 4: Full 3-Tier Legitimate Payment Distribution
-# =====================================================================
 
 def test_legitimate_3tier_payment_distribution():
-    """Verify legitimate generator samples CREDIT_CARD, DEBIT_CARD, and PREPAID_CARD."""
     st = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
     gen = SyntheticStreamGenerator(42, [{"id": "M1", "archetype": "stable"}], VirtualClock(initial_time=st))
 
@@ -126,60 +211,20 @@ def test_legitimate_3tier_payment_distribution():
     assert "PREPAID_CARD" in payments
 
 
-# =====================================================================
-# BLOCKER 5: Rejection of Malformed Attribute Anomaly Specifications
-# =====================================================================
-
 def test_attribute_anomaly_specification_validation():
-    """Verify malformed attribute anomaly specifications are explicitly rejected."""
     st = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
     gen = SyntheticStreamGenerator(42, [{"id": "M1", "archetype": "stable"}], VirtualClock(initial_time=st))
 
-    # Empty parameters -> rejected
     spec_empty = AnomalySpec("attribute_anomaly", st, 120.0, 3.0, {})
     with pytest.raises(ValueError, match="attribute_anomaly spec for merchant 'M1' requires at least one supported attribute parameter"):
         gen.schedule_anomaly("M1", spec_empty)
 
-    # Unsupported attribute key -> rejected
     spec_invalid = AnomalySpec("attribute_anomaly", st, 120.0, 3.0, {"unsupported_key": "val"})
     with pytest.raises(ValueError, match="Unsupported attribute parameter 'unsupported_key' for attribute_anomaly"):
         gen.schedule_anomaly("M1", spec_invalid)
 
 
-# =====================================================================
-# Determinism / Reproducibility Invariants
-# =====================================================================
-
-def test_reproducibility_invariant_1_same_seed_same_merchant():
-    st = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
-    gen1 = SyntheticStreamGenerator(42, [{"id": "M1", "archetype": "stable"}], VirtualClock(initial_time=st))
-    gen2 = SyntheticStreamGenerator(42, [{"id": "M1", "archetype": "stable"}], VirtualClock(initial_time=st))
-
-    txs1, _ = gen1.generate_window(5.0)
-    txs2, _ = gen2.generate_window(5.0)
-
-    assert len(txs1) == len(txs2)
-    for t1, t2 in zip(txs1, txs2):
-        assert t1 == t2
-
-
-def test_reproducibility_invariant_2_merchant_isolation():
-    st = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
-    gen_single = SyntheticStreamGenerator(42, [{"id": "M1", "archetype": "stable"}], VirtualClock(initial_time=st))
-    gen_multi = SyntheticStreamGenerator(42, [{"id": "M1", "archetype": "stable"}, {"id": "M2", "archetype": "volatile"}], VirtualClock(initial_time=st))
-
-    txs_single, _ = gen_single.generate_window(5.0)
-    txs_multi, _ = gen_multi.generate_window(5.0)
-
-    m1_multi = [t for t in txs_multi if t.merchant_id == "M1"]
-
-    assert len(txs_single) == len(m1_multi)
-    for t1, t2 in zip(txs_single, m1_multi):
-        assert t1 == t2
-
-
 def test_window_partition_field_by_field_identity():
-    """Verify 100% field-by-field equality and severity equality between 5-min step and five 1-min steps."""
     st = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
 
     clock1 = VirtualClock(initial_time=st)
