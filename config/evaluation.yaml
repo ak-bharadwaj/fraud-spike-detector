@@ -1,0 +1,13 @@
+horizons:
+  velocity_burst: 60
+  volume_spike: 120
+  amount_shift: 180
+  behavioral_anomaly: 180
+  attribute_shift: 180
+  sustained_spike: 300
+  compound_anomaly: 300
+  evasive_patterns: 300
+
+cost_model:
+  fp_review_cost: 50.0
+  fn_exposure_factor: 1.0

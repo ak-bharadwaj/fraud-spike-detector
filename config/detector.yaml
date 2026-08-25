@@ -1,0 +1,13 @@
+version: "1.0.0"
+scorer:
+  type: "HybridEWMAScorer"
+  alpha: 0.3
+  persistence: 2
+  static_threshold: 3.5
+
+evidence:
+  min_history_count: 50
+  min_window_count: 5
+
+state_machine:
+  cooldown_windows: 5
