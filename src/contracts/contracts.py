@@ -120,3 +120,19 @@ class AuditRecord(BaseModel):
     triggered_signals: list[str] = Field(default_factory=list)
     detector_version: str
     data_quality_status: str
+
+
+class EvaluationMetrics(BaseModel):
+    """Core evaluation metrics result contract."""
+    tp: int
+    fp: int
+    fn: int
+    tn: Optional[int] = None
+    precision: float
+    recall: float
+    f1_score: float
+    mean_latency_seconds: Optional[float] = None
+    matched_events: list[dict[str, Any]] = Field(default_factory=list)
+    unmatched_alerts: list[str] = Field(default_factory=list)
+    unmatched_events: list[str] = Field(default_factory=list)
+
