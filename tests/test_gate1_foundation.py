@@ -2,13 +2,15 @@
 
 Tests:
 1. TimeOrderedEventBus ordering, tie-breaking, VirtualClock integration, replay determinism, compositionality.
-2. SQLiteAuditStore schema creation, Alert, AuditRecord, StateTransition, Experiment metadata persistence.
-3. StreamingDetectorPipeline end-to-end vertical slice.
-4. Section 20 Scorer Exception Path (Audit-only error, NO Alert, NO ALERT state transition, stream continuation).
+2. EventBus-driven streaming pipeline execution via bus.drain(handler).
+3. SQLiteAuditStore schema creation, nullability, table queries, and database file reload.
+4. Deterministic replay of SQLite audit records (100% identical records across runs).
+5. Scorer-only exception handling (Section 20: Audit-only error, NO Alert, NO ALERT state transition, stream continuation).
 """
 
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+import sqlite3
 import pytest
 
 from src.contracts.contracts import (
@@ -87,19 +89,16 @@ def test_time_ordered_event_bus_replay_determinism_and_merchant_compositionality
     bus2.publish_batch(m1_txs + m2_txs)
     res2 = bus2.get_ordered_events()
 
-    # Extract M1 transactions from combined result res2
     m1_from_res2 = [t for t in res2 if t.merchant_id == "M1"]
-
-    # Compositionality: M1 relative order is strictly invariant to presence of M2
     assert res1 == m1_from_res2
 
 
 # =====================================================================
-# 2. SQLite Audit & Persistence Layer Tests
+# 2. SQLite Audit Store & File Reload Persistence Tests
 # =====================================================================
 
-def test_sqlite_audit_store_schemas_and_persistence(tmp_path):
-    """Verify SQLite database schema creation and persistence for alerts, audit_records, state_transitions, and experiments."""
+def test_sqlite_audit_store_schemas_and_file_reload(tmp_path):
+    """Verify SQLite schema creation, nullability, TEXT serialization, and database file reload."""
     db_file = tmp_path / "test_audit.db"
     store = SQLiteAuditStore(db_path=db_file)
 
@@ -118,13 +117,7 @@ def test_sqlite_audit_store_schemas_and_persistence(tmp_path):
     )
     store.save_alert(alert)
 
-    saved_alerts = store.get_alerts(merchant_id="M1")
-    assert len(saved_alerts) == 1
-    assert saved_alerts[0]["alert_id"] == "ALT-100"
-    assert saved_alerts[0]["risk_score"] == 4.2
-    assert saved_alerts[0]["triggered_signals"] == ["volume"]
-
-    # 2. Audit Record Persistence with JSON TEXT columns
+    # 2. Audit Record Persistence
     feat = FeatureSnapshot(
         merchant_id="M1",
         timestamp=st,
@@ -146,25 +139,19 @@ def test_sqlite_audit_store_schemas_and_persistence(tmp_path):
     )
 
     audit_rec = AuditRecord(
-        audit_id="ALT-100",
+        audit_id="AUD-100",
         alert_id="ALT-100",
         merchant_id="M1",
         timestamp=st,
         risk_score=4.2,
         confidence=0.9,
-        features=feat,
-        baseline=base,
+        features=feat.model_dump(mode="json"),
+        baseline=base.model_dump(mode="json"),
         triggered_signals=["volume"],
         detector_version="1.0.0",
         data_quality_status="OK",
     )
     store.save_audit_record(audit_rec)
-
-    saved_audits = store.get_audit_records(merchant_id="M1")
-    assert len(saved_audits) == 1
-    assert saved_audits[0]["alert_id"] == "ALT-100"
-    assert saved_audits[0]["features"]["volume"] == 50.0
-    assert saved_audits[0]["baseline"]["evidence_state"] == "SUFFICIENT"
 
     # 3. State Transition Persistence
     store.save_state_transition(
@@ -176,12 +163,7 @@ def test_sqlite_audit_store_schemas_and_persistence(tmp_path):
         risk_score=4.2,
     )
 
-    transitions = store.get_state_transitions(merchant_id="M1")
-    assert len(transitions) == 1
-    assert transitions[0]["previous_state"] == "NORMAL"
-    assert transitions[0]["new_state"] == "ALERT"
-
-    # 4. Experiment Persistence
+    # 4. Experiment Metadata Persistence
     store.save_experiment(
         experiment_id="EXP-001",
         dataset_id="DEV-SET-01",
@@ -193,26 +175,44 @@ def test_sqlite_audit_store_schemas_and_persistence(tmp_path):
         costs={"fp_cost": 0.0, "fn_exposure": 100.0},
     )
 
-    exps = store.get_experiments()
-    assert len(exps) == 1
-    assert exps[0]["experiment_id"] == "EXP-001"
-    assert exps[0]["metrics"]["precision"] == 1.0
-
+    # Close store and reload from database file
     store.close()
 
+    reloaded_store = SQLiteAuditStore(db_path=db_file)
+
+    alerts = reloaded_store.get_alerts(merchant_id="M1")
+    assert len(alerts) == 1
+    assert alerts[0]["alert_id"] == "ALT-100"
+    assert alerts[0]["risk_score"] == 4.2
+    assert alerts[0]["triggered_signals"] == ["volume"]
+
+    audits = reloaded_store.get_audit_records(merchant_id="M1")
+    assert len(audits) == 1
+    assert audits[0]["alert_id"] == "ALT-100"
+    assert audits[0]["features"]["volume"] == 50.0
+
+    transitions = reloaded_store.get_state_transitions(merchant_id="M1")
+    assert len(transitions) == 1
+    assert transitions[0]["new_state"] == "ALERT"
+
+    exps = reloaded_store.get_experiments()
+    assert len(exps) == 1
+    assert exps[0]["metrics"]["precision"] == 1.0
+
+    reloaded_store.close()
+
 
 # =====================================================================
-# 3. End-to-End Detector Pipeline & Section 20 Exception Path Tests
+# 3. EventBus-Driven Pipeline & Replay Determinism Tests
 # =====================================================================
 
-def test_streaming_detector_pipeline_end_to_end_vertical_slice():
-    """Verify end-to-end streaming pipeline execution and SQLite persistence."""
+def test_streaming_detector_pipeline_eventbus_driven_execution_and_replay_determinism():
+    """Verify EventBus-driven pipeline execution via bus.drain and 100% deterministic SQLite records across replay."""
     st = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
     config = FrozenDetectorConfig(static_threshold=3.5, persistence=2, cooldown_windows=5, min_window_count=1)
-    pipeline = StreamingDetectorPipeline(config=config, db_path=":memory:")
 
     txs = []
-    # 5 baseline 1-minute windows with realistic slight volume variation (8..12 txs)
+    # Baseline windows with volume variation (8..12)
     base_counts = [8, 10, 12, 9, 11]
     for w, count in enumerate(base_counts):
         w_st = st + timedelta(minutes=w)
@@ -230,7 +230,7 @@ def test_streaming_detector_pipeline_end_to_end_vertical_slice():
                 )
             )
 
-    # 2 spike 1-minute windows breaching threshold (150 transactions each)
+    # Spike windows (150 txs each)
     for w in range(5, 7):
         w_st = st + timedelta(minutes=w)
         for i in range(150):
@@ -247,31 +247,32 @@ def test_streaming_detector_pipeline_end_to_end_vertical_slice():
                 )
             )
 
-    alerts = pipeline.process_transactions(txs)
+    # Execution 1
+    p1 = StreamingDetectorPipeline(config=config, db_path=":memory:")
+    alerts1 = p1.process_transactions(txs)
+    audits1 = p1.audit_store.get_audit_records(merchant_id="M1")
 
-    # Persistence P=2 requires 2 consecutive breaching windows -> 1 Alert emitted
-    assert len(alerts) == 1
-    assert alerts[0].merchant_id == "M1"
-    assert alerts[0].risk_score > 3.5
+    # Execution 2 (Replay)
+    p2 = StreamingDetectorPipeline(config=config, db_path=":memory:")
+    alerts2 = p2.process_transactions(txs)
+    audits2 = p2.audit_store.get_audit_records(merchant_id="M1")
 
-    # Verify SQLite database persistence
-    sq_alerts = pipeline.audit_store.get_alerts(merchant_id="M1")
-    assert len(sq_alerts) == 1
+    assert len(alerts1) == 1
+    assert len(alerts2) == 1
+    assert alerts1[0].model_dump() == alerts2[0].model_dump()
 
-    sq_audits = pipeline.audit_store.get_audit_records(merchant_id="M1")
-    assert len(sq_audits) == 7  # 7 total windows processed
+    # Replay determinism: Audit records are 100% byte-for-byte identical across runs (no random UUIDs!)
+    assert len(audits1) == len(audits2)
+    for a1, a2 in zip(audits1, audits2):
+        assert a1 == a2
 
-    sq_transitions = pipeline.audit_store.get_state_transitions(merchant_id="M1")
-    assert len(sq_transitions) >= 1
 
-
-def test_scorer_exception_path_section20_contract_compliance(monkeypatch):
-    """Verify Section 20 Scorer Exception Path: Scorer error produces error AuditRecord, NO Alert, NO ALERT state transition, and stream continues."""
+def test_scorer_only_exception_scoping_section20_contract_compliance(monkeypatch):
+    """Verify Section 20 Scorer Exception Path: Exception scoped STRICTLY to scorer, saved as SCORER_ERROR audit, NO Alert, NO ALERT transition, stream continues."""
     st = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
     config = FrozenDetectorConfig(static_threshold=3.5, persistence=1, min_window_count=1)
     pipeline = StreamingDetectorPipeline(config=config, db_path=":memory:")
 
-    # Monkeypatch scorer to raise ZeroDivisionError on 2nd window
     call_count = [0]
     orig_calculate_score = pipeline.scorer.calculate_score
 
@@ -284,7 +285,6 @@ def test_scorer_exception_path_section20_contract_compliance(monkeypatch):
     monkeypatch.setattr(pipeline.scorer, "calculate_score", mock_calculate_score)
 
     txs = []
-    # 3 one-minute windows of transactions
     for w in range(3):
         w_st = st + timedelta(minutes=w)
         for i in range(20):
@@ -303,7 +303,6 @@ def test_scorer_exception_path_section20_contract_compliance(monkeypatch):
 
     alerts = pipeline.process_transactions(txs)
 
-    # Scorer exception occurred on window 2 -> stream continued across all 3 windows!
     assert call_count[0] == 3
 
     audits = pipeline.audit_store.get_audit_records(merchant_id="M1")

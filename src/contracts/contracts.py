@@ -12,8 +12,7 @@ Contradictory severity levels (e.g. M=4.5 with severity_level='LOW') are rejecte
 """
 
 from datetime import datetime
-from typing import Any, Optional, Union
-import uuid
+from typing import Any, Optional
 from pydantic import BaseModel, Field, model_validator
 
 
@@ -110,27 +109,17 @@ class Alert(BaseModel):
 
 
 class AuditRecord(BaseModel):
-    audit_id: Optional[str] = None
+    audit_id: str
     alert_id: Optional[str] = None
     merchant_id: str
     timestamp: datetime
     risk_score: Optional[float] = None  # Explicit float | None requirement
     confidence: float
-    features: Union[dict[str, Any], FeatureSnapshot, Any] = Field(default_factory=dict)
-    baseline: Union[dict[str, Any], BaselineSnapshot, Any] = Field(default_factory=dict)
+    features: dict[str, Any] = Field(default_factory=dict)
+    baseline: dict[str, Any] = Field(default_factory=dict)
     triggered_signals: list[str] = Field(default_factory=list)
     detector_version: str
     data_quality_status: str
-
-    @model_validator(mode="after")
-    def populate_ids(self) -> "AuditRecord":
-        if self.audit_id is None and self.alert_id is not None:
-            self.audit_id = self.alert_id
-        elif self.audit_id is None and self.alert_id is None:
-            self.audit_id = f"AUD-{uuid.uuid4().hex[:16]}"
-        if self.alert_id is None:
-            self.alert_id = self.audit_id
-        return self
 
 
 class FrozenDetectorConfig(BaseModel):

@@ -132,7 +132,7 @@ class SQLiteAuditStore:
 
         features_json = json.dumps(feat_dict, default=str)
         baseline_json = json.dumps(base_dict, default=str)
-        alert_id_val = audit.audit_id
+        alert_id_val = audit.alert_id if audit.alert_id is not None else audit.audit_id
 
         with self.conn:
             self.conn.execute(
