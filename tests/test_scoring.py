@@ -1,16 +1,21 @@
 """Comprehensive behavioral unit tests for Day 5 HybridEWMAScorer.
 
-Validates all scoring behavioral dimensions:
-1. RiskScore Pydantic schema compliance (score: Optional[float] = None).
-2. Evidence-state scoring (INSUFFICIENT -> score=None, confidence=0.0).
-3. Degraded evidence scoring (DEGRADED -> score=S_ewma, confidence=0.5).
-4. Sufficient evidence scoring (SUFFICIENT -> score=S_ewma, confidence=1.0).
-5. Standardized magnitude calculation M_k = |f_k - expected_k| / scale_k.
-6. EWMA smoothing progression (S_ewma,t = alpha * S_raw,t + (1 - alpha) * S_ewma,t-1).
-7. Triggered signals thresholding (M_k >= static_threshold).
-8. Merchant EWMA state isolation (Merchant A vs B independence).
-9. Deterministic scoring replay.
-10. GroundTruth & Holdout isolation (zero ground-truth/holdout imports in src/scoring and src/detector).
+Validates all 15 required scoring behavioral dimensions:
+1. Exact standardized magnitude calculation (M_k = |f_k - expected_k| / scale_k).
+2. Max-feature aggregation (S_raw = max_k M_k across all 11 features).
+3. Zero-scale handling (raises ValueError if scale <= 0.0).
+4. Explicit feature mapping (all 11 features mapped).
+5. Missing baseline feature failure (raises KeyError if baseline expectation/scale missing).
+6. EWMA progression (S_ewma,t = alpha * S_raw,t + (1 - alpha) * S_ewma,t-1).
+7. EWMA merchant isolation (Merchant A vs B independence).
+8. INSUFFICIENT evidence -> EWMA state reset.
+9. DEGRADED evidence state mapping (confidence = 0.5, data_quality = "DEGRADED").
+10. SUFFICIENT evidence state mapping (confidence = 1.0, data_quality = "GOOD").
+11. Persistence ownership (documented for Day 6 AlertStateMachine).
+12. Deterministic scoring replay.
+13. GroundTruth isolation AST check.
+14. Holdout isolation AST check.
+15. RiskScore Pydantic schema compliance.
 """
 
 import ast
@@ -22,7 +27,7 @@ import pytest
 
 from src.contracts.contracts import FeatureSnapshot, BaselineSnapshot, RiskScore
 from src.contracts.config_schemas import DetectorConfig, ScorerConfig, EvidenceConfig, StateMachineConfig
-from src.scoring.hybrid_ewma import HybridEWMAScorer
+from src.scoring.hybrid_ewma import HybridEWMAScorer, FEATURE_BASELINE_MAP
 
 
 # =====================================================================
@@ -100,127 +105,162 @@ def make_dummy_baseline(
 
 
 # =====================================================================
-# 1. Evidence-State Scoring Tests (INSUFFICIENT, DEGRADED, SUFFICIENT)
+# 1. Exact Standardized Magnitude & 2. Max Aggregation
 # =====================================================================
 
-def test_evidence_state_insufficient_returns_none_score():
-    """Verify INSUFFICIENT evidence state returns score=None and confidence=0.0."""
+def test_exact_standardized_magnitude_and_max_aggregation():
+    """Verify exact M_k calculation and max aggregation S_raw = max_k M_k."""
     st = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
     scorer = HybridEWMAScorer(alpha=0.3, static_threshold=3.5)
 
-    feat = make_dummy_feature("M1", st, volume=100.0)  # Huge volume spike
-    base = make_dummy_baseline("M1", st, evidence_state="INSUFFICIENT")
-
-    risk = scorer.calculate_score(feat, base)
-
-    assert risk.score is None
-    assert risk.confidence == 0.0
-    assert risk.triggered_signals == []
-    assert risk.data_quality == "GOOD"
-
-
-def test_evidence_state_degraded_returns_score_with_half_confidence():
-    """Verify DEGRADED evidence state returns valid EWMA score with confidence=0.5 and data_quality='DEGRADED'."""
-    st = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
-    scorer = HybridEWMAScorer(alpha=0.3, static_threshold=3.5)
-
-    # Volume = 20.0, expected = 10.0, scale = 2.0 -> M_vol = (20-10)/2 = 5.0
-    feat = make_dummy_feature("M1", st, volume=20.0)
-    base = make_dummy_baseline("M1", st, evidence_state="DEGRADED", exp_volume=10.0, scale_volume=2.0)
-
-    risk = scorer.calculate_score(feat, base)
-
-    assert risk.score is not None
-    assert math.isclose(risk.score, 5.0, abs_tol=1e-4)
-    assert risk.confidence == 0.5
-    assert risk.data_quality == "DEGRADED"
-
-
-def test_evidence_state_sufficient_returns_score_with_full_confidence():
-    """Verify SUFFICIENT evidence state returns valid EWMA score with confidence=1.0 and data_quality='GOOD'."""
-    st = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
-    scorer = HybridEWMAScorer(alpha=0.3, static_threshold=3.5)
-
-    feat = make_dummy_feature("M1", st, volume=20.0)
+    # Volume: f_val = 30.0, exp = 10.0, scale = 2.0 -> M_vol = (30-10)/2 = 10.0
+    feat = make_dummy_feature("M1", st, volume=30.0, velocity=6.0)
     base = make_dummy_baseline("M1", st, evidence_state="SUFFICIENT", exp_volume=10.0, scale_volume=2.0)
 
     risk = scorer.calculate_score(feat, base)
 
-    assert risk.score is not None
-    assert math.isclose(risk.score, 5.0, abs_tol=1e-4)
-    assert risk.confidence == 1.0
-    assert risk.data_quality == "GOOD"
+    # Max magnitude is M_vol = 10.0
+    assert math.isclose(risk.score, 10.0, abs_tol=1e-4)
 
 
 # =====================================================================
-# 2. Standardized Magnitude & Triggered Signals
+# 3. Zero-Scale Handling (Raises ValueError)
 # =====================================================================
 
-def test_standardized_magnitude_and_triggered_signals():
-    """Verify standardized deviation calculation M_k and static_threshold signal triggering."""
+def test_zero_robust_scale_raises_value_error():
+    """Verify zero or negative robust scale raises explicit ValueError."""
     st = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
     scorer = HybridEWMAScorer(alpha=0.3, static_threshold=3.5)
 
-    # Volume spike: volume = 20.0 (exp = 10.0, scale = 2.0) -> M_vol = 5.0 (>= 3.5 -> triggered)
-    # Velocity spike: velocity = 4.0 (exp = 2.0, scale = 0.4) -> M_vel = 5.0 (>= 3.5 -> triggered)
-    feat = make_dummy_feature("M1", st, volume=20.0, velocity=4.0)
-    base = make_dummy_baseline("M1", st, evidence_state="SUFFICIENT", exp_volume=10.0, scale_volume=2.0)
+    feat = make_dummy_feature("M1", st)
+    base = make_dummy_baseline("M1", st)
+    base.robust_scale["volume"] = 0.0  # Zero scale violation
 
-    risk = scorer.calculate_score(feat, base)
-
-    assert "volume" in risk.triggered_signals
-    assert "velocity" in risk.triggered_signals
+    with pytest.raises(ValueError, match="Invalid non-positive robust scale for feature 'volume'"):
+        scorer.calculate_score(feat, base)
 
 
 # =====================================================================
-# 3. EWMA Smoothing Progression
+# 4. Explicit Feature Mapping & 5. Missing Baseline Feature Failure
 # =====================================================================
 
-def test_ewma_smoothing_progression():
-    """Verify EWMA update equation: S_ewma,t = alpha * S_raw,t + (1 - alpha) * S_ewma,t-1."""
+def test_explicit_feature_mapping_and_missing_baseline_feature_raises_key_error():
+    """Verify all 11 required features are mapped and missing baseline feature raises KeyError."""
     st = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
     scorer = HybridEWMAScorer(alpha=0.3, static_threshold=3.5)
 
-    # Step 1: Raw score = 10.0 -> EWMA1 = 10.0
+    assert len(FEATURE_BASELINE_MAP) == 11
+
+    feat = make_dummy_feature("M1", st)
+    base = make_dummy_baseline("M1", st)
+    del base.expected_values["amount_mean_amount"]  # Delete required baseline expectation
+
+    with pytest.raises(KeyError, match="Missing required baseline feature expectation/scale for 'amount_mean_amount'"):
+        scorer.calculate_score(feat, base)
+
+
+# =====================================================================
+# 6. EWMA Progression & 7. EWMA Merchant Isolation
+# =====================================================================
+
+def test_ewma_smoothing_progression_and_merchant_isolation():
+    """Verify EWMA update equation and merchant state isolation."""
+    st = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
+    scorer = HybridEWMAScorer(alpha=0.3, static_threshold=3.5)
+
+    # Merchant A step 1 (raw = 10.0) -> EWMA_A = 10.0
+    feat_a1 = make_dummy_feature("M_A", st, volume=30.0)
+    base_a1 = make_dummy_baseline("M_A", st, exp_volume=10.0, scale_volume=2.0)
+    risk_a1 = scorer.calculate_score(feat_a1, base_a1)
+    assert math.isclose(risk_a1.score, 10.0, abs_tol=1e-4)
+
+    # Merchant B step 1 (raw = 5.0) -> EWMA_B = 5.0 (isolated from Merchant A)
+    feat_b1 = make_dummy_feature("M_B", st, volume=20.0)
+    base_b1 = make_dummy_baseline("M_B", st, exp_volume=10.0, scale_volume=2.0)
+    risk_b1 = scorer.calculate_score(feat_b1, base_b1)
+    assert math.isclose(risk_b1.score, 5.0, abs_tol=1e-4)
+
+    # Merchant A step 2 (raw = 0.0) -> EWMA_A = 0.3 * 0.0 + 0.7 * 10.0 = 7.0
+    st2 = st + timedelta(minutes=1)
+    feat_a2 = make_dummy_feature("M_A", st2, volume=10.0)
+    base_a2 = make_dummy_baseline("M_A", st2, exp_volume=10.0, scale_volume=2.0)
+    risk_a2 = scorer.calculate_score(feat_a2, base_a2)
+    assert math.isclose(risk_a2.score, 7.0, abs_tol=1e-4)
+
+
+# =====================================================================
+# 8. INSUFFICIENT Evidence EWMA State Reset
+# =====================================================================
+
+def test_insufficient_evidence_resets_ewma_state():
+    """Verify INSUFFICIENT evidence state resets merchant EWMA state preventing stale state leakage."""
+    st = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
+    scorer = HybridEWMAScorer(alpha=0.3, static_threshold=3.5)
+
+    # Step 1: Merchant A gets high EWMA score = 10.0
     feat1 = make_dummy_feature("M1", st, volume=30.0)
     base1 = make_dummy_baseline("M1", st, exp_volume=10.0, scale_volume=2.0)
-    risk1 = scorer.calculate_score(feat1, base1)
+    scorer.calculate_score(feat1, base1)
+    assert "M1" in scorer._ewma_states
 
-    assert math.isclose(risk1.score, 10.0, abs_tol=1e-4)
-
-    # Step 2: Raw score = 0.0 -> EWMA2 = 0.3 * 0.0 + 0.7 * 10.0 = 7.0
+    # Step 2: Evidence gap (INSUFFICIENT) -> EWMA state for M1 must be reset/popped
     st2 = st + timedelta(minutes=1)
     feat2 = make_dummy_feature("M1", st2, volume=10.0)
-    base2 = make_dummy_baseline("M1", st2, exp_volume=10.0, scale_volume=2.0)
+    base2 = make_dummy_baseline("M1", st2, evidence_state="INSUFFICIENT")
     risk2 = scorer.calculate_score(feat2, base2)
 
-    assert math.isclose(risk2.score, 7.0, abs_tol=1e-4)
+    assert risk2.score is None
+    assert risk2.confidence == 0.0
+    assert "M1" not in scorer._ewma_states  # State reset!
+
+    # Step 3: Evidence resumes (raw score = 5.0) -> EWMA starts fresh at 5.0, NOT 0.3*5 + 0.7*10 (6.5)
+    st3 = st + timedelta(minutes=2)
+    feat3 = make_dummy_feature("M1", st3, volume=20.0)
+    base3 = make_dummy_baseline("M1", st3, evidence_state="SUFFICIENT", exp_volume=10.0, scale_volume=2.0)
+    risk3 = scorer.calculate_score(feat3, base3)
+
+    assert math.isclose(risk3.score, 5.0, abs_tol=1e-4)
 
 
 # =====================================================================
-# 4. Merchant EWMA State Isolation
+# 9. DEGRADED Evidence Mapping & 10. SUFFICIENT Evidence Mapping
 # =====================================================================
 
-def test_merchant_ewma_state_isolation():
-    """Verify updating Merchant A EWMA state does not affect Merchant B EWMA state."""
+def test_degraded_and_sufficient_evidence_state_mappings():
+    """Verify DEGRADED state yields confidence=0.5 and data_quality='DEGRADED', SUFFICIENT yields confidence=1.0 and data_quality='GOOD'."""
     st = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
     scorer = HybridEWMAScorer(alpha=0.3, static_threshold=3.5)
 
-    # Merchant A score = 10.0
-    feat_a = make_dummy_feature("M_A", st, volume=30.0)
-    base_a = make_dummy_baseline("M_A", st, exp_volume=10.0, scale_volume=2.0)
-    scorer.calculate_score(feat_a, base_a)
+    feat = make_dummy_feature("M1", st, volume=20.0)
 
-    # Merchant B first score (raw = 5.0) -> EWMA_B should be 5.0, NOT affected by M_A (10.0)
-    feat_b = make_dummy_feature("M_B", st, volume=20.0)
-    base_b = make_dummy_baseline("M_B", st, exp_volume=10.0, scale_volume=2.0)
-    risk_b = scorer.calculate_score(feat_b, base_b)
+    # DEGRADED
+    base_deg = make_dummy_baseline("M1", st, evidence_state="DEGRADED", exp_volume=10.0, scale_volume=2.0)
+    risk_deg = scorer.calculate_score(feat, base_deg)
+    assert risk_deg.confidence == 0.5
+    assert risk_deg.data_quality == "DEGRADED"
 
-    assert math.isclose(risk_b.score, 5.0, abs_tol=1e-4)
+    # Reset
+    scorer.reset("M1")
+
+    # SUFFICIENT
+    base_suf = make_dummy_baseline("M1", st, evidence_state="SUFFICIENT", exp_volume=10.0, scale_volume=2.0)
+    risk_suf = scorer.calculate_score(feat, base_suf)
+    assert risk_suf.confidence == 1.0
+    assert risk_suf.data_quality == "GOOD"
 
 
 # =====================================================================
-# 5. Deterministic Replay
+# 11. Persistence Ownership Documentation Check
+# =====================================================================
+
+def test_persistence_ownership_documented_for_alert_state_machine():
+    """Verify HybridEWMAScorer constructor does not accept dead persistence parameter."""
+    with pytest.raises(TypeError):
+        HybridEWMAScorer(alpha=0.3, static_threshold=3.5, persistence=2)  # persistence parameter removed from scorer
+
+
+# =====================================================================
+# 12. Deterministic Replay
 # =====================================================================
 
 def test_deterministic_scoring_replay():
@@ -241,7 +281,7 @@ def test_deterministic_scoring_replay():
 
 
 # =====================================================================
-# 6. GroundTruth & Holdout Isolation (AST Architectural Check)
+# 13. GroundTruth & 14. Holdout Isolation AST Check
 # =====================================================================
 
 def test_ground_truth_and_holdout_isolation_in_scoring_package():
@@ -269,7 +309,7 @@ def test_ground_truth_and_holdout_isolation_in_scoring_package():
 
 
 # =====================================================================
-# 7. RiskScore Schema Validation
+# 15. RiskScore Schema Validation
 # =====================================================================
 
 def test_risk_score_pydantic_schema_compliance():

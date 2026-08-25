@@ -2,23 +2,41 @@
 
 Key Invariants:
 - Input mapping: (FeatureSnapshot, BaselineSnapshot) -> RiskScore.
+- Explicit feature mapping for all 11 monitored features (4 scalar + 7 amount statistics).
 - Standardized magnitude M_k = |f_k - expected_k| / robust_scale_k.
+- Zero-scale protection: raises ValueError if robust_scale <= 0.0.
 - Raw score S_raw = max_k M_k.
 - EWMA smoothing: S_ewma,t = alpha * S_raw,t + (1 - alpha) * S_ewma,t-1.
+- State reset on INSUFFICIENT evidence: resets merchant EWMA state on evidence gap.
 - Evidence state mapping:
   - INSUFFICIENT: score = None, confidence = 0.0, triggered_signals = [].
   - DEGRADED: score = float(S_ewma), confidence = 0.5, data_quality = "DEGRADED".
   - SUFFICIENT: score = float(S_ewma), confidence = 1.0, data_quality = "GOOD".
 - Triggered signals: list of feature names where M_k >= static_threshold.
+- Persistence gating is owned by AlertStateMachine in Day 6.
 - Merchant EWMA isolation: EWMA state is strictly maintained per merchant_id.
 - GroundTruth & Holdout isolation: NO imports of ground truth or holdout code.
 """
 
-from typing import Dict, List, Optional
-import numpy as np
+from typing import Dict, Optional
 
 from src.contracts.contracts import FeatureSnapshot, BaselineSnapshot, RiskScore
 from src.contracts.config_schemas import DetectorConfig, ScorerConfig
+
+# Explicit feature contract mapping: (FeatureSnapshot field/attribute) -> (BaselineSnapshot expected/scale key)
+FEATURE_BASELINE_MAP: Dict[str, str] = {
+    "volume": "volume",
+    "velocity": "velocity",
+    "unique_customers": "unique_customers",
+    "unique_devices": "unique_devices",
+    "total_amount": "amount_total_amount",
+    "mean_amount": "amount_mean_amount",
+    "std_amount": "amount_std_amount",
+    "median_amount": "amount_median_amount",
+    "mad_amount": "amount_mad_amount",
+    "min_amount": "amount_min_amount",
+    "max_amount": "amount_max_amount",
+}
 
 
 class HybridEWMAScorer:
@@ -28,7 +46,6 @@ class HybridEWMAScorer:
         self,
         alpha: float = 0.3,
         static_threshold: float = 3.5,
-        persistence: int = 2,
     ):
         if not (0.0 < alpha <= 1.0):
             raise ValueError(f"alpha must be in (0.0, 1.0], got {alpha}")
@@ -37,7 +54,6 @@ class HybridEWMAScorer:
 
         self.alpha = float(alpha)
         self.static_threshold = float(static_threshold)
-        self.persistence = persistence
 
         # Per-merchant EWMA state: merchant_id -> last_ewma_score (float)
         self._ewma_states: Dict[str, float] = {}
@@ -49,7 +65,6 @@ class HybridEWMAScorer:
         return cls(
             alpha=scorer_cfg.alpha,
             static_threshold=scorer_cfg.static_threshold,
-            persistence=scorer_cfg.persistence,
         )
 
     def calculate_score(
@@ -60,46 +75,48 @@ class HybridEWMAScorer:
         """Calculate RiskScore from feature_snapshot and baseline_snapshot."""
         m_id = feature_snapshot.merchant_id
 
-        # 1. Check evidence_state
+        # 1. Handle INSUFFICIENT evidence state
         if baseline_snapshot.evidence_state == "INSUFFICIENT":
+            # Reset merchant EWMA state on evidence gap to prevent stale state leakage
+            self._ewma_states.pop(m_id, None)
+
+            dq = "EMPTY" if feature_snapshot.data_quality == "EMPTY" else "INSUFFICIENT"
             return RiskScore(
                 score=None,
                 confidence=0.0,
                 triggered_signals=[],
-                data_quality=feature_snapshot.data_quality,
+                data_quality=dq,
             )
 
-        # 2. Compute standardized magnitudes M_k across all monitored features
+        # 2. Compute standardized magnitudes M_k for all 11 required features
         m_magnitudes: Dict[str, float] = {}
 
-        # Scalar features
-        scalar_keys = ["volume", "velocity", "unique_customers", "unique_devices"]
-        for key in scalar_keys:
-            if key in baseline_snapshot.expected_values and key in baseline_snapshot.robust_scale:
-                f_val = float(getattr(feature_snapshot, key))
-                exp_val = baseline_snapshot.expected_values[key]
-                scale_val = baseline_snapshot.robust_scale[key]
-                if scale_val > 0.0:
-                    m_magnitudes[key] = abs(f_val - exp_val) / scale_val
+        for feat_name, base_key in FEATURE_BASELINE_MAP.items():
+            if base_key not in baseline_snapshot.expected_values or base_key not in baseline_snapshot.robust_scale:
+                raise KeyError(f"Missing required baseline feature expectation/scale for '{base_key}' (feature '{feat_name}')")
 
-        # Amount features
-        for amt_key, f_val in feature_snapshot.amount_statistics.items():
-            b_key = f"amount_{amt_key}"
-            if b_key in baseline_snapshot.expected_values and b_key in baseline_snapshot.robust_scale:
-                exp_val = baseline_snapshot.expected_values[b_key]
-                scale_val = baseline_snapshot.robust_scale[b_key]
-                if scale_val > 0.0:
-                    m_magnitudes[b_key] = abs(f_val - exp_val) / scale_val
+            # Extract feature value
+            if feat_name in ("volume", "velocity", "unique_customers", "unique_devices"):
+                f_val = float(getattr(feature_snapshot, feat_name))
+            else:
+                if feat_name not in feature_snapshot.amount_statistics:
+                    raise KeyError(f"Missing required amount statistic '{feat_name}' in FeatureSnapshot")
+                f_val = float(feature_snapshot.amount_statistics[feat_name])
 
-        if not m_magnitudes:
-            s_raw = 0.0
-            triggered_signals = []
-        else:
-            s_raw = float(max(m_magnitudes.values()))
-            triggered_signals = sorted([
-                k for k, mag in m_magnitudes.items()
-                if mag >= self.static_threshold
-            ])
+            exp_val = float(baseline_snapshot.expected_values[base_key])
+            scale_val = float(baseline_snapshot.robust_scale[base_key])
+
+            if scale_val <= 0.0:
+                raise ValueError(f"Invalid non-positive robust scale for feature '{base_key}': {scale_val}")
+
+            m_magnitudes[base_key] = abs(f_val - exp_val) / scale_val
+
+        # Maximum standardized magnitude
+        s_raw = float(max(m_magnitudes.values()))
+        triggered_signals = sorted([
+            k for k, mag in m_magnitudes.items()
+            if mag >= self.static_threshold
+        ])
 
         # 3. Update EWMA state per merchant
         if m_id not in self._ewma_states:
