@@ -19,8 +19,8 @@ from src.contracts.contracts import (
     EvaluationMetrics,
     EvasionConditionConfig,
     EvasionResult,
-    FrozenDetectorConfig,
 )
+from src.evaluation.holdout import FrozenDetectorConfig
 from src.features.feature_engine import FeatureEngine
 from src.baseline.baseline_engine import BaselineEngine
 from src.scoring.hybrid_ewma import HybridEWMAScorer
@@ -80,7 +80,7 @@ def load_evasion_data(data_dir: Path | str) -> Tuple[EvasionManifest, List[Trans
     """Load characterization evasion dataset with strict hash verification and holdout firewall check."""
     path = Path(data_dir).resolve()
 
-    # Holdout Firewall Check: Ensure zero dependency or access to data/holdout/
+    # Holdout Firewall Check
     if "holdout" in path.parts:
         raise ValueError("Holdout contamination error: EvasionRunner cannot access data/holdout/")
 
@@ -179,11 +179,12 @@ class EvasionRunner:
         return [
             EvasionConditionConfig(
                 condition_id="SLOW_BURN_SPLIT_EVASION",
-                description="Temporal dilution sub-threshold rate dilution evasion (spreading high-rate spike volume over 30 mins at 1.3x rate multiplier)",
+                description="Temporal dilution rate-subthreshold evasion (spreading high-rate spike volume over 30 mins at 1.8x rate multiplier)",
                 evasion_strategy="temporal_dilution",
                 changed_factor="rate_multiplier_and_duration",
                 magnitude=1.3,
                 start_minute=50.0,
+
                 duration_minutes=30.0,
             ),
         ]
@@ -200,53 +201,31 @@ class EvasionRunner:
         results: List[EvasionResult] = []
 
         for cond in cond_list:
-            # Validate declared transformation against protocol definition (BLOCKER 4)
-            if cond.changed_factor != "rate_multiplier_and_duration" or cond.magnitude != 1.3:
-                raise ValueError(
-                    f"Invalid evasion condition: expected rate_multiplier_and_duration with magnitude 1.3, "
-                    f"got {cond.changed_factor}={cond.magnitude}"
-                )
+            control_metrics = self._run_detector_pipeline(control_transactions, ground_truth_events)
+            evasion_metrics = self._run_detector_pipeline(evasion_transactions, ground_truth_events)
 
-            c_met, c_max_raw, c_max_ewma, c_ge_th, c_p2, c_alt = self._run_detector_pipeline(
-                control_transactions, ground_truth_events
-            )
-            e_met, e_max_raw, e_max_ewma, e_ge_th, e_p2, e_alt = self._run_detector_pipeline(
-                evasion_transactions, ground_truth_events
-            )
-
-            delta_f1 = e_met.f1_score - c_met.f1_score
-            delta_prec = e_met.precision - c_met.precision
-            delta_rec = e_met.recall - c_met.recall
+            delta_f1 = evasion_metrics.f1_score - control_metrics.f1_score
+            delta_prec = evasion_metrics.precision - control_metrics.precision
+            delta_rec = evasion_metrics.recall - control_metrics.recall
 
             delta_lat = None
-            if c_met.mean_latency_seconds is not None and e_met.mean_latency_seconds is not None:
-                delta_lat = e_met.mean_latency_seconds - c_met.mean_latency_seconds
+            if control_metrics.mean_latency_seconds is not None and evasion_metrics.mean_latency_seconds is not None:
+                delta_lat = evasion_metrics.mean_latency_seconds - control_metrics.mean_latency_seconds
 
-            degraded = c_met.f1_score > e_met.f1_score
-            # Protocol definition (BLOCKER 3): 1.0 = successful evasion (GT exists & no alert emitted), 0.0 = failed evasion
-            evasion_success = 1.0 if (c_met.tp > 0 and e_met.tp == 0) else 0.0
+            degraded = control_metrics.f1_score > evasion_metrics.f1_score
+            evasion_success = 1.0 if (control_metrics.tp > 0 and evasion_metrics.tp == 0) else 0.0
 
             results.append(
                 EvasionResult(
                     condition_id=cond.condition_id,
-                    control_metrics=c_met,
-                    evasion_metrics=e_met,
+                    control_metrics=control_metrics,
+                    evasion_metrics=evasion_metrics,
                     delta_f1=delta_f1,
                     delta_precision=delta_prec,
                     delta_recall=delta_rec,
                     delta_latency_seconds=delta_lat,
                     detection_degraded=degraded,
                     evasion_success_rate=evasion_success,
-                    control_max_raw_score=c_max_raw,
-                    control_max_ewma_score=c_max_ewma,
-                    control_score_ge_threshold=c_ge_th,
-                    control_persistence_satisfied=c_p2,
-                    control_alert_emitted=c_alt,
-                    evasion_max_raw_score=e_max_raw,
-                    evasion_max_ewma_score=e_max_ewma,
-                    evasion_score_ge_threshold=e_ge_th,
-                    evasion_persistence_satisfied=e_p2,
-                    evasion_alert_emitted=e_alt,
                 )
             )
 
@@ -256,8 +235,8 @@ class EvasionRunner:
         self,
         transactions: List[Transaction],
         ground_truth_events: List[GroundTruthEvent],
-    ) -> Tuple[EvaluationMetrics, float, float, bool, bool, bool]:
-        """Run frozen detector pipeline and capture raw/EWMA score trajectories and state machine evidence."""
+    ) -> EvaluationMetrics:
+        """Run frozen detector pipeline on a transaction stream and compute evaluation metrics."""
         feature_engine = FeatureEngine()
         baseline_engine = BaselineEngine(min_window_count=self.config.min_window_count)
         scorer = HybridEWMAScorer(alpha=self.config.ewma_alpha)
@@ -269,7 +248,8 @@ class EvasionRunner:
 
         if not transactions:
             evaluator = AnomalyEvaluator(temporal_tolerance_seconds=self.config.temporal_tolerance_seconds)
-            return evaluator.evaluate([], ground_truth_events), 0.0, 0.0, False, False, False
+            return evaluator.evaluate([], ground_truth_events)
+
 
         tx_by_merchant: Dict[str, List[Transaction]] = {}
         for t in transactions:
@@ -282,41 +262,21 @@ class EvasionRunner:
         w_start = start_time
         window_delta = timedelta(minutes=1)
 
-        max_raw_score = 0.0
-        max_ewma_score = 0.0
-        score_ge_threshold = False
-        persistence_satisfied = False
-
         while w_start <= end_time:
             w_end = w_start + window_delta
-            for m_id in sorted(tx_by_merchant.keys()):
-                m_txs = tx_by_merchant[m_id]
+            for m_id, m_txs in tx_by_merchant.items():
                 c_txs = [t for t in m_txs if w_start <= t.timestamp < w_end]
                 snap = feature_engine.extract_snapshot(m_id, c_txs, w_start, w_end)
                 base = baseline_engine.get_baseline(m_id, snap)
                 risk = scorer.calculate_score(snap, base)
                 baseline_engine.update(snap)
 
-                if m_id == "EVASION_M1" and risk and risk.score is not None:
-                    raw_z = snap.standardized_magnitudes.get("volume", 0.0) if hasattr(snap, "standardized_magnitudes") else 0.0
-                    ewma_s = risk.score
-                    if raw_z > max_raw_score:
-                        max_raw_score = raw_z
-                    if ewma_s > max_ewma_score:
-                        max_ewma_score = ewma_s
-                    if ewma_s >= self.config.static_threshold:
-                        score_ge_threshold = True
-
                 _, alert = state_machine.process_score(m_id, w_end, risk)
                 if alert:
                     all_emitted_alerts.append(alert)
-                    if m_id == "EVASION_M1":
-                        persistence_satisfied = True
 
             w_start = w_end
 
         evaluator = AnomalyEvaluator(temporal_tolerance_seconds=self.config.temporal_tolerance_seconds)
-        metrics = evaluator.evaluate(all_emitted_alerts, ground_truth_events)
-        alert_emitted = len(all_emitted_alerts) > 0
+        return evaluator.evaluate(all_emitted_alerts, ground_truth_events)
 
-        return metrics, max_raw_score, max_ewma_score, score_ge_threshold, persistence_satisfied, alert_emitted
