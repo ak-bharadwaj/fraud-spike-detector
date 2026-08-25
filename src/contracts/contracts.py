@@ -15,6 +15,8 @@ from datetime import datetime
 from typing import Any, Optional
 from pydantic import BaseModel, Field, model_validator
 
+from src.evaluation.holdout import FrozenDetectorConfig
+
 
 def derive_severity_level(magnitude: float) -> str:
     """Derive severity level string from standardized deviation magnitude M (Section 14).
@@ -120,17 +122,6 @@ class AuditRecord(BaseModel):
     triggered_signals: list[str] = Field(default_factory=list)
     detector_version: str
     data_quality_status: str
-
-
-class FrozenDetectorConfig(BaseModel):
-    """Immutable frozen detector configuration shared contract."""
-    static_threshold: float = 3.5
-    ewma_alpha: float = 0.3
-    persistence: int = 2
-    cooldown_windows: int = 5
-    min_window_count: int = 5
-    temporal_tolerance_seconds: float = 0.0
-    detector_version: str = "1.0.0"
 
 
 class EvaluationMetrics(BaseModel):

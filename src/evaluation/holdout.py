@@ -16,7 +16,7 @@ import json
 from pathlib import Path
 from pydantic import BaseModel, Field
 
-from src.contracts.contracts import Transaction, GroundTruthEvent, Alert, EvaluationMetrics, FrozenDetectorConfig
+from src.contracts.contracts import Transaction, GroundTruthEvent, Alert, EvaluationMetrics
 from src.features.feature_engine import FeatureEngine
 from src.baseline.baseline_engine import BaselineEngine
 from src.scoring.hybrid_ewma import HybridEWMAScorer
@@ -31,6 +31,16 @@ class HoldoutManifest(BaseModel):
     schema_version: str
     created_at: str
 
+
+class FrozenDetectorConfig(BaseModel):
+    """Immutable frozen detector configuration for locked holdout evaluation."""
+    static_threshold: float = 3.5
+    ewma_alpha: float = 0.3
+    persistence: int = 2
+    cooldown_windows: int = 5
+    min_window_count: int = 5
+    temporal_tolerance_seconds: float = 0.0
+    detector_version: str = "1.0.0"
 
 
 class HoldoutAccessError(PermissionError):
