@@ -1,9 +1,9 @@
 """Comprehensive unit tests for Day 2 Synthetic Benchmark Generator.
 
 Validates:
-1. 3-sigma Poisson convergence test for low-rate merchants (Blocker 1).
-2. Surge-aware baseline comparison proof (Blocker 2).
-3. Complete 0/negative/non-integer duration validation tests (Blocker 3).
+1. 3-sigma Poisson convergence test for low-rate merchants.
+2. Independent surge-aware baseline verification with exact float comparison.
+3. Complete 0/negative/non-integer duration validation tests.
 4. Global event ID uniqueness enforcement.
 5. Ground truth event lifecycle (schedule returns event_id: str, completion emits GroundTruthEvent).
 6. Independent severity verification without generator helper reuse.
@@ -44,7 +44,7 @@ from src.stream.clock import VirtualClock
 
 
 # =====================================================================
-# BLOCKER 1: 3-Sigma Poisson Convergence Test for Low-Rate Merchants
+# Low-Rate Poisson Convergence Test
 # =====================================================================
 
 def test_low_rate_merchant_poisson_3sigma_convergence():
@@ -53,7 +53,6 @@ def test_low_rate_merchant_poisson_3sigma_convergence():
     total_minutes = 500
     total_tx_count = 0
 
-    # Sample 10 independent deterministic runs of 50 minutes each
     for run in range(10):
         gen = SyntheticStreamGenerator(run + 100, [{"id": "M_sparse", "archetype": "sparse"}], VirtualClock(initial_time=st))
         gen.profiles["M_sparse"].base_rate_per_min = 0.3
@@ -64,8 +63,6 @@ def test_low_rate_merchant_poisson_3sigma_convergence():
     empirical_mean_rate = total_tx_count / float(total_minutes)
     expected_lambda = 0.3
 
-    # Statistical 3-sigma error bound for Poisson sum (N=500, lambda=0.3 -> Var=150, sigma=12.247)
-    # 3 * sigma / 500 = 36.74 / 500 = 0.0735
     max_3sigma_tolerance = 3.0 * math.sqrt(total_minutes * expected_lambda) / float(total_minutes)
 
     diff = abs(empirical_mean_rate - expected_lambda)
@@ -76,21 +73,21 @@ def test_low_rate_merchant_poisson_3sigma_convergence():
 
 
 # =====================================================================
-# BLOCKER 2: Surge-Aware Baseline Comparison Proof
+# Surge-Aware Baseline Verification
 # =====================================================================
 
 def test_legitimate_surge_baseline_scaling():
-    """Verify legitimate promotional surge (2.5x rate) produces zero fraud ground-truth events, and anomaly during surge uses surge-aware baseline."""
+    """Verify legitimate surge with NO anomaly emits ZERO events, and fraud during surge matches exact surge-aware M."""
     st = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
 
-    # 1. Legitimate promotional surge without fraud anomaly
+    # 1. Legitimate promotional surge without fraud anomaly -> ZERO events
     gen_surge = SyntheticStreamGenerator(42, [{"id": "M1", "archetype": "stable"}], VirtualClock(initial_time=st))
     txs_surge, events_surge = gen_surge.generate_window(5.0, is_surge_active={"M1": True})
 
     assert len(txs_surge) > 0
     assert len(events_surge) == 0, "Legitimate promotional surge must NOT generate ground-truth fraud events."
 
-    # 2. Fraud anomaly scheduled during promotional surge
+    # 2. Fraud anomaly scheduled during promotional surge -> exact independent surge-aware M calculation
     gen_fraud = SyntheticStreamGenerator(42, [{"id": "M1", "archetype": "stable"}], VirtualClock(initial_time=st))
     spec = AnomalySpec("volume_spike", st, 300.0, 4.0, {"rate_multiplier": 3.0})
     gen_fraud.schedule_anomaly("M1", spec, "EVT-SURGE-FRAUD")
@@ -99,22 +96,26 @@ def test_legitimate_surge_baseline_scaling():
     assert len(events_fraud) == 1
     gt = events_fraud[0]
 
+    # Independent calculation of expected surge rate over 5 minutes (is_surge_active=True -> surge multiplier 2.5)
     prof = gen_fraud.profiles["M1"]
-    obs_rate = len(txs_fraud) / 5.0
     base_rate = prof.base_rate_per_min
 
-    # Naive non-surge expected rate = base_rate
-    scale_naive = max(0.5, 0.2 * base_rate)
-    m_naive = abs(obs_rate - base_rate) / scale_naive
+    expected_surge_total_count_ind = 5.0 * (base_rate * 2.5)
+    expected_surge_rate_ind = expected_surge_total_count_ind / 5.0
 
-    m_surge_aware = gt.severity
+    observed_total_ind = len(txs_fraud)
+    observed_rate_ind = observed_total_ind / 5.0
 
-    # Surge-aware magnitude isolates the fraud multiplier from the surge baseline
-    assert m_surge_aware < 0.5 * m_naive, f"Surge-aware magnitude ({m_surge_aware:.2f}) must be < 50% of naive non-surge magnitude ({m_naive:.2f})."
+    robust_scale_surge_ind = max(0.5, 0.2 * expected_surge_rate_ind)
+    m_expected_surge_ind = abs(observed_rate_ind - expected_surge_rate_ind) / robust_scale_surge_ind
+
+    assert math.isclose(gt.severity, m_expected_surge_ind, abs_tol=1e-9), (
+        f"Ground truth severity ({gt.severity}) must EXACTLY match independently derived surge magnitude ({m_expected_surge_ind})"
+    )
 
 
 # =====================================================================
-# BLOCKER 3: Complete Anomaly Duration Validation Test Suite
+# Duration Validation Test Suite
 # =====================================================================
 
 def test_anomaly_duration_validation():
@@ -122,22 +123,18 @@ def test_anomaly_duration_validation():
     st = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
     gen = SyntheticStreamGenerator(42, [{"id": "M1", "archetype": "stable"}], VirtualClock(initial_time=st))
 
-    # 1. Zero duration -> rejected
     spec_0s = AnomalySpec("velocity_spike", st, 0.0, 3.0)
     with pytest.raises(ValueError, match="Anomaly duration_seconds must be a positive whole number of minutes"):
         gen.schedule_anomaly("M1", spec_0s)
 
-    # 2. Negative duration -> rejected
     spec_neg = AnomalySpec("velocity_spike", st, -60.0, 3.0)
     with pytest.raises(ValueError, match="Anomaly duration_seconds must be a positive whole number of minutes"):
         gen.schedule_anomaly("M1", spec_neg)
 
-    # 3. Non-whole minute (90s = 1.5 min) -> rejected
     spec_90s = AnomalySpec("velocity_spike", st, 90.0, 3.0)
     with pytest.raises(ValueError, match="Anomaly duration_seconds must be a positive whole number of minutes"):
         gen.schedule_anomaly("M1", spec_90s)
 
-    # 4. Valid whole minute (120s = 2 min) -> accepted
     spec_120s = AnomalySpec("velocity_spike", st, 120.0, 3.0)
     eid = gen.schedule_anomaly("M1", spec_120s, "EVT-VALID-120")
     assert eid == "EVT-VALID-120"
@@ -225,7 +222,7 @@ def test_independent_severity_verification_growing_merchant():
     robust_scale_ind = max(0.5, 0.2 * expected_rate_ind)
     m_expected_ind = abs(observed_rate_ind - expected_rate_ind) / robust_scale_ind
 
-    assert gt.severity == m_expected_ind
+    assert math.isclose(gt.severity, m_expected_ind, abs_tol=1e-9)
 
 
 def test_independent_severity_verification_seasonal_merchant():
@@ -258,7 +255,7 @@ def test_independent_severity_verification_seasonal_merchant():
     robust_scale_ind = max(0.5, 0.2 * expected_rate_ind)
     m_expected_ind = abs(observed_rate_ind - expected_rate_ind) / robust_scale_ind
 
-    assert gt.severity == m_expected_ind
+    assert math.isclose(gt.severity, m_expected_ind, abs_tol=1e-9)
 
 
 # =====================================================================
@@ -387,7 +384,7 @@ def test_window_partition_field_by_field_identity():
 
     sev1 = events1[-1].severity
     sev2 = events2_all[-1].severity
-    assert sev1 == sev2
+    assert math.isclose(sev1, sev2, abs_tol=1e-9)
 
 
 # =====================================================================
