@@ -2,20 +2,22 @@
 
 Validates all 14 required baseline dimensions:
 1. Config-driven injection & explicit precedence (explicit kwargs > DetectorConfig > detector.yaml).
-2. Evidence-state transition (INSUFFICIENT -> SUFFICIENT -> DEGRADED).
-3. Minimum-history requirement (min_history_count=50, min_window_count=5 from config/detector.yaml).
-4. Baseline evidence eligibility (DEGRADED volume > 0 included, EMPTY/zero-volume excluded).
-5. Historical-only updates (current snapshot does not inflate its own expected baseline).
-6. Future-leakage prevention (adding t_future does not change t_now baseline).
-7. Baseline statistic correctness (sample median expected_values).
-8. Scale/dispersion correctness (MAD with robust floor).
-9. Legitimate growth handling (smooth baseline tracking with math.isclose).
-10. Genuine deterministic seasonal handling (diurnal baseline bounds).
-11. Sparse merchant handling (insufficient evidence until history count met).
-12. Merchant isolation (Merchant A vs B independence).
-13. Deterministic replay.
-14. GroundTruth & Holdout isolation (zero ground-truth/holdout imports and HoldoutAccessError enforcement).
-15. BaselineSnapshot Pydantic schema compliance.
+2. FeatureSnapshot.data_quality vs BaselineSnapshot.evidence_state contract distinction.
+3. Baseline evidence eligibility (non-zero historical snapshots included, EMPTY/zero-volume excluded).
+4. Evidence-state transition (INSUFFICIENT -> SUFFICIENT -> DEGRADED).
+5. Minimum-history requirement (min_history_count=50, min_window_count=5 from config/detector.yaml).
+6. Current low-volume snapshot yields evidence_state = DEGRADED.
+7. Historical-only updates (current snapshot does not inflate its own expected baseline).
+8. Future-leakage prevention (adding t_future does not change t_now baseline).
+9. Baseline statistic correctness (sample median expected_values).
+10. Scale/dispersion correctness (MAD with robust floor).
+11. Legitimate growth handling (smooth baseline tracking with math.isclose).
+12. Genuine deterministic seasonal handling (diurnal baseline bounds).
+13. Sparse merchant handling (insufficient evidence until history count met).
+14. Merchant isolation (Merchant A vs B independence).
+15. Deterministic replay.
+16. GroundTruth & Holdout isolation (zero ground-truth/holdout imports and HoldoutAccessError enforcement).
+17. BaselineSnapshot Pydantic schema compliance.
 """
 
 import ast
@@ -67,7 +69,7 @@ def make_dummy_snapshot(
 
 
 # =====================================================================
-# 1. Config-Driven Injection & Precedence (Check 1)
+# 1. Config-Driven Injection & Precedence
 # =====================================================================
 
 def test_config_driven_baseline_engine_injection_and_precedence():
@@ -96,21 +98,20 @@ def test_config_driven_baseline_engine_injection_and_precedence():
     snap = make_dummy_snapshot("M1", st + timedelta(minutes=15), volume=10.0)
     base = engine_override.get_baseline("M1", snap)
 
-    # Precedence threshold 15 is met -> state is SUFFICIENT
     assert base.evidence_state == "SUFFICIENT"
     assert base.history_count == 15
 
 
 # =====================================================================
-# 2. Baseline Evidence Eligibility & DEGRADED Status (Check 2)
+# 2. Baseline Evidence Eligibility & Low-Volume Current Snapshot DEGRADED Test
 # =====================================================================
 
-def test_degraded_low_volume_windows_included_in_eligible_history():
-    """Verify non-zero DEGRADED low-volume windows (0 < volume < 5) ARE included in eligible history, while EMPTY/zero-volume are excluded."""
+def test_nonzero_low_volume_windows_included_in_eligible_history_and_current_low_volume_yields_degraded():
+    """Verify non-zero low-volume historical snapshots are included in eligible history while EMPTY are excluded, and a current low-volume snapshot yields DEGRADED evidence_state."""
     st = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
     engine = BaselineEngine(min_history_count=4, min_window_count=5)
 
-    # 2 GOOD snapshots (volume = 10.0) + 2 DEGRADED low-volume snapshots (volume = 2.0)
+    # 2 GOOD snapshots (volume = 10.0) + 2 GOOD low-volume snapshots (volume = 2.0 < min_window_count=5)
     engine.update(make_dummy_snapshot("M1", st + timedelta(minutes=0), volume=10.0, data_quality="GOOD"))
     engine.update(make_dummy_snapshot("M1", st + timedelta(minutes=1), volume=10.0, data_quality="GOOD"))
     engine.update(make_dummy_snapshot("M1", st + timedelta(minutes=2), volume=2.0, data_quality="GOOD"))
@@ -120,13 +121,17 @@ def test_degraded_low_volume_windows_included_in_eligible_history():
     for i in range(20):
         engine.update(make_dummy_snapshot("M1", st + timedelta(minutes=10 + i), volume=0.0, data_quality="EMPTY"))
 
-    snap_now = make_dummy_snapshot("M1", st + timedelta(minutes=100), volume=10.0)
-    base = engine.get_baseline("M1", snap_now)
+    # Current snapshot has low volume = 2.0 (< min_window_count = 5)
+    snap_low_volume = make_dummy_snapshot("M1", st + timedelta(minutes=100), volume=2.0, data_quality="GOOD")
+    base = engine.get_baseline("M1", snap_low_volume)
 
-    # Eligible history includes the 4 non-zero snapshots (2 good + 2 degraded), excluding the 20 EMPTY snapshots
+    # Eligible history includes the 4 non-zero snapshots (excluding 20 EMPTY snapshots)
     assert base.history_count == 4
-    # Median of [10.0, 10.0, 2.0, 2.0] = 6.0 (proving DEGRADED low-volume snapshots were included in median calculation)
+    # Median of [10.0, 10.0, 2.0, 2.0] = 6.0
     assert base.expected_values["volume"] == 6.0
+
+    # Current snapshot volume=2.0 (< min_window_count=5) produces BaselineSnapshot.evidence_state == "DEGRADED"
+    assert base.evidence_state == "DEGRADED"
 
 
 # =====================================================================
