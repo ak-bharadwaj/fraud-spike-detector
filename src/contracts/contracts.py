@@ -191,5 +191,30 @@ class DriftResult(BaseModel):
     false_alert_count: int
 
 
+class EvasionConditionConfig(BaseModel):
+    """Configuration for a single isolated adversarial evasion characterization condition."""
+    condition_id: str
+    description: str
+    evasion_strategy: str
+    changed_factor: str
+    magnitude: float
+    start_minute: float = 50.0
+    duration_minutes: float = 30.0
+
+
+class EvasionResult(BaseModel):
+    """Result contract comparing control vs evasion detector execution under adversarial transformation."""
+    condition_id: str
+    control_metrics: EvaluationMetrics
+    evasion_metrics: EvaluationMetrics
+    delta_f1: float
+    delta_precision: float
+    delta_recall: float
+    delta_latency_seconds: Optional[float] = None
+    detection_degraded: bool
+    evasion_success_rate: float
+
+
+
 
 

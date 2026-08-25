@@ -1,0 +1,10 @@
+{
+  "control_dataset_hash": "5560cf96163fd704922f0fdd18f51f82a85d9024604453413b4826d3f49b8069",
+  "evasion_dataset_hash": "6cfb9cef719ce19cf61738c758437bf5cc39ded2238cb5997f07e4502bb6976c",
+  "ground_truth_hash": "bf947c1cd3b12b6a85901ae8a936e03a348084571ff275721ed11f837abf9807",
+  "experiment_hash": "35cf794bc6165ecd7ebad00e183270028671d3886fd10176251f859ca278cdd9",
+  "generator_version": "1.0.0",
+  "seed": 3003,
+  "schema_version": "1.0.0",
+  "created_at": "2026-08-25T00:00:00Z"
+}

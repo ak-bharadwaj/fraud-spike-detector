@@ -1,35 +1,19 @@
-"""Evaluation package exports."""
+"""Evaluation subpackage for fraud detection pipeline."""
 
 from src.evaluation.evaluator import AnomalyEvaluator
-from src.evaluation.calibration import DetectorCalibrator, CalibrationDataset
-from src.evaluation.ablation import AblationRunner, load_characterization_data
+from src.evaluation.ablation import AblationRunner, AblationResult, load_characterization_data
 from src.evaluation.drift import DriftRunner, DriftManifest, load_drift_data
-from src.evaluation.holdout import (
-    HoldoutManifest,
-    HoldoutProtection,
-    HoldoutEvaluator,
-    FrozenDetectorConfig,
-    HoldoutAccessError,
-    ChecksumMismatchError,
-    compute_holdout_dataset_hash,
-    load_locked_holdout_data,
-)
+from src.evaluation.evasion import EvasionRunner, EvasionManifest, load_evasion_data
 
 __all__ = [
     "AnomalyEvaluator",
-    "DetectorCalibrator",
-    "CalibrationDataset",
     "AblationRunner",
+    "AblationResult",
     "load_characterization_data",
     "DriftRunner",
     "DriftManifest",
     "load_drift_data",
-    "HoldoutManifest",
-    "HoldoutProtection",
-    "HoldoutEvaluator",
-    "FrozenDetectorConfig",
-    "HoldoutAccessError",
-    "ChecksumMismatchError",
-    "compute_holdout_dataset_hash",
-    "load_locked_holdout_data",
+    "EvasionRunner",
+    "EvasionManifest",
+    "load_evasion_data",
 ]
