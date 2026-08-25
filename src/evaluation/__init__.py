@@ -3,6 +3,7 @@
 from src.evaluation.evaluator import AnomalyEvaluator
 from src.evaluation.calibration import DetectorCalibrator, CalibrationDataset
 from src.evaluation.ablation import AblationRunner, load_characterization_data
+from src.evaluation.drift import DriftRunner, load_drift_data
 from src.evaluation.holdout import (
     HoldoutManifest,
     HoldoutProtection,
@@ -20,6 +21,8 @@ __all__ = [
     "CalibrationDataset",
     "AblationRunner",
     "load_characterization_data",
+    "DriftRunner",
+    "load_drift_data",
     "HoldoutManifest",
     "HoldoutProtection",
     "HoldoutEvaluator",
