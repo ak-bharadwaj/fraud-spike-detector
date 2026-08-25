@@ -8,6 +8,7 @@ Preserves exact frozen nullability requirements:
 Severity Protocol (Section 14):
 Severity is derived from documented deviation magnitude (M = |observed - expected| / robust_scale),
 not manually asserted. GroundTruthEvent carries both the derived magnitude float and severity_level string.
+Contradictory severity levels (e.g. M=4.5 with severity_level='LOW') are rejected.
 """
 
 from datetime import datetime
@@ -46,6 +47,7 @@ class GroundTruthEvent(BaseModel):
 
     Severity is derived from standardized deviation magnitude M = |observed - expected| / robust_scale.
     Contract carries magnitude (severity) and categorical level (severity_level).
+    Contradictory severity levels are rejected.
     """
     event_id: str
     merchant_id: str
@@ -57,9 +59,13 @@ class GroundTruthEvent(BaseModel):
     parameters: dict[str, Any] = Field(default_factory=dict)
 
     @model_validator(mode="after")
-    def populate_severity_level(self) -> "GroundTruthEvent":
-        if self.severity_level is None:
-            self.severity_level = derive_severity_level(self.severity)
+    def validate_and_populate_severity_level(self) -> "GroundTruthEvent":
+        expected = derive_severity_level(self.severity)
+        if self.severity_level is not None and self.severity_level != expected:
+            raise ValueError(
+                f"Contradictory severity_level '{self.severity_level}' provided for severity magnitude {self.severity}. Expected '{expected}'."
+            )
+        self.severity_level = expected
         return self
 
 

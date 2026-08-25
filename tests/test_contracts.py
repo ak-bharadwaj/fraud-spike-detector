@@ -51,6 +51,49 @@ def test_ground_truth_event_severity_derivation():
     assert gt_high.severity_level == "HIGH"
 
 
+def test_ground_truth_event_severity_validation_rejection():
+    """Verify accepted and rejected GroundTruthEvent severity levels."""
+    now = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
+
+    # Valid combinations (accepted)
+    gt_1 = GroundTruthEvent(
+        event_id="E1", merchant_id="M1", anomaly_type="spike", start_time=now, end_time=now,
+        severity=1.5, severity_level="LOW"
+    )
+    assert gt_1.severity_level == "LOW"
+
+    gt_2 = GroundTruthEvent(
+        event_id="E2", merchant_id="M1", anomaly_type="spike", start_time=now, end_time=now,
+        severity=2.0, severity_level="MEDIUM"
+    )
+    assert gt_2.severity_level == "MEDIUM"
+
+    gt_3 = GroundTruthEvent(
+        event_id="E3", merchant_id="M1", anomaly_type="spike", start_time=now, end_time=now,
+        severity=4.0, severity_level="HIGH"
+    )
+    assert gt_3.severity_level == "HIGH"
+
+    # Mismatched combinations (rejected with ValidationError)
+    with pytest.raises(ValidationError):
+        GroundTruthEvent(
+            event_id="E4", merchant_id="M1", anomaly_type="spike", start_time=now, end_time=now,
+            severity=1.5, severity_level="HIGH"
+        )
+
+    with pytest.raises(ValidationError):
+        GroundTruthEvent(
+            event_id="E5", merchant_id="M1", anomaly_type="spike", start_time=now, end_time=now,
+            severity=2.0, severity_level="LOW"
+        )
+
+    with pytest.raises(ValidationError):
+        GroundTruthEvent(
+            event_id="E6", merchant_id="M1", anomaly_type="spike", start_time=now, end_time=now,
+            severity=4.0, severity_level="MEDIUM"
+        )
+
+
 def test_risk_score_nullability():
     """Verify RiskScore.score allows None (nullable float)."""
     rs_none = RiskScore(score=None, confidence=0.8, triggered_signals=["SIG1"], data_quality="GOOD")
