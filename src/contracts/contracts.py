@@ -136,3 +136,14 @@ class EvaluationMetrics(BaseModel):
     unmatched_alerts: list[str] = Field(default_factory=list)
     unmatched_events: list[str] = Field(default_factory=list)
 
+
+class CalibrationResult(BaseModel):
+    """Result contract for detector threshold calibration sweep."""
+    selected_threshold: float
+    calibrated_f1: float
+    calibrated_precision: float
+    calibrated_recall: float
+    sample_count: int
+    status: str  # SUCCESS, INSUFFICIENT_EVIDENCE, FALLBACK
+
+
