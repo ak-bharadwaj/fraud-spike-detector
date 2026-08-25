@@ -6,8 +6,11 @@ from src.evaluation.holdout import (
     HoldoutManifest,
     HoldoutProtection,
     HoldoutEvaluator,
+    FrozenDetectorConfig,
     HoldoutAccessError,
     ChecksumMismatchError,
+    compute_holdout_dataset_hash,
+    load_locked_holdout_data,
 )
 
 __all__ = [
@@ -17,6 +20,9 @@ __all__ = [
     "HoldoutManifest",
     "HoldoutProtection",
     "HoldoutEvaluator",
+    "FrozenDetectorConfig",
     "HoldoutAccessError",
     "ChecksumMismatchError",
+    "compute_holdout_dataset_hash",
+    "load_locked_holdout_data",
 ]
