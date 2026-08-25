@@ -29,9 +29,9 @@ def get_full_attr_name(node: ast.AST) -> str:
 def check_wall_clock_in_ast(code: str, filename: str = "<string>") -> list[str]:
     """Analyze AST of Python code for forbidden wall-clock function calls.
 
-    Detects:
+    Precisely detects:
     - datetime.now(), datetime.utcnow(), datetime.datetime.now(), datetime.datetime.utcnow()
-    - dt.now(), dt.utcnow() (aliased)
+    - dt.now(), dt.utcnow() (aliased imports)
     - now(), utcnow() imported directly from datetime
     - time.time(), time.ctime(), time.localtime(), time.gmtime()
     - time() imported directly from time module
@@ -72,18 +72,17 @@ def check_wall_clock_in_ast(code: str, filename: str = "<string>") -> list[str]:
             if isinstance(func, ast.Attribute):
                 attr = func.attr
                 full_name = get_full_attr_name(func)
-                base_name = full_name.split(".")[0] if full_name else ""
+                parts = full_name.split(".")
+                prefixes = parts[:-1]
 
                 if attr in ("now", "utcnow"):
-                    if (
-                        base_name in datetime_modules
-                        or base_name in datetime_classes
-                        or base_name == "datetime"
-                        or "datetime" in full_name
+                    if any(
+                        p in datetime_modules or p in datetime_classes or p == "datetime"
+                        for p in prefixes
                     ):
                         violations.append(f"Wall-clock call '{full_name}()' at line {node.lineno}")
                 elif attr in ("time", "ctime", "localtime", "gmtime"):
-                    if base_name in time_modules or base_name == "time" or "time" in full_name:
+                    if any(p in time_modules or p == "time" for p in prefixes):
                         violations.append(f"Wall-clock call '{full_name}()' at line {node.lineno}")
 
             elif isinstance(func, ast.Name):
@@ -143,7 +142,7 @@ def test_no_wall_clock_outside_clock_module():
 
 
 def test_wall_clock_ast_checker_detects_aliased_calls():
-    """Unit test for the AST wall-clock checker itself to verify detection of all aliased forms."""
+    """Unit test for the AST wall-clock checker itself to verify precise detection without false positives."""
     snippet_1 = "import datetime; t = datetime.datetime.now()"
     snippet_2 = "from datetime import datetime; t = datetime.now()"
     snippet_3 = "from datetime import datetime as dt; t = dt.utcnow()"
@@ -156,5 +155,10 @@ def test_wall_clock_ast_checker_detects_aliased_calls():
     assert len(check_wall_clock_in_ast(snippet_4)) > 0
     assert len(check_wall_clock_in_ast(snippet_5)) > 0
 
+    # Verify clean clock call is allowed
     clean_snippet = "from src.stream.clock import VirtualClock; clock = VirtualClock(); t = clock.current_time()"
     assert len(check_wall_clock_in_ast(clean_snippet)) == 0
+
+    # Verify unrelated object method calls are not falsely flagged
+    unrelated_snippet = "class CustomObject:\n  def now(self): pass\nobj = CustomObject(); obj.now()"
+    assert len(check_wall_clock_in_ast(unrelated_snippet)) == 0
