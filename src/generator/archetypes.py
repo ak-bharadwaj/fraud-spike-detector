@@ -10,6 +10,7 @@ Six required archetypes:
 
 Legitimate promotional surges generate realistic volume spikes without ground-truth fraud events.
 All RNG behavior uses deterministic per-merchant Generators derived from (global_seed, merchant_id).
+Legitimate baselines for device, country, and payment method are mathematically derived from sampling probabilities.
 """
 
 from dataclasses import dataclass
@@ -25,10 +26,9 @@ class MerchantProfile:
     base_rate_per_min: float
     base_mean_amount: float
     base_std_amount: float
-    expected_device_ratio: float = 0.90
-    robust_scale_device_ratio: float = 0.10
-    expected_high_risk_country_ratio: float = 0.02
-    robust_scale_country_ratio: float = 0.05
+    p_high_risk_country: float = 0.02
+    p_prepaid_payment: float = 0.05
+    legit_device_pool_size: int = 5000
 
 
 def create_merchant_profile(global_seed: int, merchant_id: str, archetype: str) -> MerchantProfile:
@@ -75,6 +75,45 @@ def create_merchant_profile(global_seed: int, merchant_id: str, archetype: str) 
     )
 
 
+def compute_expected_device_ratio(sample_size: int, pool_size: int) -> float:
+    """Compute exact expected unique device ratio for N transactions sampled from pool size P."""
+    if sample_size <= 0:
+        return 1.0
+    p = max(1, pool_size)
+    n = sample_size
+    expected_unique = p * (1.0 - math.pow(1.0 - 1.0 / p, n))
+    return expected_unique / n
+
+
+def compute_robust_scale_device_ratio(expected_ratio: float) -> float:
+    """Compute robust scale for device ratio."""
+    return max(0.02, 0.15 * expected_ratio)
+
+
+def compute_expected_country_ratio(p_high_risk: float) -> float:
+    """Compute expected legitimate high-risk country ratio."""
+    return p_high_risk
+
+
+def compute_robust_scale_country_ratio(p_high_risk: float, sample_size: int) -> float:
+    """Compute robust scale for high-risk country ratio using Binomial standard error."""
+    n = max(1, sample_size)
+    se = math.sqrt(p_high_risk * (1.0 - p_high_risk) / n)
+    return max(0.01, se)
+
+
+def compute_expected_payment_ratio(p_prepaid: float) -> float:
+    """Compute expected legitimate prepaid card ratio."""
+    return p_prepaid
+
+
+def compute_robust_scale_payment_ratio(p_prepaid: float, sample_size: int) -> float:
+    """Compute robust scale for prepaid payment ratio using Binomial standard error."""
+    n = max(1, sample_size)
+    se = math.sqrt(p_prepaid * (1.0 - p_prepaid) / n)
+    return max(0.01, se)
+
+
 def compute_legitimate_rate(
     profile: MerchantProfile,
     current_time: datetime,
@@ -92,7 +131,7 @@ def compute_legitimate_rate(
     diurnal_mult = 1.0 + 0.4 * math.sin(2.0 * math.pi * (hour - 6.0) / 24.0)
 
     # 2. Weekly seasonality
-    day_of_week = dt_utc.weekday()  # 0=Mon, 6=Sun
+    day_of_week = dt_utc.weekday()
     weekly_mult = 1.2 if day_of_week in (5, 6) else 0.95
 
     # 3. Organic growth
