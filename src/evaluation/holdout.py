@@ -5,7 +5,6 @@ schema version, and generation metadata. Normal development execution cannot acc
 Explicit evaluation mode is required. Checksum mismatch aborts evaluation.
 """
 
-from typing import Optional
 from pydantic import BaseModel
 
 

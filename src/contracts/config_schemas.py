@@ -5,7 +5,7 @@ must be explicitly supplied via external YAML configuration files and selected d
 development sweeps (Days 4-7). No research parameters are hardcoded into Python schemas.
 """
 
-from typing import Any, Optional
+from typing import Optional
 from pydantic import BaseModel, Field
 
 
