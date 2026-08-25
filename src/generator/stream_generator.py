@@ -5,7 +5,7 @@ Generates deterministic transaction streams and ground-truth events using Virtua
 Key Invariants:
 - Uses VirtualClock for time management.
 - Enforces No Overlapping Active Events per merchant.
-- Produces valid Transaction and GroundTruthEvent output lists.
+- Derives realized ground-truth magnitude from actual generated transaction stream statistics.
 - Completely isolated from detector code.
 """
 
@@ -50,16 +50,18 @@ class SyntheticStreamGenerator:
         self.clock = clock or VirtualClock()
         self.simulation_start = self.clock.current_time()
 
-        # Build merchant profiles and RNGs
         self.profiles: dict[str, MerchantProfile] = {}
         self.merchant_rngs: dict[str, np.random.Generator] = {}
+        self.scheduled_specs: dict[str, list[tuple[str, AnomalySpec]]] = {}
         self.active_events: dict[str, list[GroundTruthEvent]] = {}
+        self.realized_events: list[GroundTruthEvent] = []
 
         for cfg in merchant_configs:
             m_id = cfg["id"]
             arch = cfg.get("archetype", "stable")
             self.profiles[m_id] = create_merchant_profile(global_seed, m_id, arch)
             self.merchant_rngs[m_id] = get_merchant_rng(global_seed, f"{m_id}_stream")
+            self.scheduled_specs[m_id] = []
             self.active_events[m_id] = []
 
     def schedule_anomaly(
@@ -76,19 +78,21 @@ class SyntheticStreamGenerator:
         et = spec.end_time if spec.end_time.tzinfo else spec.end_time.replace(tzinfo=timezone.utc)
 
         # Enforce No Overlapping Active Events invariant per merchant
-        for existing in self.active_events[merchant_id]:
-            ex_st = existing.start_time if existing.start_time.tzinfo else existing.start_time.replace(tzinfo=timezone.utc)
-            ex_et = existing.end_time if existing.end_time.tzinfo else existing.end_time.replace(tzinfo=timezone.utc)
+        for _, existing_spec in self.scheduled_specs[merchant_id]:
+            ex_st = existing_spec.start_time if existing_spec.start_time.tzinfo else existing_spec.start_time.replace(tzinfo=timezone.utc)
+            ex_et = existing_spec.end_time if existing_spec.end_time.tzinfo else existing_spec.end_time.replace(tzinfo=timezone.utc)
 
-            # Check interval overlap: max(st, ex_st) < min(et, ex_et)
             if max(st, ex_st) < min(et, ex_et):
                 raise OverlapAnomalyError(
                     f"Anomaly overlap rejected for merchant '{merchant_id}': "
-                    f"New event [{st} .. {et}] overlaps existing event '{existing.event_id}' [{ex_st} .. {ex_et}]."
+                    f"New spec [{st} .. {et}] overlaps existing spec [{ex_st} .. {ex_et}]."
                 )
 
         eid = event_id or f"EVT-{uuid.UUID(bytes=self.merchant_rngs[merchant_id].bytes(16)).hex[:8]}"
-        gt_event = create_ground_truth_event(eid, merchant_id, spec)
+        self.scheduled_specs[merchant_id].append((eid, spec))
+
+        # Initial placeholder event using target_magnitude; updated with realized magnitude during generation
+        gt_event = create_ground_truth_event(eid, merchant_id, spec, realized_magnitude=spec.target_magnitude)
         self.active_events[merchant_id].append(gt_event)
         return gt_event
 
@@ -97,7 +101,7 @@ class SyntheticStreamGenerator:
         duration_minutes: float = 1.0,
         is_surge_active: dict[str, bool] = None,
     ) -> tuple[list[Transaction], list[GroundTruthEvent]]:
-        """Generate transactions and active ground-truth events for the current time step."""
+        """Generate transactions and realized ground-truth events for the current time step."""
         is_surge_active = is_surge_active or {}
         window_start = self.clock.current_time()
         window_end = window_start + timedelta(minutes=duration_minutes)
@@ -109,18 +113,12 @@ class SyntheticStreamGenerator:
         for m_id, profile in self.profiles.items():
             rng = self.merchant_rngs[m_id]
 
-            # Find active anomalies for this merchant during [window_start, window_end)
-            current_anomalies = [
-                e for e in self.active_events[m_id]
-                if max(window_start, e.start_time) < min(window_end, e.end_time)
+            # Active anomaly specs for window
+            current_specs = [
+                (eid, spec) for eid, spec in self.scheduled_specs[m_id]
+                if max(window_start, spec.start_time) < min(window_end, spec.end_time)
             ]
 
-            for e in current_anomalies:
-                if e.event_id not in emitted_events:
-                    active_gt_events.append(e)
-                    emitted_events.add(e.event_id)
-
-            # Base legitimate rate
             legit_rate = compute_legitimate_rate(
                 profile=profile,
                 current_time=window_start,
@@ -128,40 +126,39 @@ class SyntheticStreamGenerator:
                 is_surge_active=is_surge_active.get(m_id, False),
             )
 
-            # Check if volume or velocity spike anomaly is active
             rate_multiplier = 1.0
             amount_multiplier = 1.0
             override_country: Optional[str] = None
             override_payment: Optional[str] = None
             is_behavioral_spike = False
 
-            for anomaly in current_anomalies:
-                atype = anomaly.anomaly_type
-                params = anomaly.parameters
+            for eid, spec in current_specs:
+                atype = spec.anomaly_type
+                params = spec.parameters
+                tm = spec.target_magnitude
 
                 if atype in ("velocity_spike", "volume_spike", "sustained_anomaly"):
-                    rate_multiplier *= params.get("rate_multiplier", 3.0)
+                    rate_multiplier *= params.get("rate_multiplier", max(2.0, tm))
                 elif atype == "amount_spike":
-                    amount_multiplier *= params.get("amount_multiplier", 5.0)
+                    amount_multiplier *= params.get("amount_multiplier", max(3.0, tm))
                 elif atype == "behavioral_shift":
                     is_behavioral_spike = True
-                    rate_multiplier *= params.get("rate_multiplier", 2.0)
+                    rate_multiplier *= params.get("rate_multiplier", 1.8)
                 elif atype == "attribute_anomaly":
-                    override_country = params.get("country", "XX")
+                    override_country = params.get("country", "HIGH_RISK_GEO")
                     override_payment = params.get("payment_method", "PREPAID_CARD")
                 elif atype == "compound_anomaly":
-                    rate_multiplier *= params.get("rate_multiplier", 2.5)
-                    amount_multiplier *= params.get("amount_multiplier", 3.0)
+                    rate_multiplier *= params.get("rate_multiplier", max(2.5, tm * 0.8))
+                    amount_multiplier *= params.get("amount_multiplier", max(3.0, tm * 0.8))
                     is_behavioral_spike = True
                     override_country = params.get("country", "HIGH_RISK_GEO")
 
             effective_rate = legit_rate * rate_multiplier
-            # Expected transaction count in duration_minutes window (Poisson process)
             expected_count = int(np.round(effective_rate * duration_minutes))
             tx_count = max(0, int(rng.poisson(lam=max(0.1, expected_count))))
 
+            window_txs: list[Transaction] = []
             for i in range(tx_count):
-                # Distribute transaction timestamps deterministically within [window_start, window_end)
                 offset_sec = float(rng.uniform(0.0, duration_minutes * 60.0))
                 tx_time = window_start + timedelta(seconds=offset_sec)
 
@@ -169,8 +166,8 @@ class SyntheticStreamGenerator:
                 final_amt = round(max(1.0, base_amt * amount_multiplier), 2)
 
                 tx_id = f"TX-{m_id}-{uuid.UUID(bytes=rng.bytes(16)).hex[:10]}"
-                cust_id = f"CUST-{rng.integers(1, 50 if is_behavioral_spike else 5000)}"
-                dev_id = f"DEV-{rng.integers(1, 30 if is_behavioral_spike else 3000)}"
+                cust_id = f"CUST-{rng.integers(1, 10 if is_behavioral_spike else 5000)}"
+                dev_id = f"DEV-{rng.integers(1, 5 if is_behavioral_spike else 3000)}"
 
                 country = override_country or ("US" if rng.random() > 0.1 else "CA")
                 payment = override_payment or ("CREDIT_CARD" if rng.random() > 0.2 else "DEBIT_CARD")
@@ -185,11 +182,55 @@ class SyntheticStreamGenerator:
                     country=country,
                     device_id=dev_id,
                 )
-                all_txs.append(tx)
+                window_txs.append(tx)
+
+            all_txs.extend(window_txs)
+
+            # Compute realized standardized magnitude M_realized from generated transactions
+            for eid, spec in current_specs:
+                atype = spec.anomaly_type
+
+                # Measure actual stream statistics
+                obs_count = len(window_txs)
+                expected_cnt = max(1.0, legit_rate * duration_minutes)
+                scale_cnt = max(0.5, 0.2 * expected_cnt)
+
+                obs_amounts = [t.amount for t in window_txs] if window_txs else [profile.base_mean_amount]
+                obs_mean_amt = float(np.mean(obs_amounts))
+                expected_amt = profile.base_mean_amount
+                scale_amt = max(1.0, profile.base_std_amount)
+
+                obs_dev_count = len({t.device_id for t in window_txs}) if window_txs else 1
+                expected_dev_cnt = max(1.0, expected_cnt * 0.8)
+                scale_dev_cnt = max(0.5, 0.25 * expected_dev_cnt)
+
+                m_rate = compute_standardized_magnitude(obs_count, expected_cnt, scale_cnt)
+                m_amt = compute_standardized_magnitude(obs_mean_amt, expected_amt, scale_amt)
+                m_dev = compute_standardized_magnitude(obs_dev_count, expected_dev_cnt, scale_dev_cnt)
+
+                if atype == "compound_anomaly":
+                    # Section 14 Compound Severity Rule: mean absolute standardized deviation across active signals
+                    realized_m = compute_compound_severity([m_rate, m_amt, m_dev])
+                elif atype in ("velocity_spike", "volume_spike", "sustained_anomaly"):
+                    realized_m = m_rate
+                elif atype == "amount_spike":
+                    realized_m = m_amt
+                elif atype == "behavioral_shift":
+                    realized_m = m_dev
+                elif atype == "attribute_anomaly":
+                    realized_m = compute_standardized_magnitude(1.0, 0.1, 0.2)  # High attribute shift
+                else:
+                    realized_m = spec.target_magnitude
+
+                # Update GroundTruthEvent with measured realized magnitude
+                realized_gt = create_ground_truth_event(eid, m_id, spec, realized_magnitude=realized_m)
+
+                if eid not in emitted_events:
+                    active_gt_events.append(realized_gt)
+                    emitted_events.add(eid)
 
         # Advance virtual clock
         self.clock.advance(duration_minutes * 60.0)
 
-        # Sort emitted transactions by time
         all_txs.sort(key=lambda x: x.timestamp)
         return all_txs, active_gt_events
