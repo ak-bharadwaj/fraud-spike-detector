@@ -7,12 +7,15 @@ Key Invariants:
 - Enforces No Overlapping Active Events per merchant.
 - Derives realized ground-truth magnitude from actual generated transaction stream statistics over the anomaly's exact temporal interval [start_time, end_time).
 - Guarantees exact window-partitioning identity (sev1 == sev2) via minute-indexed RNG states.
-- Option A: Explicit integer minute window validation.
-- Single source of truth for device pool size and prepaid payment probability.
+- SHA-256 deterministic collision-resistant Event IDs.
+- Customer population independent of device population.
+- Full 3-tier legitimate payment distribution (credit/debit/prepaid).
+- Strict validation of attribute anomaly specs.
 - Completely isolated from detector code.
 """
 
 from datetime import datetime, timedelta, timezone
+import hashlib
 from typing import Any, Optional, Sequence
 import math
 import uuid
@@ -85,6 +88,17 @@ class SyntheticStreamGenerator:
         st = spec.start_time if spec.start_time.tzinfo else spec.start_time.replace(tzinfo=timezone.utc)
         et = spec.end_time if spec.end_time.tzinfo else spec.end_time.replace(tzinfo=timezone.utc)
 
+        # Validate attribute anomaly specification
+        if spec.anomaly_type == "attribute_anomaly":
+            valid_keys = {"country", "payment_method"}
+            if not spec.parameters:
+                raise ValueError(
+                    f"attribute_anomaly spec for merchant '{merchant_id}' requires at least one supported attribute parameter ('country', 'payment_method')."
+                )
+            for k in spec.parameters:
+                if k not in valid_keys:
+                    raise ValueError(f"Unsupported attribute parameter '{k}' for attribute_anomaly.")
+
         # Enforce No Overlapping Active Events invariant per merchant
         for _, existing_spec in self.scheduled_specs[merchant_id]:
             ex_st = existing_spec.start_time if existing_spec.start_time.tzinfo else existing_spec.start_time.replace(tzinfo=timezone.utc)
@@ -96,7 +110,10 @@ class SyntheticStreamGenerator:
                     f"New spec [{st} .. {et}] overlaps existing spec [{ex_st} .. {ex_et}]."
                 )
 
-        eid = event_id or f"EVT-{merchant_id}-{int(st.timestamp())}"
+        spec_key = f"{self.global_seed}:{merchant_id}:{spec.anomaly_type}:{st.isoformat()}:{et.isoformat()}:{sorted(spec.parameters.items())}"
+        hash_hex = hashlib.sha256(spec_key.encode("utf-8")).hexdigest()[:10]
+        eid = event_id or f"EVT-{merchant_id}-{hash_hex}"
+
         self.scheduled_specs[merchant_id].append((eid, spec))
         self.anomaly_tx_history[eid] = []
 
@@ -189,11 +206,21 @@ class SyntheticStreamGenerator:
 
                     tx_id = f"TX-{m_id}-{uuid.UUID(bytes=rng.bytes(16)).hex[:10]}"
                     dev_pool_size = 5 if is_behavioral_spike else profile.legit_device_pool_size
+                    cust_pool_size = profile.legit_customer_pool_size
                     dev_id = f"DEV-{rng.integers(1, dev_pool_size + 1)}"
-                    cust_id = f"CUST-{rng.integers(1, dev_pool_size + 1)}"
+                    cust_id = f"CUST-{rng.integers(1, cust_pool_size + 1)}"
 
                     country = override_country or ("HIGH_RISK_GEO" if rng.random() < profile.p_high_risk_country else "US")
-                    payment = override_payment or ("PREPAID_CARD" if rng.random() < profile.p_prepaid_payment else "CREDIT_CARD")
+
+                    r_pay = rng.random()
+                    if r_pay < profile.p_prepaid_payment:
+                        legit_payment = "PREPAID_CARD"
+                    elif r_pay < profile.p_prepaid_payment + profile.p_debit_payment:
+                        legit_payment = "DEBIT_CARD"
+                    else:
+                        legit_payment = "CREDIT_CARD"
+
+                    payment = override_payment or legit_payment
 
                     tx = Transaction(
                         transaction_id=tx_id,

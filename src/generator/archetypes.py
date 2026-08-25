@@ -10,7 +10,7 @@ Six required archetypes:
 
 Legitimate promotional surges generate realistic volume spikes without ground-truth fraud events.
 All RNG behavior uses deterministic per-merchant Generators derived from (global_seed, merchant_id).
-Legitimate baselines for device, country, and payment method are mathematically derived from sampling probabilities.
+Legitimate baselines for device, customer, country, and payment method are mathematically derived from sampling probabilities.
 """
 
 from dataclasses import dataclass
@@ -28,7 +28,9 @@ class MerchantProfile:
     base_std_amount: float
     p_high_risk_country: float = 0.02
     p_prepaid_payment: float = 0.05
+    p_debit_payment: float = 0.15
     legit_device_pool_size: int = 5000
+    legit_customer_pool_size: int = 5000
 
 
 def create_merchant_profile(global_seed: int, merchant_id: str, archetype: str) -> MerchantProfile:
