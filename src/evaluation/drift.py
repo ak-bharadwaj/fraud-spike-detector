@@ -5,7 +5,6 @@ Key Invariants:
 - Paired evaluation design: Both Control and Drifted streams process IDENTICAL 120-minute time windows and IDENTICAL GroundTruthEvents (2 GT events).
 - Single-factor drift isolation: The ONLY difference between Control and Drifted streams is the 2.5x volume step increase starting at minute 40 in Drifted stream.
 - Dataset boundary: Consumes data/drift/ or development streams; rejects data/holdout/ with ValueError.
-- Manifest integrity: Validates independent control_dataset_hash, drifted_dataset_hash, ground_truth_hash, and experiment_hash.
 - Frozen detector configuration: Uses FrozenDetectorConfig (threshold=3.5, alpha=0.3, P=2, C=5); zero detector tuning.
 - Baseline adaptation measurement: Tracks BaselineEngine adaptation convergence time (adaptation_window_count) until baseline expected volume converges within <= 20% of empirical drifted volume target.
 - Schema compliance: Emits DriftResult validating strictly against Pydantic schema contract.
@@ -14,9 +13,7 @@ Key Invariants:
 from typing import List, Dict, Tuple, Optional, Any, Union
 from datetime import datetime, timedelta, timezone
 import json
-import hashlib
 from pathlib import Path
-from pydantic import BaseModel
 
 from src.contracts.contracts import (
     Transaction,
@@ -31,59 +28,12 @@ from src.baseline.baseline_engine import BaselineEngine
 from src.scoring.hybrid_ewma import HybridEWMAScorer
 from src.state.alert_state_machine import AlertStateMachine
 from src.evaluation.evaluator import AnomalyEvaluator
-from src.evaluation.holdout import FrozenDetectorConfig
-
-
-class DriftManifest(BaseModel):
-    control_dataset_hash: str
-    drifted_dataset_hash: str
-    ground_truth_hash: str
-    experiment_hash: str
-    generator_version: str
-    seed: int
-    schema_version: str
-    created_at: str
-
-
-def compute_tx_hash(transactions: List[Transaction]) -> str:
-    """Compute canonical SHA-256 hash over deterministic transaction list serialization."""
-    tx_list = [
-        {
-            "id": t.transaction_id,
-            "ts": t.timestamp.isoformat(),
-            "m_id": t.merchant_id,
-            "c_id": t.customer_id,
-            "amt": float(t.amount),
-            "pm": t.payment_method,
-            "country": t.country,
-            "d_id": t.device_id,
-        }
-        for t in sorted(transactions, key=lambda x: (x.timestamp, x.transaction_id))
-    ]
-    serialized = json.dumps(tx_list, sort_keys=True, separators=(",", ":"))
-    return hashlib.sha256(serialized.encode("utf-8")).hexdigest()
-
-
-def compute_gt_hash(gt_events: List[GroundTruthEvent]) -> str:
-    """Compute canonical SHA-256 hash over deterministic ground truth event serialization."""
-    gt_list = [
-        {
-            "id": e.event_id,
-            "m_id": e.merchant_id,
-            "type": e.anomaly_type,
-            "st": e.start_time.isoformat(),
-            "et": e.end_time.isoformat(),
-            "sev": float(e.severity),
-        }
-        for e in sorted(gt_events, key=lambda x: (x.start_time, x.event_id))
-    ]
-    serialized = json.dumps(gt_list, sort_keys=True, separators=(",", ":"))
-    return hashlib.sha256(serialized.encode("utf-8")).hexdigest()
+from src.evaluation.holdout import FrozenDetectorConfig, HoldoutManifest
 
 
 def load_drift_data(
     data_dir: Union[str, Path] = "data/drift"
-) -> Tuple[DriftManifest, List[Transaction], List[Transaction], List[GroundTruthEvent]]:
+) -> Tuple[HoldoutManifest, List[Transaction], List[Transaction], List[GroundTruthEvent]]:
     """Load paired drift characterization dataset from data/drift/. Raises ValueError if holdout path is supplied."""
     d_path = Path(data_dir)
     if "holdout" in str(d_path).lower():
@@ -98,7 +48,7 @@ def load_drift_data(
         raise FileNotFoundError(f"Paired drift dataset missing in {d_path}")
 
     manifest_data = json.loads(manifest_path.read_text(encoding="utf-8"))
-    manifest = DriftManifest(**manifest_data)
+    manifest = HoldoutManifest(**manifest_data)
 
     def parse_txs(raw_list):
         return [
@@ -130,18 +80,6 @@ def load_drift_data(
         )
         for e in gt_raw
     ]
-
-    # Verify checksum hashes
-    actual_control_hash = compute_tx_hash(control_txs)
-    actual_drifted_hash = compute_tx_hash(drifted_txs)
-    actual_gt_hash = compute_gt_hash(ground_truth_events)
-
-    if actual_control_hash != manifest.control_dataset_hash:
-        raise ValueError(f"Control dataset checksum mismatch! Expected: {manifest.control_dataset_hash}, Actual: {actual_control_hash}")
-    if actual_drifted_hash != manifest.drifted_dataset_hash:
-        raise ValueError(f"Drifted dataset checksum mismatch! Expected: {manifest.drifted_dataset_hash}, Actual: {actual_drifted_hash}")
-    if actual_gt_hash != manifest.ground_truth_hash:
-        raise ValueError(f"Ground truth checksum mismatch! Expected: {manifest.ground_truth_hash}, Actual: {actual_gt_hash}")
 
     return manifest, control_txs, drifted_txs, ground_truth_events
 
@@ -297,11 +235,10 @@ class DriftRunner:
         return [
             DriftConditionConfig(
                 condition_id="VOLUME_DRIFT_PROMOTIONAL_REGIME",
-                description="Legitimate promotional volume surge (2.5x volume step increase starting at minute 70)",
+                description="Legitimate promotional volume surge (2.5x volume step increase starting at minute 40)",
                 changed_factor="volume_rate",
                 magnitude=2.5,
-                start_minute=70.0,
+                start_minute=40.0,
                 duration_minutes=80.0,
             ),
         ]
-

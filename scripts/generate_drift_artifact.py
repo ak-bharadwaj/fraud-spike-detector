@@ -2,53 +2,18 @@
 
 from datetime import datetime, timedelta, timezone
 import json
-import hashlib
 from pathlib import Path
 
 from src.generator.stream_generator import SyntheticStreamGenerator
 from src.generator.anomalies import AnomalySpec
 from src.stream.clock import VirtualClock
-
-
-def compute_tx_hash(transactions) -> str:
-    tx_list = [
-        {
-            "id": t.transaction_id,
-            "ts": t.timestamp.isoformat(),
-            "m_id": t.merchant_id,
-            "c_id": t.customer_id,
-            "amt": float(t.amount),
-            "pm": t.payment_method,
-            "country": t.country,
-            "d_id": t.device_id,
-        }
-        for t in sorted(transactions, key=lambda x: (x.timestamp, x.transaction_id))
-    ]
-    serialized = json.dumps(tx_list, sort_keys=True, separators=(",", ":"))
-    return hashlib.sha256(serialized.encode("utf-8")).hexdigest()
-
-
-def compute_gt_hash(gt_events) -> str:
-    gt_list = [
-        {
-            "id": e.event_id,
-            "m_id": e.merchant_id,
-            "type": e.anomaly_type,
-            "st": e.start_time.isoformat(),
-            "et": e.end_time.isoformat(),
-            "sev": float(e.severity),
-        }
-        for e in sorted(gt_events, key=lambda x: (x.start_time, x.event_id))
-    ]
-    serialized = json.dumps(gt_list, sort_keys=True, separators=(",", ":"))
-    return hashlib.sha256(serialized.encode("utf-8")).hexdigest()
+from src.evaluation.holdout import HoldoutManifest, compute_holdout_dataset_hash
 
 
 def generate_and_save_drift_artifact():
     st = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
-    onset_time = st + timedelta(minutes=70.0)
 
-    # 1. Generate Control Base Stream (No volume drift)
+    # 1. Generate Control Stream (No drift)
     gen_control = SyntheticStreamGenerator(
         global_seed=2002,
         merchant_configs=[
@@ -58,55 +23,45 @@ def generate_and_save_drift_artifact():
         clock=VirtualClock(initial_time=st),
     )
 
-    # Anomaly 1 at minute 52 (post 50-window warm-up)
-    spec1 = AnomalySpec("volume_spike", st + timedelta(minutes=52), 600.0, 8.0, {"rate_multiplier": 8.0})
+    spec1 = AnomalySpec("volume_spike", st + timedelta(minutes=10), 300.0, 4.0, {"rate_multiplier": 3.0})
     gen_control.schedule_anomaly("DRIFT_M1", spec1, "EVT-DRIFT-001")
 
-    # Anomaly 2 at minute 100 (during drifted regime)
-    spec2 = AnomalySpec("velocity_spike", st + timedelta(minutes=100), 600.0, 8.0, {"rate_multiplier": 8.0})
+    spec2 = AnomalySpec("velocity_spike", st + timedelta(minutes=60), 300.0, 4.0, {"rate_multiplier": 4.0})
     gen_control.schedule_anomaly("DRIFT_M1", spec2, "EVT-DRIFT-002")
 
-    control_txs, gt_events = gen_control.generate_window(150.0)
+    control_txs, gt_events_control = gen_control.generate_window(120.0)
 
-    # 2. Derive Drifted Stream by keeping pre-onset txs & unaffected merchant txs IDENTICAL
-    pre_onset_txs = [t for t in control_txs if t.timestamp < onset_time]
-    post_onset_m2_txs = [t for t in control_txs if t.timestamp >= onset_time and t.merchant_id == "DRIFT_M2"]
-
-    # Generate additional surge transactions for DRIFT_M1 post-onset (starting strictly at onset_time = minute 70)
-    gen_surge = SyntheticStreamGenerator(
-        global_seed=3003,
+    # 2. Generate Drifted Stream (2.5x volume surge starting at minute 40)
+    gen_drift = SyntheticStreamGenerator(
+        global_seed=2002,
         merchant_configs=[
             {"id": "DRIFT_M1", "archetype": "stable"},
+            {"id": "DRIFT_M2", "archetype": "growing"},
         ],
-        clock=VirtualClock(initial_time=onset_time),
+        clock=VirtualClock(initial_time=st),
     )
 
-    # Schedule identical post-onset anomaly for surge generator
-    spec2_s = AnomalySpec("velocity_spike", st + timedelta(minutes=100), 600.0, 8.0, {"rate_multiplier": 8.0})
-    gen_surge.schedule_anomaly("DRIFT_M1", spec2_s, "EVT-DRIFT-002")
+    spec1_d = AnomalySpec("volume_spike", st + timedelta(minutes=10), 300.0, 4.0, {"rate_multiplier": 3.0})
+    gen_drift.schedule_anomaly("DRIFT_M1", spec1_d, "EVT-DRIFT-001")
 
-    surge_txs_all, _ = gen_surge.generate_window(80.0, is_surge_active={"DRIFT_M1": True})
-    post_onset_m1_surge_txs = [t for t in surge_txs_all if t.merchant_id == "DRIFT_M1" and t.timestamp >= onset_time]
+    spec2_d = AnomalySpec("velocity_spike", st + timedelta(minutes=60), 300.0, 4.0, {"rate_multiplier": 4.0})
+    gen_drift.schedule_anomaly("DRIFT_M1", spec2_d, "EVT-DRIFT-002")
 
-    drifted_txs = sorted(pre_onset_txs + post_onset_m2_txs + post_onset_m1_surge_txs, key=lambda x: x.timestamp)
+    txs1_d, gt1_d = gen_drift.generate_window(40.0)
+    txs2_d, gt2_d = gen_drift.generate_window(80.0, is_surge_active={"DRIFT_M1": True})
 
-    # Compute independent hashes for control, drifted, ground truth, and combined experiment hash
-    control_hash = compute_tx_hash(control_txs)
-    drifted_hash = compute_tx_hash(drifted_txs)
-    gt_hash = compute_gt_hash(gt_events)
-    exp_payload = f"{control_hash}:{drifted_hash}:{gt_hash}"
-    experiment_hash = hashlib.sha256(exp_payload.encode("utf-8")).hexdigest()
+    drifted_txs = txs1_d + txs2_d
 
-    manifest_dict = {
-        "control_dataset_hash": control_hash,
-        "drifted_dataset_hash": drifted_hash,
-        "ground_truth_hash": gt_hash,
-        "experiment_hash": experiment_hash,
-        "generator_version": "1.0.0",
-        "seed": 2002,
-        "schema_version": "1.0.0",
-        "created_at": "2026-08-25T00:00:00Z",
-    }
+    # Compute combined hash over control, drifted, and ground truth
+    dataset_hash = compute_holdout_dataset_hash(control_txs + drifted_txs, gt_events_control)
+
+    manifest = HoldoutManifest(
+        dataset_hash=dataset_hash,
+        generator_version="1.0.0",
+        seed=2002,
+        schema_version="1.0.0",
+        created_at="2026-08-25T00:00:00Z",
+    )
 
     data_dir = Path("data/drift")
     data_dir.mkdir(parents=True, exist_ok=True)
@@ -114,13 +69,10 @@ def generate_and_save_drift_artifact():
     manifest_file = data_dir / "manifest.json"
     control_file = data_dir / "control_transactions.json"
     drifted_file = data_dir / "drifted_transactions.json"
+    tx_file = data_dir / "transactions.json"
     gt_file = data_dir / "ground_truth.json"
-    alias_file = data_dir / "transactions.json"
 
-    if alias_file.exists():
-        alias_file.unlink()
-
-    manifest_file.write_text(json.dumps(manifest_dict, indent=2), encoding="utf-8")
+    manifest_file.write_text(json.dumps(manifest.model_dump(), indent=2), encoding="utf-8")
 
     def serialize_txs(tx_list):
         return [
@@ -139,6 +91,7 @@ def generate_and_save_drift_artifact():
 
     control_file.write_text(json.dumps(serialize_txs(control_txs), indent=2), encoding="utf-8")
     drifted_file.write_text(json.dumps(serialize_txs(drifted_txs), indent=2), encoding="utf-8")
+    tx_file.write_text(json.dumps(serialize_txs(drifted_txs), indent=2), encoding="utf-8")
 
     gt_raw = [
         {
@@ -149,13 +102,13 @@ def generate_and_save_drift_artifact():
             "et": e.end_time.isoformat(),
             "sev": float(e.severity),
         }
-        for e in gt_events
+        for e in gt_events_control
     ]
     gt_file.write_text(json.dumps(gt_raw, indent=2), encoding="utf-8")
 
     print(
         f"Paired drift dataset generated: control {len(control_txs)} txs, drifted {len(drifted_txs)} txs, "
-        f"gt {len(gt_events)} events.\nControl Hash: {control_hash}\nDrifted Hash: {drifted_hash}\nExperiment Hash: {experiment_hash}"
+        f"gt {len(gt_events_control)} events. Hash: {dataset_hash}"
     )
 
 

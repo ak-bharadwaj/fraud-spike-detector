@@ -1,8 +1,5 @@
 {
-  "control_dataset_hash": "c3cd29235b268d0a4b400acde3d8e4ce35c58a4be45cea36a04e898bd8181336",
-  "drifted_dataset_hash": "cf017b7af8c7490d9c475c84809c3ce94d5733b9e243e11b3a3a56f0c413439c",
-  "ground_truth_hash": "13e389653ecc73d6301cf8d83238bf9ff18ac6250e7581a271b9b4cd719c8d9a",
-  "experiment_hash": "fb5d7324af7450cc333bdc7bd92caa2f8f1b90d632f9fadaf1fd8dd47b46630b",
+  "dataset_hash": "f3d8977489cc52ef96aac60f1d9a6eb8ed99e02402fbfc964b5d659b0c2167ff",
   "generator_version": "1.0.0",
   "seed": 2002,
   "schema_version": "1.0.0",
