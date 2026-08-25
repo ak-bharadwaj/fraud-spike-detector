@@ -7,6 +7,8 @@ Key Invariants:
 - Enforces No Overlapping Active Events per merchant.
 - Derives realized ground-truth magnitude from actual generated transaction stream statistics over the anomaly's exact temporal interval [start_time, end_time).
 - Guarantees exact window-partitioning identity (sev1 == sev2) via minute-indexed RNG states.
+- Option A: Explicit integer minute window validation.
+- Single source of truth for device pool size and prepaid payment probability.
 - Completely isolated from detector code.
 """
 
@@ -94,7 +96,7 @@ class SyntheticStreamGenerator:
                     f"New spec [{st} .. {et}] overlaps existing spec [{ex_st} .. {ex_et}]."
                 )
 
-        eid = event_id or f"EVT-{m_id}-{int(st.timestamp())}"
+        eid = event_id or f"EVT-{merchant_id}-{int(st.timestamp())}"
         self.scheduled_specs[merchant_id].append((eid, spec))
         self.anomaly_tx_history[eid] = []
 
@@ -108,6 +110,9 @@ class SyntheticStreamGenerator:
         is_surge_active: dict[str, bool] = None,
     ) -> tuple[list[Transaction], list[GroundTruthEvent]]:
         """Generate transactions and realized ground-truth events for the current time step."""
+        if duration_minutes <= 0 or float(duration_minutes) != float(int(duration_minutes)):
+            raise ValueError(f"duration_minutes must be a positive integer, got {duration_minutes}")
+
         is_surge_active = is_surge_active or {}
         window_start = self.clock.current_time()
         window_end = window_start + timedelta(minutes=duration_minutes)
@@ -115,7 +120,7 @@ class SyntheticStreamGenerator:
         all_txs: list[Transaction] = []
         emitted_events: set[str] = set()
 
-        num_minute_steps = int(np.round(duration_minutes))
+        num_minute_steps = int(duration_minutes)
         for step in range(num_minute_steps):
             step_start = window_start + timedelta(minutes=step)
             step_end = step_start + timedelta(minutes=1.0)
@@ -157,13 +162,18 @@ class SyntheticStreamGenerator:
                         is_behavioral_spike = True
                         rate_multiplier *= params.get("rate_multiplier", 1.8)
                     elif atype == "attribute_anomaly":
-                        override_country = params.get("country", "HIGH_RISK_GEO")
-                        override_payment = params.get("payment_method", "PREPAID_CARD")
+                        if "country" in params:
+                            override_country = params["country"]
+                        if "payment_method" in params:
+                            override_payment = params["payment_method"]
                     elif atype == "compound_anomaly":
                         rate_multiplier *= params.get("rate_multiplier", max(2.5, tm * 0.8))
                         amount_multiplier *= params.get("amount_multiplier", max(3.0, tm * 0.8))
                         is_behavioral_spike = True
-                        override_country = params.get("country", "HIGH_RISK_GEO")
+                        if "country" in params:
+                            override_country = params["country"]
+                        if "payment_method" in params:
+                            override_payment = params["payment_method"]
 
                 effective_rate = legit_rate * rate_multiplier
                 expected_count = int(np.round(effective_rate * 1.0))
@@ -179,11 +189,11 @@ class SyntheticStreamGenerator:
 
                     tx_id = f"TX-{m_id}-{uuid.UUID(bytes=rng.bytes(16)).hex[:10]}"
                     dev_pool_size = 5 if is_behavioral_spike else profile.legit_device_pool_size
-                    dev_id = f"DEV-{rng.integers(1, dev_pool_size)}"
-                    cust_id = f"CUST-{rng.integers(1, dev_pool_size)}"
+                    dev_id = f"DEV-{rng.integers(1, dev_pool_size + 1)}"
+                    cust_id = f"CUST-{rng.integers(1, dev_pool_size + 1)}"
 
-                    country = override_country or ("US" if rng.random() > profile.p_high_risk_country else "HIGH_RISK_GEO")
-                    payment = override_payment or ("CREDIT_CARD" if rng.random() > profile.p_prepaid_payment else "PREPAID_CARD")
+                    country = override_country or ("HIGH_RISK_GEO" if rng.random() < profile.p_high_risk_country else "US")
+                    payment = override_payment or ("PREPAID_CARD" if rng.random() < profile.p_prepaid_payment else "CREDIT_CARD")
 
                     tx = Transaction(
                         transaction_id=tx_id,
@@ -250,9 +260,14 @@ class SyntheticStreamGenerator:
                     m_payment = compute_standardized_magnitude(obs_payment_ratio, expected_payment_ratio, scale_payment_ratio)
 
                     atype = spec.anomaly_type
+                    params = spec.parameters
+
                     if atype == "compound_anomaly":
-                        # Section 14 Compound Severity Rule: mean absolute standardized deviation across active signals
-                        active_signals = [m_rate, m_amt, m_dev, m_country]
+                        active_signals = [m_rate, m_amt, m_dev]
+                        if "country" in params:
+                            active_signals.append(m_country)
+                        if "payment_method" in params:
+                            active_signals.append(m_payment)
                         realized_m = compute_compound_severity(active_signals)
                     elif atype in ("velocity_spike", "volume_spike", "sustained_anomaly"):
                         realized_m = m_rate
@@ -261,7 +276,12 @@ class SyntheticStreamGenerator:
                     elif atype == "behavioral_shift":
                         realized_m = m_dev
                     elif atype == "attribute_anomaly":
-                        realized_m = compute_compound_severity([m_country, m_payment])
+                        attr_signals = []
+                        if "country" in params:
+                            attr_signals.append(m_country)
+                        if "payment_method" in params:
+                            attr_signals.append(m_payment)
+                        realized_m = compute_compound_severity(attr_signals or [m_country])
                     else:
                         realized_m = spec.target_magnitude
 
