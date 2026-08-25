@@ -6,14 +6,14 @@ Validates all 16 required state machine behavioral dimensions:
 3. Exact threshold boundary (score == 3.5 qualifies as breach).
 4. Above-threshold score (score > 3.5 qualifies as breach).
 5. Persistence progression (NORMAL -> CANDIDATE -> ALERT).
-6. Persistence reset (sub-threshold score resets counter to 0).
-7. Alert activation & Alert object emission.
-8. Cooldown recovery (C=5 windows alert suppression & return to NORMAL).
-9. INSUFFICIENT evidence behavior (resets persistence counter to 0).
-10. DEGRADED evidence behavior (qualifies with confidence=0.5).
-11. SUFFICIENT evidence behavior (qualifies with confidence=1.0).
+6. State lifecycle consistency (process_score returns "ALERT" and get_merchant_state() returns "ALERT").
+7. Step-by-step window-by-window cooldown progression (w1 CANDIDATE, w2 ALERT, w3..w7 COOLDOWN, w8 NORMAL).
+8. Config-driven construction via from_config.
+9. DEGRADED evidence behavior (qualifies for persistence with confidence=0.5).
+10. INSUFFICIENT evidence behavior (resets persistence counter to 0).
+11. SUFFICIENT evidence behavior (qualifies for persistence with confidence=1.0).
 12. Merchant state isolation (Merchant A vs B independence).
-13. Deterministic replay.
+13. Deterministic replay and deterministic Alert ID.
 14. GroundTruth & Holdout isolation (zero ground-truth/holdout imports in src/state).
 15. Holdout isolation boundary enforcement.
 16. Alert Pydantic schema compliance.
@@ -27,6 +27,7 @@ import pytest
 
 from src.contracts.contracts import RiskScore, Alert
 from src.contracts.config_schemas import DetectorConfig, ScorerConfig, EvidenceConfig, StateMachineConfig
+from src.contracts.config_loader import load_detector_config
 from src.state.alert_state_machine import AlertStateMachine
 
 
@@ -49,7 +50,22 @@ def make_dummy_risk_score(
 
 
 # =====================================================================
-# 1. Initial State & Below-Threshold Score
+# 1. Config-Driven Construction (Blocker 3)
+# =====================================================================
+
+def test_config_driven_alert_state_machine_construction():
+    """Verify AlertStateMachine.from_config loads parameters matching detector.yaml."""
+    cfg = load_detector_config(Path(__file__).parent.parent / "config" / "detector.yaml")
+    sm = AlertStateMachine.from_config(cfg)
+
+    assert sm.persistence == cfg.scorer.persistence
+    assert sm.cooldown_windows == cfg.state_machine.cooldown_windows
+    assert sm.static_threshold == cfg.scorer.static_threshold
+    assert sm.detector_version == cfg.version
+
+
+# =====================================================================
+# 2. Initial State & Below-Threshold Score
 # =====================================================================
 
 def test_initial_state_and_below_threshold_score():
@@ -63,11 +79,12 @@ def test_initial_state_and_below_threshold_score():
     state, alert = sm.process_score("M1", st, risk_low)
 
     assert state == "NORMAL"
+    assert sm.get_merchant_state("M1") == "NORMAL"
     assert alert is None
 
 
 # =====================================================================
-# 2. Exact Threshold Boundary & Above-Threshold Score
+# 3. Exact Threshold Boundary & Above-Threshold Score
 # =====================================================================
 
 def test_exact_threshold_boundary_and_above_threshold_score():
@@ -75,83 +92,98 @@ def test_exact_threshold_boundary_and_above_threshold_score():
     st = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
     sm = AlertStateMachine(persistence=2, cooldown_windows=5, static_threshold=3.5)
 
-    # Exact threshold boundary (score == 3.5)
     risk_exact = make_dummy_risk_score(score=3.5)
     state1, alert1 = sm.process_score("M1", st, risk_exact)
 
     assert state1 == "CANDIDATE"
+    assert sm.get_merchant_state("M1") == "CANDIDATE"
     assert alert1 is None
 
 
 # =====================================================================
-# 3. Persistence Progression & Reset
+# 4. Explicit Window-by-Window Cooldown Transition Lifecycle (Blockers 1 & 2)
 # =====================================================================
 
-def test_persistence_progression_and_reset():
-    """Verify persistence progression (NORMAL -> CANDIDATE -> ALERT) and sub-threshold reset."""
+def test_explicit_window_by_window_cooldown_transition_lifecycle():
+    """Verify step-by-step state lifecycle: w1 CANDIDATE, w2 ALERT (consistent state), w3..w7 COOLDOWN, w8 NORMAL."""
     st = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
     sm = AlertStateMachine(persistence=2, cooldown_windows=5, static_threshold=3.5)
 
-    # Window 1: score >= 3.5 -> CANDIDATE
-    state1, alert1 = sm.process_score("M1", st, make_dummy_risk_score(score=5.0))
-    assert state1 == "CANDIDATE"
-    assert alert1 is None
+    # Window 1 (t=0): score >= 3.5 -> CANDIDATE
+    st1, alt1 = sm.process_score("M1", st, make_dummy_risk_score(score=5.0))
+    assert st1 == "CANDIDATE"
+    assert sm.get_merchant_state("M1") == "CANDIDATE"
+    assert alt1 is None
 
-    # Window 2: sub-threshold score < 3.5 -> NORMAL (reset counter)
-    st2 = st + timedelta(minutes=1)
-    state2, alert2 = sm.process_score("M1", st2, make_dummy_risk_score(score=1.0))
-    assert state2 == "NORMAL"
-    assert alert2 is None
+    # Window 2 (t=1): score >= 3.5 -> ALERT (both process_score and get_merchant_state return "ALERT")
+    t2 = st + timedelta(minutes=1)
+    st2, alt2 = sm.process_score("M1", t2, make_dummy_risk_score(score=5.0))
+    assert st2 == "ALERT"
+    assert sm.get_merchant_state("M1") == "ALERT"
+    assert alt2 is not None
+    assert alt2.risk_score == 5.0
 
-    # Window 3: score >= 3.5 -> CANDIDATE again
-    st3 = st + timedelta(minutes=2)
-    state3, alert3 = sm.process_score("M1", st3, make_dummy_risk_score(score=5.0))
-    assert state3 == "CANDIDATE"
+    # Window 3 (t=2): 1st Cooldown window -> COOLDOWN
+    t3 = st + timedelta(minutes=2)
+    st3, alt3 = sm.process_score("M1", t3, make_dummy_risk_score(score=10.0))
+    assert st3 == "COOLDOWN"
+    assert sm.get_merchant_state("M1") == "COOLDOWN"
+    assert alt3 is None
 
-    # Window 4: score >= 3.5 -> ALERT (persistence 2 met!)
-    st4 = st + timedelta(minutes=3)
-    state4, alert4 = sm.process_score("M1", st4, make_dummy_risk_score(score=5.0))
-    assert state4 == "ALERT"
-    assert alert4 is not None
-    assert alert4.risk_score == 5.0
+    # Window 4 (t=3): 2nd Cooldown window -> COOLDOWN
+    t4 = st + timedelta(minutes=3)
+    st4, alt4 = sm.process_score("M1", t4, make_dummy_risk_score(score=10.0))
+    assert st4 == "COOLDOWN"
+    assert sm.get_merchant_state("M1") == "COOLDOWN"
+
+    # Window 5 (t=4): 3rd Cooldown window -> COOLDOWN
+    t5 = st + timedelta(minutes=4)
+    st5, alt5 = sm.process_score("M1", t5, make_dummy_risk_score(score=10.0))
+    assert st5 == "COOLDOWN"
+
+    # Window 6 (t=5): 4th Cooldown window -> COOLDOWN
+    t6 = st + timedelta(minutes=5)
+    st6, alt6 = sm.process_score("M1", t6, make_dummy_risk_score(score=10.0))
+    assert st6 == "COOLDOWN"
+
+    # Window 7 (t=6): 5th Cooldown window -> COOLDOWN
+    t7 = st + timedelta(minutes=6)
+    st7, alt7 = sm.process_score("M1", t7, make_dummy_risk_score(score=10.0))
+    assert st7 == "COOLDOWN"
+
+    # Window 8 (t=7): Cooldown exhausted -> transitions back to NORMAL
+    t8 = st + timedelta(minutes=7)
+    st8, alt8 = sm.process_score("M1", t8, make_dummy_risk_score(score=1.0))
+    assert st8 == "NORMAL"
+    assert sm.get_merchant_state("M1") == "NORMAL"
+    assert alt8 is None
 
 
 # =====================================================================
-# 4. Cooldown Recovery (C=5 Windows Alert Suppression)
+# 5. Evidence State Persistence Behaviors (Blocker 4)
 # =====================================================================
 
-def test_cooldown_recovery_suppression_and_return_to_normal():
-    """Verify C=5 cooldown windows suppress duplicate alerts and transition back to NORMAL."""
+def test_degraded_qualifying_score_continues_persistence():
+    """Verify DEGRADED evidence score >= 3.5 continues persistence from CANDIDATE to ALERT with confidence=0.5."""
     st = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
     sm = AlertStateMachine(persistence=2, cooldown_windows=5, static_threshold=3.5)
 
-    # Trigger ALERT (w1=CANDIDATE, w2=ALERT)
-    sm.process_score("M1", st, make_dummy_risk_score(score=5.0))
-    st2 = st + timedelta(minutes=1)
-    state2, alert2 = sm.process_score("M1", st2, make_dummy_risk_score(score=5.0))
-    assert state2 == "ALERT"
+    # Window 1: SUFFICIENT score -> CANDIDATE
+    sm.process_score("M1", st, make_dummy_risk_score(score=5.0, confidence=1.0, data_quality="GOOD"))
+    assert sm.get_merchant_state("M1") == "CANDIDATE"
+
+    # Window 2: DEGRADED score >= 3.5 -> ALERT (emits Alert with confidence=0.5)
+    t2 = st + timedelta(minutes=1)
+    st2, alert2 = sm.process_score("M1", t2, make_dummy_risk_score(score=5.0, confidence=0.5, data_quality="DEGRADED"))
+
+    assert st2 == "ALERT"
+    assert sm.get_merchant_state("M1") == "ALERT"
     assert alert2 is not None
-
-    # Following 5 windows (w3..w7) are in COOLDOWN -> no duplicate alert emission
-    for i in range(1, 5):
-        t_i = st2 + timedelta(minutes=i)
-        st_i, alt_i = sm.process_score("M1", t_i, make_dummy_risk_score(score=10.0))  # Wild score
-        assert st_i == "COOLDOWN"
-        assert alt_i is None
-
-    # 5th cooldown window finishes -> state returns to NORMAL
-    t_last = st2 + timedelta(minutes=5)
-    st_last, alt_last = sm.process_score("M1", t_last, make_dummy_risk_score(score=1.0))
-    assert st_last == "NORMAL"
-    assert alt_last is None
+    assert alert2.confidence == 0.5
 
 
-# =====================================================================
-# 5. Evidence-State Behaviors (INSUFFICIENT, DEGRADED, SUFFICIENT)
-# =====================================================================
-
-def test_insufficient_evidence_resets_persistence():
-    """Verify INSUFFICIENT evidence (score=None) resets CANDIDATE back to NORMAL."""
+def test_insufficient_evidence_resets_candidate_counter():
+    """Verify INSUFFICIENT evidence (score=None) resets CANDIDATE back to NORMAL and counter to 0."""
     st = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
     sm = AlertStateMachine(persistence=2, cooldown_windows=5, static_threshold=3.5)
 
@@ -159,37 +191,17 @@ def test_insufficient_evidence_resets_persistence():
     sm.process_score("M1", st, make_dummy_risk_score(score=5.0))
     assert sm.get_merchant_state("M1") == "CANDIDATE"
 
-    # Window 2: INSUFFICIENT evidence (score=None) -> resets to NORMAL
-    st2 = st + timedelta(minutes=1)
-    state2, alert2 = sm.process_score("M1", st2, make_dummy_risk_score(score=None, confidence=0.0, data_quality="INSUFFICIENT"))
-    assert state2 == "NORMAL"
+    # Window 2: INSUFFICIENT evidence -> NORMAL
+    t2 = st + timedelta(minutes=1)
+    st2, alert2 = sm.process_score("M1", t2, make_dummy_risk_score(score=None, confidence=0.0, data_quality="INSUFFICIENT"))
+
+    assert st2 == "NORMAL"
+    assert sm.get_merchant_state("M1") == "NORMAL"
     assert alert2 is None
 
 
-def test_degraded_and_sufficient_evidence_state_alert_emission():
-    """Verify DEGRADED evidence score qualifies with confidence=0.5, SUFFICIENT with confidence=1.0."""
-    st = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
-
-    # DEGRADED emission
-    sm_deg = AlertStateMachine(persistence=2, cooldown_windows=5, static_threshold=3.5)
-    sm_deg.process_score("M1", st, make_dummy_risk_score(score=5.0, confidence=0.5, data_quality="DEGRADED"))
-    st2 = st + timedelta(minutes=1)
-    _, alert_deg = sm_deg.process_score("M1", st2, make_dummy_risk_score(score=5.0, confidence=0.5, data_quality="DEGRADED"))
-
-    assert alert_deg is not None
-    assert alert_deg.confidence == 0.5
-
-    # SUFFICIENT emission
-    sm_suf = AlertStateMachine(persistence=2, cooldown_windows=5, static_threshold=3.5)
-    sm_suf.process_score("M1", st, make_dummy_risk_score(score=5.0, confidence=1.0, data_quality="GOOD"))
-    _, alert_suf = sm_suf.process_score("M1", st2, make_dummy_risk_score(score=5.0, confidence=1.0, data_quality="GOOD"))
-
-    assert alert_suf is not None
-    assert alert_suf.confidence == 1.0
-
-
 # =====================================================================
-# 6. Merchant State Isolation
+# 6. Merchant Isolation & Determinism
 # =====================================================================
 
 def test_multi_merchant_state_isolation():
@@ -197,40 +209,33 @@ def test_multi_merchant_state_isolation():
     st = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
     sm = AlertStateMachine(persistence=2, cooldown_windows=5, static_threshold=3.5)
 
-    # Merchant A in CANDIDATE
     sm.process_score("M_A", st, make_dummy_risk_score(score=5.0))
     assert sm.get_merchant_state("M_A") == "CANDIDATE"
-
-    # Merchant B should still be in NORMAL
     assert sm.get_merchant_state("M_B") == "NORMAL"
 
 
-# =====================================================================
-# 7. Deterministic Replay
-# =====================================================================
-
-def test_deterministic_state_machine_replay():
-    """Verify identical input sequence produces identical state transitions and Alert emission."""
+def test_deterministic_state_machine_replay_and_alert_id():
+    """Verify identical input sequence produces identical state transitions and deterministic Alert ID."""
     st = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
 
     # Run 1
     sm1 = AlertStateMachine(persistence=2, cooldown_windows=5, static_threshold=3.5)
     sm1.process_score("M1", st, make_dummy_risk_score(score=5.0))
-    st2 = st + timedelta(minutes=1)
-    st1, alt1 = sm1.process_score("M1", st2, make_dummy_risk_score(score=5.0))
+    t2 = st + timedelta(minutes=1)
+    st1, alt1 = sm1.process_score("M1", t2, make_dummy_risk_score(score=5.0))
 
     # Run 2
     sm2 = AlertStateMachine(persistence=2, cooldown_windows=5, static_threshold=3.5)
     sm2.process_score("M1", st, make_dummy_risk_score(score=5.0))
-    st2_run2, alt2 = sm2.process_score("M1", st2, make_dummy_risk_score(score=5.0))
+    st2_run2, alt2 = sm2.process_score("M1", t2, make_dummy_risk_score(score=5.0))
 
-    assert st1 == st2_run2
-    assert alt1 == alt2
+    assert st1 == st2_run2 == "ALERT"
+    assert alt1.alert_id == alt2.alert_id
     assert alt1.model_dump() == alt2.model_dump()
 
 
 # =====================================================================
-# 8. GroundTruth & Holdout Isolation (AST Architectural Check)
+# 7. GroundTruth & Holdout Isolation (AST Architectural Check)
 # =====================================================================
 
 def test_ground_truth_and_holdout_isolation_in_state_package():
@@ -257,7 +262,7 @@ def test_ground_truth_and_holdout_isolation_in_state_package():
 
 
 # =====================================================================
-# 9. Alert Schema Validation
+# 8. Alert Schema Validation
 # =====================================================================
 
 def test_alert_pydantic_schema_compliance():
@@ -266,8 +271,8 @@ def test_alert_pydantic_schema_compliance():
     sm = AlertStateMachine(persistence=2, cooldown_windows=5, static_threshold=3.5)
 
     sm.process_score("M1", st, make_dummy_risk_score(score=5.0))
-    st2 = st + timedelta(minutes=1)
-    _, alert = sm.process_score("M1", st2, make_dummy_risk_score(score=5.0))
+    t2 = st + timedelta(minutes=1)
+    _, alert = sm.process_score("M1", t2, make_dummy_risk_score(score=5.0))
 
     assert alert is not None
     dumped = alert.model_dump()

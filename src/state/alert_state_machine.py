@@ -1,9 +1,11 @@
 """AlertStateMachine module for managing alert state transitions and persistence gating.
 
 Key Invariants:
-- State model: NORMAL, CANDIDATE, ALERT, COOLDOWN.
+- State model & lifecycle: NORMAL -> CANDIDATE -> ALERT -> COOLDOWN -> NORMAL.
+- ALERT state consistency: when persistence is reached in window w, process_score returns ("ALERT", alert) and get_merchant_state() returns "ALERT".
+- COOLDOWN transition: in subsequent windows (w+1..w+5 for cooldown_windows=5), state transitions to "COOLDOWN", suppressing new alerts.
+- Normal transition: after cooldown_windows finish, state transitions back to "NORMAL" (at window w+6).
 - Persistence (P=2): Requires score >= static_threshold for 2 consecutive qualifying windows.
-- Cooldown (C=5): Immediately after emitting Alert, enters COOLDOWN for 5 windows to suppress duplicate alert spam.
 - Threshold operator: score >= static_threshold (exact >= operator).
 - Persistence reset: score < static_threshold or evidence_state == "INSUFFICIENT" resets persistence counter to 0.
 - DEGRADED evidence: qualifies for persistence if score >= static_threshold (carries confidence=0.5).
@@ -32,13 +34,7 @@ class MerchantStateContext:
 class AlertStateMachine:
     """State machine converting RiskScore observations into Alert emissions and state transitions."""
 
-    def __init__(
-        self,
-        persistence: int = 2,
-        cooldown_windows: int = 5,
-        static_threshold: float = 3.5,
-        detector_version: str = "1.0.0",
-    ):
+    def __init__(self, persistence: int = 2, cooldown_windows: int = 5, static_threshold: float = 3.5, detector_version: str = "1.0.0"):
         if persistence <= 0:
             raise ValueError(f"persistence must be positive, got {persistence}")
         if cooldown_windows < 0:
@@ -80,29 +76,40 @@ class AlertStateMachine:
         ctx = self._merchant_states[merchant_id]
         score_val = risk_score.score
 
-        # 1. Check if merchant is currently in COOLDOWN
+        # 1. Handle transition from ALERT to COOLDOWN (or NORMAL) in window following ALERT
+        if ctx.state == "ALERT":
+            if self.cooldown_windows > 0:
+                ctx.state = "COOLDOWN"
+                ctx.cooldown_counter = self.cooldown_windows  # 5 full cooldown windows
+                ctx.persistence_counter = 0
+            else:
+                ctx.state = "NORMAL"
+                ctx.persistence_counter = 0
+
+        # 2. Handle COOLDOWN state progression
         if ctx.state == "COOLDOWN":
+            current_cooldown_state = "COOLDOWN"
             ctx.cooldown_counter -= 1
             if ctx.cooldown_counter <= 0:
                 ctx.state = "NORMAL"
                 ctx.persistence_counter = 0
                 ctx.cooldown_counter = 0
-            return (ctx.state, None)
+            return (current_cooldown_state, None)
 
-        # 2. Check if risk_score is None (INSUFFICIENT evidence) or below threshold
+        # 3. Check if risk_score is None (INSUFFICIENT evidence) or below static_threshold
         if score_val is None or score_val < self.static_threshold:
             ctx.state = "NORMAL"
             ctx.persistence_counter = 0
             return ("NORMAL", None)
 
-        # 3. Qualifying score breach: score >= static_threshold
+        # 4. Qualifying score breach: score >= static_threshold
         ctx.persistence_counter += 1
 
         if ctx.persistence_counter < self.persistence:
             ctx.state = "CANDIDATE"
             return ("CANDIDATE", None)
 
-        # 4. Persistence threshold reached (persistence_counter >= P) -> Trigger ALERT
+        # 5. Persistence threshold reached (persistence_counter >= P) -> Transition to ALERT
         ctx.state = "ALERT"
 
         # Generate deterministic alert_id
@@ -126,15 +133,6 @@ class AlertStateMachine:
             triggered_signals=risk_score.triggered_signals,
             detector_version=self.detector_version,
         )
-
-        # Immediately enter COOLDOWN state if cooldown_windows > 0
-        if self.cooldown_windows > 0:
-            ctx.state = "COOLDOWN"
-            ctx.cooldown_counter = self.cooldown_windows
-            ctx.persistence_counter = 0
-        else:
-            ctx.state = "NORMAL"
-            ctx.persistence_counter = 0
 
         return ("ALERT", alert_obj)
 
