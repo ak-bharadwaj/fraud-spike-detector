@@ -1,19 +1,20 @@
 """Comprehensive behavioral unit tests for Day 3 FeatureEngine.
 
-Validates all 13 required feature extraction dimensions:
+Validates:
 1. Exact window assignment ([window_start, window_end) half-open boundary).
 2. Transaction counting (volume and velocity).
 3. Amount aggregation (total, mean, std, min, max).
 4. Customer cardinality (unique_customers).
 5. Device cardinality (unique_devices).
-6. Categorical distributions (high_risk_country_ratio, prepaid_payment_ratio).
-7. Robust statistics (median_amount, mad_amount exact mathematical verification).
-8. Empty / sparse windows (EMPTY data quality).
-9. Multi-merchant isolation (Merchant A vs B partition stability).
-10. Deterministic replay.
-11. No future leakage (transactions at or after window_end excluded).
-12. GroundTruth isolation (zero ground-truth imports in src/features).
-13. FeatureSnapshot Pydantic schema compliance.
+6. Timezone-aware timestamp policy (naive datetimes explicitly rejected with TypeError).
+7. Native float precision preservation (no extraction-layer rounding).
+8. Robust statistics (median_amount, mad_amount exact mathematical verification).
+9. Empty / sparse windows (EMPTY data quality).
+10. Multi-merchant isolation (Merchant A vs B partition stability).
+11. Deterministic replay.
+12. No future leakage (transactions at or after window_end excluded).
+13. GroundTruth isolation (zero ground-truth imports in src/features).
+14. FeatureSnapshot Pydantic schema compliance.
 """
 
 import ast
@@ -78,7 +79,67 @@ def test_exact_window_assignment_half_open_boundary():
 
 
 # =====================================================================
-# 2. Transaction Counting (volume & velocity)
+# 2. Timezone-Aware Timestamp Policy (Blocker 2)
+# =====================================================================
+
+def test_naive_timestamp_rejection_policy():
+    """Verify naive datetimes without tzinfo are explicitly rejected with TypeError."""
+    st_tz = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
+    st_naive = datetime(2026, 1, 1, 12, 0)
+    et_naive = datetime(2026, 1, 1, 12, 5)
+    engine = FeatureEngine(window_duration_minutes=5.0)
+
+    # 1. Naive window_start -> rejected
+    with pytest.raises(TypeError, match="window_start must be timezone-aware"):
+        engine.extract_snapshot("M1", [], st_naive)
+
+    # 2. Naive window_end -> rejected
+    with pytest.raises(TypeError, match="window_end must be timezone-aware"):
+        engine.extract_snapshot("M1", [], st_tz, et_naive)
+
+    # 3. Naive transaction timestamp -> rejected
+    tx_naive = Transaction(
+        transaction_id="TX-NAIVE",
+        timestamp=st_naive,
+        merchant_id="M1",
+        customer_id="C1",
+        amount=100.0,
+        payment_method="CREDIT_CARD",
+        country="US",
+        device_id="D1",
+    )
+    with pytest.raises(TypeError, match="Transaction 'TX-NAIVE' timestamp must be timezone-aware"):
+        engine.extract_snapshot("M1", [tx_naive], st_tz)
+
+
+# =====================================================================
+# 3. Native Precision Preservation (Blocker 6)
+# =====================================================================
+
+def test_native_float_precision_preservation():
+    """Verify feature extraction preserves unrounded native float double-precision."""
+    st = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
+    engine = FeatureEngine(window_duration_minutes=1.0)
+
+    precise_amt = 123.456789123456
+    tx = Transaction(
+        transaction_id="TX-PRECISION",
+        timestamp=st,
+        merchant_id="M1",
+        customer_id="C1",
+        amount=precise_amt,
+        payment_method="CREDIT_CARD",
+        country="US",
+        device_id="D1",
+    )
+
+    snap = engine.extract_snapshot("M1", [tx], st)
+    assert snap.amount_statistics["mean_amount"] == precise_amt
+    assert snap.amount_statistics["total_amount"] == precise_amt
+
+
+# =====================================================================
+# 4. Transaction Counting (volume & velocity)
 # =====================================================================
 
 def test_transaction_counting_volume_and_velocity():
@@ -108,7 +169,7 @@ def test_transaction_counting_volume_and_velocity():
 
 
 # =====================================================================
-# 3. Amount Aggregation (total, mean, std, min, max)
+# 5. Amount Aggregation (total, mean, std, min, max)
 # =====================================================================
 
 def test_amount_statistics_aggregation():
@@ -143,7 +204,7 @@ def test_amount_statistics_aggregation():
 
 
 # =====================================================================
-# 4. Customer Cardinality & 5. Device Cardinality
+# 6. Customer & Device Cardinality
 # =====================================================================
 
 def test_customer_and_device_cardinality():
@@ -163,33 +224,6 @@ def test_customer_and_device_cardinality():
 
     assert snap.unique_customers == 3  # CUST-A, CUST-B, CUST-C
     assert snap.unique_devices == 3    # DEV-X, DEV-Y, DEV-Z
-    assert math.isclose(snap.amount_statistics["customer_device_ratio"], 1.0)
-
-
-# =====================================================================
-# 6. Categorical Distributions
-# =====================================================================
-
-def test_categorical_distribution_features():
-    """Verify country and payment method ratio distribution calculations."""
-    st = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
-    et = st + timedelta(minutes=1.0)
-    engine = FeatureEngine(window_duration_minutes=1.0)
-
-    txs = [
-        Transaction(transaction_id="TX-1", timestamp=st, merchant_id="M1", customer_id="C1", amount=100.0, payment_method="PREPAID_CARD", country="HIGH_RISK_GEO", device_id="D1"),
-        Transaction(transaction_id="TX-2", timestamp=st + timedelta(seconds=10), merchant_id="M1", customer_id="C2", amount=100.0, payment_method="DEBIT_CARD", country="US", device_id="D2"),
-        Transaction(transaction_id="TX-3", timestamp=st + timedelta(seconds=20), merchant_id="M1", customer_id="C3", amount=100.0, payment_method="CREDIT_CARD", country="US", device_id="D3"),
-        Transaction(transaction_id="TX-4", timestamp=st + timedelta(seconds=30), merchant_id="M1", customer_id="C4", amount=100.0, payment_method="CREDIT_CARD", country="HIGH_RISK_GEO", device_id="D4"),
-    ]
-
-    snap = engine.extract_snapshot("M1", txs, st, et)
-
-    stats = snap.amount_statistics
-    assert stats["high_risk_country_ratio"] == 0.5  # 2 of 4 HIGH_RISK_GEO
-    assert stats["prepaid_payment_ratio"] == 0.25   # 1 of 4 PREPAID_CARD
-    assert stats["debit_payment_ratio"] == 0.25     # 1 of 4 DEBIT_CARD
-    assert stats["credit_payment_ratio"] == 0.5     # 2 of 4 CREDIT_CARD
 
 
 # =====================================================================
@@ -345,7 +379,6 @@ def test_feature_snapshot_pydantic_schema_compliance():
     txs = [Transaction(transaction_id="TX-1", timestamp=st, merchant_id="M1", customer_id="C1", amount=100.0, payment_method="CREDIT_CARD", country="US", device_id="D1")]
     snap = engine.extract_snapshot("M1", txs, st)
 
-    # Validate model serialization and re-instantiation
     dumped = snap.model_dump()
     reconstructed = FeatureSnapshot(**dumped)
 

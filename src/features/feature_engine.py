@@ -4,9 +4,10 @@ Transforms transaction streams into per-merchant FeatureSnapshot objects over ha
 time windows [window_start, window_end).
 
 Key Invariants:
-- 100% deterministic feature extraction using VirtualClock.
+- Pure deterministic feature transformer (caller owns virtual time progression).
 - Strict half-open window boundary semantics: [window_start, window_end).
-- Zero future leakage: only transactions occurring in [window_start, window_end) are processed.
+- Timezone-aware timestamp policy: rejects naive datetimes with TypeError.
+- Native float double-precision preservation (no arbitrary extraction-layer rounding).
 - GroundTruth isolation: NO imports of GroundTruthEvent, AnomalySpec, or ground truth metadata.
 - Sparse window handling: empty windows return volume=0, velocity=0, data_quality="EMPTY".
 - Robust statistics: exact median and MAD (Median Absolute Deviation: median(|x - median(x)|)).
@@ -19,7 +20,6 @@ from typing import Optional, Sequence
 import numpy as np
 
 from src.contracts.contracts import Transaction, FeatureSnapshot
-from src.stream.clock import VirtualClock
 
 
 class FeatureEngine:
@@ -38,22 +38,30 @@ class FeatureEngine:
         window_end: Optional[datetime] = None,
     ) -> FeatureSnapshot:
         """Extract a FeatureSnapshot for a specific merchant over [window_start, window_end)."""
-        w_start = window_start if window_start.tzinfo else window_start.replace(tzinfo=timezone.utc)
+        if window_start.tzinfo is None:
+            raise TypeError(f"window_start must be timezone-aware (got naive datetime {window_start})")
+
+        w_start = window_start
+
         if window_end is None:
             w_end = w_start + timedelta(minutes=self.window_duration_minutes)
         else:
-            w_end = window_end if window_end.tzinfo else window_end.replace(tzinfo=timezone.utc)
+            if window_end.tzinfo is None:
+                raise TypeError(f"window_end must be timezone-aware (got naive datetime {window_end})")
+            w_end = window_end
 
         if w_end <= w_start:
             raise ValueError(f"window_end ({w_end}) must be strictly after window_start ({w_start})")
 
         duration_min = (w_end - w_start).total_seconds() / 60.0
 
-        # Strict half-open window filtering: [window_start, window_end) AND merchant_id match
-        merchant_txs = [
-            t for t in transactions
-            if t.merchant_id == merchant_id and w_start <= (t.timestamp if t.timestamp.tzinfo else t.timestamp.replace(tzinfo=timezone.utc)) < w_end
-        ]
+        # Validate transaction timestamps and apply strict half-open window filtering
+        merchant_txs = []
+        for t in transactions:
+            if t.timestamp.tzinfo is None:
+                raise TypeError(f"Transaction '{t.transaction_id}' timestamp must be timezone-aware (got {t.timestamp})")
+            if t.merchant_id == merchant_id and w_start <= t.timestamp < w_end:
+                merchant_txs.append(t)
 
         if not merchant_txs:
             # Sparse / Empty window
@@ -70,11 +78,6 @@ class FeatureEngine:
                     "mad_amount": 0.0,
                     "min_amount": 0.0,
                     "max_amount": 0.0,
-                    "high_risk_country_ratio": 0.0,
-                    "prepaid_payment_ratio": 0.0,
-                    "debit_payment_ratio": 0.0,
-                    "credit_payment_ratio": 0.0,
-                    "customer_device_ratio": 0.0,
                 },
                 unique_customers=0,
                 unique_devices=0,
@@ -96,32 +99,15 @@ class FeatureEngine:
 
         unique_custs = len({t.customer_id for t in merchant_txs})
         unique_devs = len({t.device_id for t in merchant_txs})
-        cust_dev_ratio = float(unique_custs) / float(max(1, unique_devs))
-
-        high_risk_country_count = len([t for t in merchant_txs if t.country == "HIGH_RISK_GEO"])
-        high_risk_country_ratio = float(high_risk_country_count) / float(n_txs)
-
-        prepaid_count = len([t for t in merchant_txs if t.payment_method == "PREPAID_CARD"])
-        debit_count = len([t for t in merchant_txs if t.payment_method == "DEBIT_CARD"])
-        credit_count = len([t for t in merchant_txs if t.payment_method == "CREDIT_CARD"])
-
-        prepaid_ratio = float(prepaid_count) / float(n_txs)
-        debit_ratio = float(debit_count) / float(n_txs)
-        credit_ratio = float(credit_count) / float(n_txs)
 
         amount_stats = {
-            "total_amount": round(total_amt, 4),
-            "mean_amount": round(mean_amt, 4),
-            "std_amount": round(std_amt, 4),
-            "median_amount": round(median_amt, 4),
-            "mad_amount": round(mad_amt, 4),
-            "min_amount": round(min_amt, 4),
-            "max_amount": round(max_amt, 4),
-            "high_risk_country_ratio": round(high_risk_country_ratio, 4),
-            "prepaid_payment_ratio": round(prepaid_ratio, 4),
-            "debit_payment_ratio": round(debit_ratio, 4),
-            "credit_payment_ratio": round(credit_ratio, 4),
-            "customer_device_ratio": round(cust_dev_ratio, 4),
+            "total_amount": total_amt,
+            "mean_amount": mean_amt,
+            "std_amount": std_amt,
+            "median_amount": median_amt,
+            "mad_amount": mad_amt,
+            "min_amount": min_amt,
+            "max_amount": max_amt,
         }
 
         return FeatureSnapshot(
