@@ -3,15 +3,16 @@
 Key Invariants:
 - Evaluates detector predictions (Alert list) against GroundTruthEvent list.
 - Ground truth matching is strictly partitioned per merchant_id.
-- Temporal overlap rule: alert matches event if event.start_time <= alert.timestamp <= event.end_time.
-- Multiple alerts per event: First matching alert pairs with the GT event (TP=1).
-- Unmatched alerts: Alert outside any active GT event interval for that merchant = FP.
+- One-to-one matching rule: One Alert matches at most one GroundTruthEvent; one GroundTruthEvent matches at most one Alert.
+- Temporal overlap rule: alert matches event if event.start_time - tol <= alert.timestamp <= event.end_time + tol.
+- Multiple alerts per event: First matching alert pairs with the GT event (TP=1). Subsequent unused alerts count as FP.
+- Unmatched alerts: Alert outside any GT event or unused by one-to-one matching = FP.
 - Unmatched events: GT event with zero matching alerts = FN.
 - Latency calculation: (first_matching_alert.timestamp - event.start_time).total_seconds().
 - Zero-denominator semantics:
-  - TP + FP == 0 -> precision = 1.0.
-  - TP + FN == 0 -> recall = 1.0.
-  - P + R == 0 -> f1_score = 0.0.
+  - If TP + FP == 0: Precision = 1.0 if FN == 0 else 0.0.
+  - If TP + FN == 0: Recall = 1.0 if FP == 0 else 0.0.
+  - If P + R == 0: F1 = 0.0.
 - No threshold tuning: Evaluator ONLY measures performance, does NOT modify detector parameters.
 - GroundTruth isolation: Ground truth flows ONLY into evaluation, NEVER into detector.
 """
@@ -23,7 +24,7 @@ from src.contracts.contracts import Alert, GroundTruthEvent, EvaluationMetrics
 
 
 class AnomalyEvaluator:
-    """Evaluates detector Alert outputs against GroundTruthEvent streams."""
+    """Evaluates detector Alert outputs against GroundTruthEvent streams using strict one-to-one matching."""
 
     def __init__(self, temporal_tolerance_seconds: float = 0.0):
         if temporal_tolerance_seconds < 0.0:
@@ -45,7 +46,6 @@ class AnomalyEvaluator:
         for gt in ground_truth_events:
             gt_by_merchant.setdefault(gt.merchant_id, []).append(gt)
 
-        # Sort GT events by start_time for deterministic processing
         all_merchants = set(alerts_by_merchant.keys()).union(set(gt_by_merchant.keys()))
 
         tp = 0
@@ -61,24 +61,24 @@ class AnomalyEvaluator:
             m_alerts = sorted(alerts_by_merchant.get(m_id, []), key=lambda a: a.timestamp)
             m_events = sorted(gt_by_merchant.get(m_id, []), key=lambda e: e.start_time)
 
-            # Track matched status
-            matched_alert_ids = set()
+            # Track matched alert IDs to enforce strict ONE-TO-ONE matching
+            used_alert_ids = set()
 
             for gt in m_events:
-                # Find all alerts that overlap with GT event interval [start_time - tol, end_time + tol]
-                matching_alerts = [
+                # Find available alerts overlapping [start_time - tol, end_time + tol] that are not yet matched
+                candidate_alerts = [
                     alt for alt in m_alerts
-                    if (gt.start_time.timestamp() - self.temporal_tolerance_seconds
+                    if (alt.alert_id not in used_alert_ids and
+                        gt.start_time.timestamp() - self.temporal_tolerance_seconds
                         <= alt.timestamp.timestamp()
                         <= gt.end_time.timestamp() + self.temporal_tolerance_seconds)
                 ]
 
-                if matching_alerts:
+                if candidate_alerts:
                     tp += 1
-                    first_alt = matching_alerts[0]
-                    matched_alert_ids.add(first_alt.alert_id)
+                    first_alt = candidate_alerts[0]  # Earliest available alert
+                    used_alert_ids.add(first_alt.alert_id)
 
-                    # Latency from event start_time to first matching alert
                     lat_sec = (first_alt.timestamp - gt.start_time).total_seconds()
                     latencies.append(lat_sec)
 
@@ -94,27 +94,20 @@ class AnomalyEvaluator:
                     fn += 1
                     unmatched_events.append(gt.event_id)
 
-            # Check for false positive alerts (alerts not falling in any GT event interval for that merchant)
+            # Any alert for this merchant not used in one-to-one matching is a False Positive (FP)
             for alt in m_alerts:
-                # Check if alt falls within ANY GT event interval for this merchant
-                is_inside_any_gt = any(
-                    (gt.start_time.timestamp() - self.temporal_tolerance_seconds
-                     <= alt.timestamp.timestamp()
-                     <= gt.end_time.timestamp() + self.temporal_tolerance_seconds)
-                    for gt in m_events
-                )
-                if not is_inside_any_gt:
+                if alt.alert_id not in used_alert_ids:
                     fp += 1
                     unmatched_alerts.append(alt.alert_id)
 
         # 2. Calculate Precision, Recall, F1
         if tp + fp == 0:
-            precision = 1.0
+            precision = 1.0 if fn == 0 else 0.0
         else:
             precision = float(tp / (tp + fp))
 
         if tp + fn == 0:
-            recall = 1.0
+            recall = 1.0 if fp == 0 else 0.0
         else:
             recall = float(tp / (tp + fn))
 
