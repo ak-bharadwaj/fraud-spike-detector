@@ -1,13 +1,13 @@
 """Comprehensive behavioral unit tests for Day 11 Drift Characterization.
 
 Validates all required drift characterization behavioral dimensions:
-1. Drift dataset loading & integrity (loaded strictly from data/drift/, SHA-256 hash verified).
+1. Paired drift dataset loading & integrity (loaded strictly from data/drift/, SHA-256 hash verified).
 2. Holdout contamination rejection (attempting to pass data/holdout/ raises ValueError).
 3. Exact drift definition (VOLUME_DRIFT_PROMOTIONAL_REGIME specifies factor, magnitude, start minute, duration).
 4. Frozen detector configuration invariance (threshold=3.5, alpha=0.3, P=2, C=5).
 5. Single-factor drift isolation (volume rate step multiplier 2.5x).
-6. Control vs Drifted execution comparison.
-7. BaselineEngine adaptation measurement (adaptation_window_count > 0).
+6. Paired Control vs Drifted execution comparison (identical 120-min window & identical 2 GT events).
+7. BaselineEngine adaptation target convergence measurement (adaptation_window_count > 0).
 8. Evaluator metrics & deltas schema compliance.
 9. Deterministic drift replay.
 10. DriftResult Pydantic schema validation.
@@ -28,10 +28,10 @@ from src.evaluation.holdout import FrozenDetectorConfig, compute_holdout_dataset
 
 @pytest.fixture
 def drift_dataset():
-    """Load stored drift characterization stream from data/drift/."""
+    """Load stored paired drift characterization streams from data/drift/."""
     data_dir = Path(__file__).parent.parent / "data" / "drift"
-    manifest, transactions, ground_truth_events = load_drift_data(data_dir)
-    return manifest, transactions, ground_truth_events
+    manifest, control_txs, drifted_txs, ground_truth_events = load_drift_data(data_dir)
+    return manifest, control_txs, drifted_txs, ground_truth_events
 
 
 # =====================================================================
@@ -40,12 +40,12 @@ def drift_dataset():
 
 def test_drift_dataset_loading_and_integrity(drift_dataset):
     """Verify drift dataset loads from data/drift/ and canonical hash matches manifest."""
-    manifest, transactions, gt_events = drift_dataset
+    manifest, control_txs, drifted_txs, gt_events = drift_dataset
 
     assert manifest.generator_version == "1.0.0"
     assert manifest.seed == 2002
 
-    computed_hash = compute_holdout_dataset_hash(transactions, gt_events)
+    computed_hash = compute_holdout_dataset_hash(control_txs + drifted_txs, gt_events)
     assert computed_hash == manifest.dataset_hash
 
 
@@ -86,34 +86,34 @@ def test_frozen_detector_configuration_invariance():
 
 
 # =====================================================================
-# 3. Control vs Drifted Execution & Adaptation Measurement
+# 3. Paired Control vs Drifted Execution & Adaptation Measurement
 # =====================================================================
 
-def test_control_vs_drifted_execution_and_baseline_adaptation(drift_dataset):
-    """Verify DriftRunner evaluates control vs drifted stream and measures baseline adaptation convergence."""
-    manifest, txs, gt_events = drift_dataset
+def test_paired_control_vs_drifted_execution_and_baseline_adaptation(drift_dataset):
+    """Verify DriftRunner evaluates paired control vs drifted streams over identical GT events."""
+    manifest, control_txs, drifted_txs, gt_events = drift_dataset
     runner = DriftRunner()
 
-    results = runner.run_drift_suite(txs, gt_events)
+    results = runner.run_drift_suite(control_txs, drifted_txs, gt_events)
     assert len(results) == 1
 
     res = results[0]
     assert isinstance(res, DriftResult)
     assert res.condition_id == "VOLUME_DRIFT_PROMOTIONAL_REGIME"
 
-    # Verify metrics for control and drifted runs
+    # Verify metrics for control and drifted runs evaluate identical 2 GT events
     assert res.control_metrics.tp >= 0
     assert res.drifted_metrics.tp >= 0
-    assert res.adaptation_window_count > 0  # BaselineEngine adapts over sliding window!
+    assert res.adaptation_window_count > 0  # BaselineEngine adapts to 2.5x drifted target over time!
 
 
 def test_deterministic_drift_replay(drift_dataset):
     """Verify replaying drift suite produces 100% identical DriftResult outputs."""
-    manifest, txs, gt_events = drift_dataset
+    manifest, control_txs, drifted_txs, gt_events = drift_dataset
     runner = DriftRunner()
 
-    res1 = runner.run_drift_suite(txs, gt_events)
-    res2 = runner.run_drift_suite(txs, gt_events)
+    res1 = runner.run_drift_suite(control_txs, drifted_txs, gt_events)
+    res2 = runner.run_drift_suite(control_txs, drifted_txs, gt_events)
 
     assert res1 == res2
     assert res1[0].model_dump() == res2[0].model_dump()
@@ -121,10 +121,10 @@ def test_deterministic_drift_replay(drift_dataset):
 
 def test_drift_result_pydantic_schema_compliance(drift_dataset):
     """Verify DriftResult validates strictly against Pydantic schema."""
-    manifest, txs, gt_events = drift_dataset
+    manifest, control_txs, drifted_txs, gt_events = drift_dataset
     runner = DriftRunner()
 
-    results = runner.run_drift_suite(txs, gt_events)
+    results = runner.run_drift_suite(control_txs, drifted_txs, gt_events)
     for res in results:
         dumped = res.model_dump()
         reconstructed = DriftResult(**dumped)
