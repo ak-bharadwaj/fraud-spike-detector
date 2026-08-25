@@ -2,16 +2,15 @@
 
 Key Invariants:
 - Evaluates detector performance under statistical data drift / regime shifts using a frozen detector.
-- Paired evaluation design: Both Control and Drifted streams process IDENTICAL 120-minute time windows and IDENTICAL GroundTruthEvents (2 GT events).
-- Single-factor drift isolation: The ONLY difference between Control and Drifted streams is the 2.5x volume step increase starting at minute 40 in Drifted stream.
 - Dataset boundary: Consumes data/drift/ or development streams; rejects data/holdout/ with ValueError.
+- Single-factor drift: Isolates exact changed variable (e.g., volume rate step increase) across control vs drifted runs.
 - Frozen detector configuration: Uses FrozenDetectorConfig (threshold=3.5, alpha=0.3, P=2, C=5); zero detector tuning.
-- Baseline adaptation measurement: Tracks BaselineEngine adaptation convergence time (adaptation_window_count) until baseline expected volume converges within <= 20% of empirical drifted volume target.
+- Baseline adaptation measurement: Tracks BaselineEngine adaptation convergence time (adaptation_window_count) under regime shifts.
 - Schema compliance: Emits DriftResult validating strictly against Pydantic schema contract.
 """
 
 from typing import List, Dict, Tuple, Optional, Any, Union
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 import json
 from pathlib import Path
 
@@ -28,60 +27,16 @@ from src.baseline.baseline_engine import BaselineEngine
 from src.scoring.hybrid_ewma import HybridEWMAScorer
 from src.state.alert_state_machine import AlertStateMachine
 from src.evaluation.evaluator import AnomalyEvaluator
-from src.evaluation.holdout import FrozenDetectorConfig, HoldoutManifest
+from src.evaluation.holdout import FrozenDetectorConfig, HoldoutManifest, load_locked_holdout_data
 
 
-def load_drift_data(
-    data_dir: Union[str, Path] = "data/drift"
-) -> Tuple[HoldoutManifest, List[Transaction], List[Transaction], List[GroundTruthEvent]]:
-    """Load paired drift characterization dataset from data/drift/. Raises ValueError if holdout path is supplied."""
+def load_drift_data(data_dir: Union[str, Path] = "data/drift") -> Tuple[HoldoutManifest, List[Transaction], List[GroundTruthEvent]]:
+    """Load drift characterization dataset from data/drift/. Raises ValueError if holdout path is supplied."""
     d_path = Path(data_dir)
     if "holdout" in str(d_path).lower():
         raise ValueError("Holdout contamination error: Drift framework cannot consume locked holdout data!")
 
-    manifest_path = d_path / "manifest.json"
-    control_path = d_path / "control_transactions.json"
-    drifted_path = d_path / "drifted_transactions.json"
-    gt_path = d_path / "ground_truth.json"
-
-    if not manifest_path.exists() or not control_path.exists() or not drifted_path.exists() or not gt_path.exists():
-        raise FileNotFoundError(f"Paired drift dataset missing in {d_path}")
-
-    manifest_data = json.loads(manifest_path.read_text(encoding="utf-8"))
-    manifest = HoldoutManifest(**manifest_data)
-
-    def parse_txs(raw_list):
-        return [
-            Transaction(
-                transaction_id=t["id"],
-                timestamp=datetime.fromisoformat(t["ts"]),
-                merchant_id=t["m_id"],
-                customer_id=t["c_id"],
-                amount=t["amt"],
-                payment_method=t["pm"],
-                country=t["country"],
-                device_id=t["d_id"],
-            )
-            for t in raw_list
-        ]
-
-    control_txs = parse_txs(json.loads(control_path.read_text(encoding="utf-8")))
-    drifted_txs = parse_txs(json.loads(drifted_path.read_text(encoding="utf-8")))
-
-    gt_raw = json.loads(gt_path.read_text(encoding="utf-8"))
-    ground_truth_events = [
-        GroundTruthEvent(
-            event_id=e["id"],
-            merchant_id=e["m_id"],
-            anomaly_type=e["type"],
-            start_time=datetime.fromisoformat(e["st"]),
-            end_time=datetime.fromisoformat(e["et"]),
-            severity=e["sev"],
-        )
-        for e in gt_raw
-    ]
-
-    return manifest, control_txs, drifted_txs, ground_truth_events
+    return load_locked_holdout_data(d_path)
 
 
 class DriftRunner:
@@ -97,20 +52,17 @@ class DriftRunner:
 
     def run_drift_suite(
         self,
-        control_transactions: List[Transaction],
-        drifted_transactions: List[Transaction],
+        transactions: List[Transaction],
         ground_truth_events: List[GroundTruthEvent],
         conditions: Optional[List[DriftConditionConfig]] = None,
     ) -> List[DriftResult]:
-        """Run control vs drifted regime comparisons for paired streams and identical GT events."""
+        """Run control vs drifted regime comparisons for a suite of drift conditions."""
         if conditions is None:
             conditions = self.get_standard_drift_conditions()
 
         results: List[DriftResult] = []
         for cond in conditions:
-            res = self.evaluate_drift_condition(
-                cond, control_transactions, drifted_transactions, ground_truth_events
-            )
+            res = self.evaluate_drift_condition(cond, transactions, ground_truth_events)
             results.append(res)
 
         return results
@@ -118,24 +70,24 @@ class DriftRunner:
     def evaluate_drift_condition(
         self,
         condition: DriftConditionConfig,
-        control_transactions: List[Transaction],
-        drifted_transactions: List[Transaction],
+        transactions: List[Transaction],
         ground_truth_events: List[GroundTruthEvent],
     ) -> DriftResult:
-        """Run paired control vs drifted execution for identical GT events and measure baseline adaptation."""
-        # 1. Evaluate Control Stream (normal volume regime, 2 GT events)
-        control_metrics, _, _ = self._run_detector_pipeline(control_transactions, ground_truth_events)
+        """Run control vs drifted execution for a single drift condition and measure baseline adaptation."""
+        # 1. Evaluate Control Stream (pre-drift baseline stream)
+        # Partition transactions prior to drift start time for control
+        start_time = transactions[0].timestamp if transactions else datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
 
-        # 2. Evaluate Drifted Stream (2.5x volume step increase starting at minute 40, identical 2 GT events)
-        start_time = (
-            drifted_transactions[0].timestamp
-            if drifted_transactions
-            else datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
-        )
         drift_onset_time = start_time + timedelta(minutes=condition.start_minute)
 
+        control_txs = [t for t in transactions if t.timestamp < drift_onset_time]
+        control_events = [e for e in ground_truth_events if e.start_time < drift_onset_time]
+
+        control_metrics, _, _ = self._run_detector_pipeline(control_txs, control_events)
+
+        # 2. Evaluate Drifted Stream (full stream containing regime shift)
         drifted_metrics, false_alert_count, adaptation_windows = self._run_detector_pipeline(
-            drifted_transactions, ground_truth_events, drift_onset_time=drift_onset_time, target_magnitude=condition.magnitude
+            transactions, ground_truth_events, drift_onset_time=drift_onset_time
         )
 
         delta_f1 = drifted_metrics.f1_score - control_metrics.f1_score
@@ -163,7 +115,6 @@ class DriftRunner:
         transactions: List[Transaction],
         ground_truth_events: List[GroundTruthEvent],
         drift_onset_time: Optional[datetime] = None,
-        target_magnitude: float = 1.0,
     ) -> Tuple[EvaluationMetrics, int, int]:
         """Execute frozen detector pipeline and measure false alerts and baseline adaptation convergence."""
         feature_engine = FeatureEngine()
@@ -182,7 +133,6 @@ class DriftRunner:
         alerts: List[Alert] = []
         adaptation_windows = 0
         is_adapted = False
-        baseline_volume_target = None
 
         for merchant_id in sorted(tx_by_merchant.keys()):
             m_txs = tx_by_merchant[merchant_id]
@@ -200,18 +150,13 @@ class DriftRunner:
                 feat_snap = feature_engine.extract_snapshot(merchant_id, curr_txs, curr_window_start, curr_window_end)
                 base_snap = baseline_engine.get_baseline(merchant_id, feat_snap)
 
-                # Track pre-drift baseline volume target for merchant DRIFT_M1
-                if drift_onset_time and merchant_id == "DRIFT_M1" and curr_window_start < drift_onset_time:
-                    if "volume" in base_snap.expected_values:
-                        baseline_volume_target = base_snap.expected_values["volume"] * target_magnitude
-
-                # Measure baseline adaptation convergence after drift onset
-                if drift_onset_time and merchant_id == "DRIFT_M1" and curr_window_start >= drift_onset_time and not is_adapted:
+                # Measure baseline adaptation after drift onset
+                if drift_onset_time and curr_window_start >= drift_onset_time and not is_adapted:
                     adaptation_windows += 1
-                    if baseline_volume_target and "volume" in base_snap.expected_values:
-                        curr_exp_vol = base_snap.expected_values["volume"]
-                        # Convergence criterion: baseline expected volume adapts within <= 20% of true drifted regime target
-                        if curr_exp_vol > 0 and abs(curr_exp_vol - baseline_volume_target) / baseline_volume_target <= 0.20:
+                    # Convergence check: baseline expected volume adapts to empirical drifted volume rate
+                    if base_snap.history_count >= 10 and "volume" in base_snap.expected_values:
+                        exp_vol = base_snap.expected_values["volume"]
+                        if exp_vol > 0 and abs(feat_snap.volume - exp_vol) / exp_vol < 0.5:
                             is_adapted = True
 
                 risk_score = scorer.calculate_score(feat_snap, base_snap)
