@@ -25,13 +25,15 @@ from src.contracts.contracts import (
     EvaluationMetrics,
     DriftConditionConfig,
     DriftResult,
+    FrozenDetectorConfig,
 )
 from src.features.feature_engine import FeatureEngine
 from src.baseline.baseline_engine import BaselineEngine
 from src.scoring.hybrid_ewma import HybridEWMAScorer
 from src.state.alert_state_machine import AlertStateMachine
 from src.evaluation.evaluator import AnomalyEvaluator
-from src.evaluation.holdout import FrozenDetectorConfig
+
+
 
 
 class DriftManifest(BaseModel):

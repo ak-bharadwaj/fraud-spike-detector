@@ -191,6 +191,17 @@ class DriftResult(BaseModel):
     false_alert_count: int
 
 
+class FrozenDetectorConfig(BaseModel):
+    """Immutable frozen detector configuration shared across holdout and characterization suites."""
+    static_threshold: float = 3.5
+    ewma_alpha: float = 0.3
+    persistence: int = 2
+    cooldown_windows: int = 5
+    min_window_count: int = 5
+    temporal_tolerance_seconds: float = 0.0
+    detector_version: str = "1.0.0"
+
+
 class EvasionConditionConfig(BaseModel):
     """Configuration for a single isolated adversarial evasion characterization condition."""
     condition_id: str
@@ -212,7 +223,21 @@ class EvasionResult(BaseModel):
     delta_recall: float
     delta_latency_seconds: Optional[float] = None
     detection_degraded: bool
-    evasion_success_rate: float
+    evasion_success_rate: float  # 1.0 = successful evasion (GT exists & no alert emitted), 0.0 = failed evasion
+
+    # Score & state machine trajectory evidence required by protocol
+    control_max_raw_score: float
+    control_max_ewma_score: float
+    control_score_ge_threshold: bool
+    control_persistence_satisfied: bool
+    control_alert_emitted: bool
+
+    evasion_max_raw_score: float
+    evasion_max_ewma_score: float
+    evasion_score_ge_threshold: bool
+    evasion_persistence_satisfied: bool
+    evasion_alert_emitted: bool
+
 
 
 

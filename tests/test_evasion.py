@@ -4,8 +4,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 import pytest
 
-from src.contracts.contracts import Transaction, GroundTruthEvent, EvasionResult
-from src.evaluation.holdout import FrozenDetectorConfig
+from src.contracts.contracts import Transaction, GroundTruthEvent, EvasionResult, FrozenDetectorConfig
 from src.evaluation.evasion import (
     EvasionRunner,
     EvasionManifest,
@@ -60,6 +59,18 @@ def test_exact_evasion_definition_and_single_factor_isolation():
     assert cond.duration_minutes == 30.0
 
 
+def test_invalid_evasion_condition_rejection(evasion_dataset):
+    """Verify EvasionRunner rejects invalid evasion condition declarations."""
+    manifest, control_txs, evasion_txs, gt_events = evasion_dataset
+    runner = EvasionRunner()
+
+    invalid_cond = EvasionRunner.get_standard_evasion_conditions()[0].model_copy(
+        update={"magnitude": 99.0}
+    )
+    with pytest.raises(ValueError, match="Invalid evasion condition"):
+        runner.run_evasion_suite(control_txs, evasion_txs, gt_events, conditions=[invalid_cond])
+
+
 def test_control_evasion_pairing_and_pre_onset_identity(evasion_dataset):
     """Verify transactions before minute 50 are 100% field-by-field identical between Control and Evasion streams."""
     manifest, control_txs, evasion_txs, gt_events = evasion_dataset
@@ -107,7 +118,7 @@ def test_explicit_ground_truth_identity_invariant(evasion_dataset):
 # =====================================================================
 
 def test_frozen_detector_configuration_invariance():
-    """Verify EvasionRunner utilizes exact frozen detector configuration with zero parameter mutation."""
+    """Verify EvasionRunner utilizes exact frozen detector configuration from shared contracts with zero parameter mutation."""
     config = FrozenDetectorConfig()
     runner = EvasionRunner(config=config)
 
@@ -133,13 +144,12 @@ def test_detector_immutability_during_evasion(evasion_dataset):
     assert runner.config.cooldown_windows == 5
 
 
-
 # =====================================================================
-# 4. Evaluator Metrics, Evasion Degradation & Schema Compliance Tests
+# 4. Evaluator Metrics, Trajectory Evidence & Schema Compliance Tests
 # =====================================================================
 
 def test_evaluator_metrics_control_vs_evasion_execution(evasion_dataset):
-    """Verify EvasionRunner measures detection degradation (Control TP=1, Evasion FN=1, evasion_success_rate=1.0)."""
+    """Verify EvasionRunner measures detection degradation and trajectory evidence."""
     manifest, control_txs, evasion_txs, gt_events = evasion_dataset
     runner = EvasionRunner()
 
@@ -163,6 +173,15 @@ def test_evaluator_metrics_control_vs_evasion_execution(evasion_dataset):
     assert res.detection_degraded is True
     assert res.evasion_success_rate == 1.0
 
+    # Verify score & state machine trajectory evidence required by protocol
+    assert res.control_max_ewma_score > 3.5
+    assert res.control_score_ge_threshold is True
+    assert res.control_persistence_satisfied is True
+    assert res.control_alert_emitted is True
+
+    assert res.evasion_score_ge_threshold is True  # Reached 3.7413 briefly for 1 window
+    assert res.evasion_persistence_satisfied is False  # Candidate counter dropped back before P=2
+    assert res.evasion_alert_emitted is False
 
 
 def test_deterministic_evasion_replay(evasion_dataset):
@@ -187,3 +206,7 @@ def test_evasion_result_pydantic_schema_compliance(evasion_dataset):
     assert isinstance(res.delta_f1, float)
     assert isinstance(res.detection_degraded, bool)
     assert isinstance(res.evasion_success_rate, float)
+    assert isinstance(res.control_max_raw_score, float)
+    assert isinstance(res.control_max_ewma_score, float)
+    assert isinstance(res.evasion_max_raw_score, float)
+    assert isinstance(res.evasion_max_ewma_score, float)
