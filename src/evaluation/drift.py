@@ -10,6 +10,9 @@ Key Invariants:
   - Exact duration equality: actual duration(control) == actual duration(drift).
   - 100% GroundTruth event identity match (event IDs, anomaly types, start times, end times).
   - Transaction-level uncontrolled-attribute isolation for common transactions: 100% field identity.
+  - Mandatory Merchant Profile / Provenance:
+    - merchant_profile is mandatory (no silent profile synthesis fallback).
+    - merchant_profile.merchant_id must strictly match target merchant_id.
   - Rigorous distribution-level isolation for newly added growth transactions:
     - Customer IDs must belong strictly to canonical merchant customer pool (1..legit_customer_pool_size) with unskewed distribution.
     - Device IDs must belong strictly to canonical merchant device pool (1..legit_device_pool_size) with unskewed distribution.
@@ -39,7 +42,7 @@ from src.contracts.contracts import (
     FrozenDetectorConfig,
     EvaluationMetrics,
 )
-from src.generator.archetypes import MerchantProfile, create_merchant_profile
+from src.generator.archetypes import MerchantProfile
 from src.detector.pipeline import StreamingDetectorPipeline
 from src.evaluation.evaluator import AnomalyEvaluator
 
@@ -86,11 +89,20 @@ class DriftRunner:
         control_ground_truth: Sequence[GroundTruthEvent],
         drift_ground_truth: Sequence[GroundTruthEvent],
         merchant_id: str,
+        merchant_profile: MerchantProfile,
         declared_drift_factor: str = "baseline_volume_growth",
-        merchant_profile: Optional[MerchantProfile] = None,
     ) -> None:
         """Enforce strict pairing contract between control and drift inputs."""
-        # 1. Validate Declared Drift Factor
+        # 1. Validate Mandatory Merchant Profile Provenance
+        if merchant_profile is None:
+            raise ValueError("Paired drift contract violation: merchant_profile is mandatory for paired drift validation.")
+        if merchant_profile.merchant_id != merchant_id:
+            raise ValueError(
+                f"Paired drift contract violation: merchant_profile.merchant_id '{merchant_profile.merchant_id}' "
+                f"does not match merchant_id '{merchant_id}'"
+            )
+
+        # 2. Validate Declared Drift Factor
         if declared_drift_factor not in ALLOWED_DRIFT_FACTORS:
             raise ValueError(
                 f"Paired drift contract violation: unsupported declared_drift_factor '{declared_drift_factor}'. "
@@ -102,7 +114,7 @@ class DriftRunner:
         if not drift_transactions:
             raise ValueError("Paired drift contract violation: drift_transactions is empty")
 
-        # 2. Validate merchant identity
+        # 3. Validate merchant identity
         ctrl_merchants = {t.merchant_id for t in control_transactions}
         drift_merchants = {t.merchant_id for t in drift_transactions}
         if merchant_id not in ctrl_merchants:
@@ -112,7 +124,7 @@ class DriftRunner:
         if ctrl_merchants != drift_merchants:
             raise ValueError(f"Paired drift contract violation: merchant sets differ (control: {ctrl_merchants}, drift: {drift_merchants})")
 
-        # 3. Exact Time Bounds & Exact Duration Equality (without minute rounding)
+        # 4. Exact Time Bounds & Exact Duration Equality (without minute rounding)
         ctrl_min_ts = min(t.timestamp for t in control_transactions)
         ctrl_max_ts = max(t.timestamp for t in control_transactions)
         drift_min_ts = min(t.timestamp for t in drift_transactions)
@@ -137,7 +149,7 @@ class DriftRunner:
                 f"({ctrl_dur}s != {drift_dur}s)"
             )
 
-        # 4. Validate GroundTruth event specifications
+        # 5. Validate GroundTruth event specifications
         if len(control_ground_truth) != len(drift_ground_truth):
             raise ValueError(
                 f"Paired drift contract violation: GroundTruth event count mismatch "
@@ -158,7 +170,7 @@ class DriftRunner:
             if ctrl_e.end_time != drift_e.end_time:
                 raise ValueError(f"Paired drift contract violation for '{drift_e.event_id}': end_time mismatch ({ctrl_e.end_time} vs {drift_e.end_time})")
 
-        # 5. Transaction-Level Uncontrolled-Attribute Isolation for Common Transactions
+        # 6. Transaction-Level Uncontrolled-Attribute Isolation for Common Transactions
         ctrl_tx_map = {t.transaction_id: t for t in control_transactions}
         drift_tx_map = {t.transaction_id: t for t in drift_transactions}
 
@@ -191,11 +203,10 @@ class DriftRunner:
                         f"({ctrl_tx.device_id} != {d_tx.device_id})"
                     )
 
-        # 6. Rigorous Distribution-Level Validation for Growth Transactions
+        # 7. Rigorous Distribution-Level Validation for Growth Transactions against Mandatory Merchant Profile
         growth_txs = [t for t in drift_transactions if t.transaction_id not in ctrl_tx_map]
         if growth_txs:
-            # Resolve canonical merchant profile
-            prof = merchant_profile or create_merchant_profile(42, merchant_id, "stable")
+            prof = merchant_profile
 
             # A. Canonical Customer Pool & Distribution Validation
             valid_cust_ids = {f"CUST-{i}" for i in range(1, prof.legit_customer_pool_size + 1)}
@@ -298,14 +309,14 @@ class DriftRunner:
         drift_transactions: Sequence[Transaction],
         control_ground_truth: Sequence[GroundTruthEvent],
         drift_ground_truth: Sequence[GroundTruthEvent],
-        merchant_id: str = "M_PAIRED",
+        merchant_id: str,
+        merchant_profile: MerchantProfile,
         warmup_windows: int = 6,
         max_relative_error: float = 0.20,
         min_converged_windows: int = 8,
         unperturbed_end_window: int = 30,
         paired_dataset_id: str = "DEV-DRIFT-PAIR-01",
         declared_drift_factor: str = "baseline_volume_growth",
-        merchant_profile: Optional[MerchantProfile] = None,
         data_path: Optional[str] = None,
     ) -> DriftResult:
         """Run paired control vs drift experiment through the common detector pipeline and measure adaptation."""
@@ -316,8 +327,8 @@ class DriftRunner:
             control_ground_truth=control_ground_truth,
             drift_ground_truth=drift_ground_truth,
             merchant_id=merchant_id,
-            declared_drift_factor=declared_drift_factor,
             merchant_profile=merchant_profile,
+            declared_drift_factor=declared_drift_factor,
         )
 
         # 1. Run Control Stream

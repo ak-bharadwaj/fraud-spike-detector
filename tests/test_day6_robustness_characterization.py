@@ -386,20 +386,29 @@ def test_drift_runner_enforces_paired_contract_and_rejects_mismatched_inputs():
 
     runner = DriftRunner()
 
-    # 1. Unsupported declared drift factor -> ValueError
-    with pytest.raises(ValueError, match="unsupported declared_drift_factor"):
-        runner.validate_paired_contract(ctrl_txs, ctrl_txs, [gt_1], [gt_1], merchant_id="M_CTRL", declared_drift_factor="uncontrolled_drift")
+    # 1. Missing merchant_profile -> ValueError
+    with pytest.raises(ValueError, match="merchant_profile is mandatory"):
+        runner.validate_paired_contract(ctrl_txs, ctrl_txs, [gt_1], [gt_1], merchant_id="M_CTRL", merchant_profile=None)  # type: ignore
 
-    # 2. Empty control stream -> ValueError
+    # 2. Mismatched merchant_profile ID -> ValueError
+    prof_other = MerchantProfile(merchant_id="M_OTHER", archetype="stable", base_rate_per_min=10.0, base_mean_amount=50.0, base_std_amount=7.5)
+    with pytest.raises(ValueError, match="does not match merchant_id"):
+        runner.validate_paired_contract(ctrl_txs, ctrl_txs, [gt_1], [gt_1], merchant_id="M_CTRL", merchant_profile=prof_other)
+
+    # 3. Unsupported declared drift factor -> ValueError
+    with pytest.raises(ValueError, match="unsupported declared_drift_factor"):
+        runner.validate_paired_contract(ctrl_txs, ctrl_txs, [gt_1], [gt_1], merchant_id="M_CTRL", merchant_profile=prof, declared_drift_factor="uncontrolled_drift")
+
+    # 4. Empty control stream -> ValueError
     with pytest.raises(ValueError, match="control_transactions is empty"):
         runner.validate_paired_contract([], ctrl_txs, [gt_1], [gt_1], merchant_id="M_CTRL", merchant_profile=prof)
 
-    # 3. Merchant mismatch -> ValueError
+    # 5. Merchant mismatch in transactions -> ValueError
     tx_m2 = Transaction(transaction_id="tx_m2", timestamp=st + timedelta(seconds=10), merchant_id="M_DRIFT", customer_id="CUST-1", amount=50.0, payment_method="CREDIT_CARD", country="US", device_id="DEV-1")
     with pytest.raises(ValueError, match="merchant 'M_CTRL' not found in drift stream"):
         runner.validate_paired_contract(ctrl_txs, [tx_m2], [gt_1], [gt_1], merchant_id="M_CTRL", merchant_profile=prof)
 
-    # 4. Exact start time mismatch -> ValueError
+    # 6. Exact start time mismatch -> ValueError
     tx_drift_offset_start = Transaction(transaction_id="tx_1", timestamp=st + timedelta(seconds=15), merchant_id="M_CTRL", customer_id="CUST-1", amount=50.0, payment_method="CREDIT_CARD", country="US", device_id="DEV-1")
     with pytest.raises(ValueError, match="exact start timestamp mismatch"):
         runner.validate_paired_contract(ctrl_txs, [tx_drift_offset_start, tx_ctrl_2, tx_ctrl_3], [gt_1], [gt_1], merchant_id="M_CTRL", merchant_profile=prof)
