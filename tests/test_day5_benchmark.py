@@ -208,6 +208,184 @@ def test_all_11_canonical_anomaly_classes_generation(anomaly_type):
     assert gt.severity_level in ("LOW", "MEDIUM", "HIGH")
 
 
+def test_anomaly1_sudden_volume_spike_mechanism():
+    """Verify Anomaly 1 (sudden volume spike) behaviorally elevates observed transaction count on affected merchant while unaffected merchant remains identical."""
+    st = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
+    merchants = [{"id": "M1", "archetype": "stable"}, {"id": "M2", "archetype": "stable"}]
+
+    # Baseline (5 min)
+    gen_base = SyntheticStreamGenerator(42, merchants, VirtualClock(initial_time=st))
+    txs_base, _ = gen_base.generate_window(5.0)
+    m1_base = len([t for t in txs_base if t.merchant_id == "M1"])
+    m2_base = len([t for t in txs_base if t.merchant_id == "M2"])
+
+    # In-anomaly (5 min with 4.0x volume spike on M1)
+    gen_spike = SyntheticStreamGenerator(42, merchants, VirtualClock(initial_time=st))
+    spec = AnomalySpec("sudden_volume_spike", st, 300.0, 4.0, {"rate_multiplier": 4.0})
+    gen_spike.schedule_anomaly("M1", spec)
+    txs_spike, events = gen_spike.generate_window(5.0)
+    m1_spike = len([t for t in txs_spike if t.merchant_id == "M1"])
+    m2_spike = len([t for t in txs_spike if t.merchant_id == "M2"])
+
+    assert m1_spike > m1_base * 2.5
+    assert m2_spike == m2_base
+    assert len(events) == 1
+
+
+def test_anomaly2_velocity_burst_mechanism():
+    """Verify Anomaly 2 (velocity burst) behaviorally elevates short-window transaction velocity."""
+    st = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
+    gen_base = SyntheticStreamGenerator(42, [{"id": "M1", "archetype": "stable"}], VirtualClock(initial_time=st))
+    txs_base, _ = gen_base.generate_window(1.0)  # 1 min baseline
+
+    gen_burst = SyntheticStreamGenerator(42, [{"id": "M1", "archetype": "stable"}], VirtualClock(initial_time=st))
+    spec = AnomalySpec("velocity_burst", st, 60.0, 4.5, {"rate_multiplier": 4.0})
+    gen_burst.schedule_anomaly("M1", spec)
+    txs_burst, events = gen_burst.generate_window(1.0)
+
+    velocity_base = len(txs_base) / 1.0  # tx/min
+    velocity_burst = len(txs_burst) / 1.0
+
+    assert velocity_burst > velocity_base * 2.5
+    assert len(events) == 1
+
+
+def test_anomaly3_sustained_spike_mechanism():
+    """Verify Anomaly 3 (sustained spike) maintains elevated rate across all consecutive windows of its 5-minute duration."""
+    st = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
+    gen = SyntheticStreamGenerator(42, [{"id": "M1", "archetype": "stable"}], VirtualClock(initial_time=st))
+    spec = AnomalySpec("sustained_spike", st, 300.0, 3.5, {"rate_multiplier": 3.0})
+    gen.schedule_anomaly("M1", spec)
+
+    # Base rate for M1 stable is ~10-15 tx/min
+    counts_per_min = []
+    events_all = []
+    for _ in range(5):
+        txs_min, evs = gen.generate_window(1.0)
+        counts_per_min.append(len(txs_min))
+        events_all.extend(evs)
+
+    # Every single window must show sustained elevation (> 20 tx/min)
+    for c in counts_per_min:
+        assert c >= 20
+    assert len(events_all) == 1
+    assert events_all[0].anomaly_type == "sustained_spike"
+
+
+def test_anomaly4_amount_distribution_shift_mechanism():
+    """Verify Anomaly 4 (amount distribution shift) behaviorally shifts empirical transaction amounts upward."""
+    st = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
+    gen_base = SyntheticStreamGenerator(42, [{"id": "M1", "archetype": "stable"}], VirtualClock(initial_time=st))
+    txs_base, _ = gen_base.generate_window(5.0)
+    mean_base = float(np.mean([t.amount for t in txs_base]))
+
+    gen_shift = SyntheticStreamGenerator(42, [{"id": "M1", "archetype": "stable"}], VirtualClock(initial_time=st))
+    spec = AnomalySpec("amount_distribution_shift", st, 300.0, 4.0, {"amount_multiplier": 3.5})
+    gen_shift.schedule_anomaly("M1", spec)
+    txs_shift, events = gen_shift.generate_window(5.0)
+    mean_shift = float(np.mean([t.amount for t in txs_shift]))
+
+    assert mean_shift > mean_base * 2.5
+    assert len(events) == 1
+
+
+def test_anomaly5_device_behavior_anomaly_mechanism():
+    """Verify Anomaly 5 (device behavior anomaly) collapses unique device cardinality through synthetic device reuse."""
+    st = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
+    gen_base = SyntheticStreamGenerator(42, [{"id": "M1", "archetype": "stable"}], VirtualClock(initial_time=st))
+    txs_base, _ = gen_base.generate_window(5.0)
+    unique_dev_base = len(set(t.device_id for t in txs_base))
+    dev_ratio_base = unique_dev_base / float(len(txs_base))
+
+    gen_dev = SyntheticStreamGenerator(42, [{"id": "M1", "archetype": "stable"}], VirtualClock(initial_time=st))
+    spec = AnomalySpec("device_behavior_anomaly", st, 300.0, 4.0, {"rate_multiplier": 2.0})
+    gen_dev.schedule_anomaly("M1", spec)
+    txs_dev, events = gen_dev.generate_window(5.0)
+    unique_dev_anom = len(set(t.device_id for t in txs_dev))
+    dev_ratio_anom = unique_dev_anom / float(len(txs_dev))
+
+    # Baseline ratio is high (~0.9-1.0), anomaly collapses ratio to <= 0.2 (max 5 devices across 50+ txs)
+    assert dev_ratio_base > 0.8
+    assert dev_ratio_anom < 0.25
+    assert unique_dev_anom <= 5
+    assert len(events) == 1
+
+
+def test_anomaly6_attribute_geographic_shift_mechanism():
+    """Verify Anomaly 6 (attribute geographic shift) behaviorally shifts transactions to the programmed high-risk country."""
+    st = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
+    gen_base = SyntheticStreamGenerator(42, [{"id": "M1", "archetype": "stable"}], VirtualClock(initial_time=st))
+    txs_base, _ = gen_base.generate_window(5.0)
+    high_risk_base = len([t for t in txs_base if t.country == "HIGH_RISK_GEO"]) / float(len(txs_base))
+
+    gen_geo = SyntheticStreamGenerator(42, [{"id": "M1", "archetype": "stable"}], VirtualClock(initial_time=st))
+    spec = AnomalySpec("attribute_geographic_shift", st, 300.0, 4.0, {"country": "HIGH_RISK_GEO"})
+    gen_geo.schedule_anomaly("M1", spec)
+    txs_geo, events = gen_geo.generate_window(5.0)
+    high_risk_geo = len([t for t in txs_geo if t.country == "HIGH_RISK_GEO"]) / float(len(txs_geo))
+
+    # Baseline high-risk is ~2%, anomaly shifts 100% of transactions to HIGH_RISK_GEO
+    assert high_risk_base < 0.1
+    assert high_risk_geo == 1.0
+    assert len(events) == 1
+
+
+def test_anomaly7_compound_anomaly_mechanism():
+    """Verify Anomaly 7 (compound anomaly) concurrently shifts multiple signal families (volume, amount, device, and geographic)."""
+    st = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
+    gen_base = SyntheticStreamGenerator(42, [{"id": "M1", "archetype": "stable"}], VirtualClock(initial_time=st))
+    txs_base, _ = gen_base.generate_window(5.0)
+    vol_base = len(txs_base)
+    amt_base = float(np.mean([t.amount for t in txs_base]))
+
+    gen_comp = SyntheticStreamGenerator(42, [{"id": "M1", "archetype": "stable"}], VirtualClock(initial_time=st))
+    spec = AnomalySpec(
+        "compound_anomaly",
+        st,
+        300.0,
+        4.5,
+        {"rate_multiplier": 3.0, "amount_multiplier": 3.0, "country": "HIGH_RISK_GEO"},
+    )
+    gen_comp.schedule_anomaly("M1", spec)
+    txs_comp, events = gen_comp.generate_window(5.0)
+
+    vol_comp = len(txs_comp)
+    amt_comp = float(np.mean([t.amount for t in txs_comp]))
+    unique_dev_comp = len(set(t.device_id for t in txs_comp))
+    high_risk_comp = len([t for t in txs_comp if t.country == "HIGH_RISK_GEO"]) / float(len(txs_comp))
+
+    # Prove all signal families concurrently shifted:
+    assert vol_comp > vol_base * 2.0  # Volume shifted
+    assert amt_comp > amt_base * 2.0  # Amount shifted
+    assert unique_dev_comp <= 5  # Device collapsed
+    assert high_risk_comp == 1.0  # Geographic attribute shifted
+    assert len(events) == 1
+    assert events[0].anomaly_type == "compound_anomaly"
+
+
+def test_legitimate_surge_hard_negative_elevates_volume_with_zero_gt():
+    """Verify promotional surge elevates observed transaction volume as a hard negative without emitting any anomaly GroundTruthEvent."""
+    st = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
+    merchants = [{"id": "M1", "archetype": "stable"}]
+
+    # 1. Normal traffic (10 minutes)
+    gen_norm = SyntheticStreamGenerator(42, merchants, VirtualClock(initial_time=st))
+    txs_norm, events_norm = gen_norm.generate_window(10.0, is_surge_active={"M1": False})
+    norm_count = len(txs_norm)
+
+    # 2. Promotional surge traffic (10 minutes)
+    gen_surge = SyntheticStreamGenerator(42, merchants, VirtualClock(initial_time=st))
+    txs_surge, events_surge = gen_surge.generate_window(10.0, is_surge_active={"M1": True})
+    surge_count = len(txs_surge)
+
+    # Prove surge volume genuinely elevated relative to normal baseline (~2.5x)
+    assert surge_count > norm_count * 1.8
+    # Prove zero anomaly GroundTruthEvents generated (hard negative requirement)
+    assert len(events_norm) == 0
+    assert len(events_surge) == 0
+
+
+
 def test_anomaly8_threshold_hugging_mechanism():
     """Verify threshold-hugging evasion generates standardized magnitude hovering near the threshold (3.0 <= M <= 3.6)."""
     st = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
