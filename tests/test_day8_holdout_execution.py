@@ -476,9 +476,9 @@ def test_unambiguous_provenance_and_artifact_sha_reproducibility(tmp_path):
         drift_results={"status": "CONFIRMED"},
         experiment_id="EXP-DAY8-HOLDOUT-CORRECTED-002",
         execution_commit="bc29c36",
-        artifact_finalization_commit="049caf5",
-        prior_artifact_commit="bc29c36",
-        historical_artifact_chain=["20bf655", "775e779", "cc2872b", "e28d6d3", "f21ddeb", "26837b7", "bc29c36", "049caf5"],
+        artifact_finalization_commit="5841ddb",
+        prior_artifact_commit="049caf5",
+        historical_artifact_chain=["20bf655", "775e779", "cc2872b", "e28d6d3", "f21ddeb", "26837b7", "bc29c36", "049caf5", "5841ddb"],
     )
 
     report_text = saved_paths["final_report_json"].read_text(encoding="utf-8")
@@ -508,9 +508,9 @@ def test_unambiguous_provenance_and_artifact_sha_reproducibility(tmp_path):
     r2 = dual["run_002_corrected"]
     assert r2["experiment_id"] == "EXP-DAY8-HOLDOUT-CORRECTED-002"
     assert r2["execution_commit"] == "bc29c36"
-    assert r2["artifact_finalization_commit"] == "049caf5"
-    assert r2["prior_artifact_commit"] == "bc29c36"
-    assert r2["historical_artifact_chain"] == ["20bf655", "775e779", "cc2872b", "e28d6d3", "f21ddeb", "26837b7", "bc29c36", "049caf5"]
+    assert r2["artifact_finalization_commit"] == "5841ddb"
+    assert r2["prior_artifact_commit"] == "049caf5"
+    assert r2["historical_artifact_chain"] == ["20bf655", "775e779", "cc2872b", "e28d6d3", "f21ddeb", "26837b7", "bc29c36", "049caf5", "5841ddb"]
     assert r2["status"] == "ACCEPTED_CANONICAL"
     
     # 3. No placeholders
@@ -536,7 +536,7 @@ def test_published_canonical_report_provenance_and_artifact_sha():
 
     r2 = data["dual_run_disclosure"]["run_002_corrected"]
     assert r2["execution_commit"] == "bc29c36"
-    assert r2["artifact_finalization_commit"] == "049caf5"
+    assert r2["artifact_finalization_commit"] == "5841ddb"
     assert r2["status"] == "ACCEPTED_CANONICAL"
 
 
