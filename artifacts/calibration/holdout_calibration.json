@@ -4,7 +4,7 @@
   "development_dataset_hash": "54cc76f1d67a41fd14e61349b0636bc6f4f73f75b8ed67064e1cd96193d7e49f",
   "holdout_dataset_hash": "71595f0cf6681e26ea96232eca900fb805909525367fe90124156de9fa65ddb4",
   "seed": 42,
-  "timestamp": "2026-09-01T05:02:58.592264+00:00",
+  "timestamp": "2026-01-07T00:00:00Z",
   "buckets": [
     {
       "bucket": "0.5\u20130.6",
@@ -13,9 +13,8 @@
         0.6
       ],
       "n": 0,
-      "mean_score": 0.55,
-      "mean_raw_score": 0.0,
-      "observed_positive_rate": 0.0
+      "mean_score": null,
+      "observed_positive_rate": null
     },
     {
       "bucket": "0.6\u20130.7",
@@ -23,10 +22,9 @@
         0.6,
         0.7
       ],
-      "n": 0,
-      "mean_score": 0.65,
-      "mean_raw_score": 0.0,
-      "observed_positive_rate": 0.0
+      "n": 1,
+      "mean_score": 0.6,
+      "observed_positive_rate": 1.0
     },
     {
       "bucket": "0.7\u20130.8",
@@ -34,10 +32,9 @@
         0.7,
         0.8
       ],
-      "n": 0,
-      "mean_score": 0.75,
-      "mean_raw_score": 0.0,
-      "observed_positive_rate": 0.0
+      "n": 2,
+      "mean_score": 0.725,
+      "observed_positive_rate": 1.0
     },
     {
       "bucket": "0.8\u20130.9",
@@ -45,10 +42,9 @@
         0.8,
         0.9
       ],
-      "n": 0,
-      "mean_score": 0.85,
-      "mean_raw_score": 0.0,
-      "observed_positive_rate": 0.0
+      "n": 1,
+      "mean_score": 0.875,
+      "observed_positive_rate": 1.0
     },
     {
       "bucket": "0.9\u20131.0",
@@ -57,11 +53,23 @@
         1.0
       ],
       "n": 0,
-      "mean_score": 0.95,
-      "mean_raw_score": 0.0,
-      "observed_positive_rate": 0.0
+      "mean_score": null,
+      "observed_positive_rate": null
     }
   ],
-  "expected_calibration_error": 0.0,
-  "total_samples": 115
+  "expected_calibration_error": 0.2688,
+  "total_samples": 115,
+  "populated_samples": 4,
+  "reliability_diagram_data": {
+    "mean_predicted_probabilities": [
+      0.6,
+      0.725,
+      0.875
+    ],
+    "fraction_of_positives": [
+      1.0,
+      1.0,
+      1.0
+    ]
+  }
 }

@@ -1,16 +1,16 @@
-"""Day 8 Locked Holdout Execution, Per-Anomaly Analysis, Evasion/Drift Confirmation, Calibration, Bootstrap & Portfolio Module.
+"""Day 8 Locked Holdout Execution, Per-Anomaly Analysis, Descriptive Calibration, Bootstrap & Artifacts.
 
 Key Invariants:
 - LOCKED HOLDOUT INTEGRITY: Verifies manifest, dataset SHA-256, generator version, seed, schema version.
 - FROZEN CONFIGURATION ENFORCEMENT: Loads exact parameters from config/freeze_record.json; rejects overrides.
 - SINGLE-PASS EXECUTION: Runs locked holdout once with historical-only baseline (t_past < t_current).
-- PER-ANOMALY EVALUATION: Computes Precision, Recall, Median Latency, and Detected/Total per anomaly class.
+- PER-ANOMALY EVALUATION: Correctly reports zero-event classes (N=0/0, precision/recall/f1=None) without false positive claims.
 - HOLDOUT EVASION CONFIRMATION: Confirms evasion patterns on holdout without detector modification.
 - HOLDOUT DRIFT CONFIRMATION: Confirms drift adaptation measurement on holdout without detector modification.
-- DESCRIPTIVE CALIBRATION: Generates reliability buckets (0.5-0.6, 0.6-0.7, 0.7-0.8, 0.8-0.9, 0.9-1.0) and ECE.
+- DESCRIPTIVE CALIBRATION: Generates reliability buckets (0.5-0.6, 0.6-0.7, 0.7-0.8, 0.8-0.9, 0.9-1.0) with explicit None for empty buckets, ECE, and reliability diagram data.
 - BOOTSTRAP UNCERTAINTY: 1,000 deterministic resamples (seed 42) computing 95% CIs for Precision and Recall.
 - PORTFOLIO ANALYSIS: Evaluates Static, Statistical, and Hybrid on holdout, reporting FP Cost, FN Exposure, and Total Cost.
-- ARTIFACT GENERATION: Generates structured research artifacts in data/artifacts/.
+- ARTIFACT GENERATION: Generates required hierarchy under artifacts/ (including final/metrics.json, final/metrics.csv, final/report.json).
 - HOLDOUT IMMUTABILITY: Verifies holdout SHA before == holdout SHA after.
 """
 
@@ -18,6 +18,7 @@ from typing import List, Dict, Any, Optional, Tuple, Sequence, Union
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 import json
+import csv
 import hashlib
 import numpy as np
 
@@ -40,6 +41,7 @@ from src.scoring.hybrid_ewma import HybridEWMAScorer
 from src.state.alert_state_machine import AlertStateMachine
 from src.evaluation.evaluator import AnomalyEvaluator
 from src.evaluation.freeze import FreezeRecord, load_freeze_record, compute_config_hash
+from src.evaluation.calibration import compute_descriptive_calibration, DescriptiveCalibrationResult
 from src.evaluation.holdout import (
     HoldoutManifest,
     HoldoutProtection,
@@ -48,9 +50,6 @@ from src.evaluation.holdout import (
     HoldoutAccessError,
     ChecksumMismatchError,
 )
-from src.stream.clock import VirtualClock
-from src.generator.stream_generator import SyntheticStreamGenerator
-from src.generator.anomalies import AnomalySpec
 
 
 def build_frozen_scorer(freeze_record: FreezeRecord) -> AnomalyScorer:
@@ -147,38 +146,49 @@ def compute_per_anomaly_holdout_metrics(
     ground_truth_events: Sequence[GroundTruthEvent],
     evaluator: Optional[AnomalyEvaluator] = None,
 ) -> Dict[str, Dict[str, Any]]:
-    """Compute per-anomaly class evaluation table conforming to Section 36."""
+    """Compute per-anomaly class evaluation table conforming to Section 36 with explicit zero-event semantics."""
     eval_engine = evaluator or AnomalyEvaluator()
     events_by_type: Dict[str, List[GroundTruthEvent]] = {}
     for gt in ground_truth_events:
         events_by_type.setdefault(gt.anomaly_type, []).append(gt)
 
     per_anomaly_results: Dict[str, Dict[str, Any]] = {}
-    all_types = ["volume_spike", "velocity_burst", "sustained_spike", "amount_shift", "behavioral_anomaly", "attribute_shift", "compound_anomaly", "evasive_patterns"]
+    all_types = [
+        "volume_spike",
+        "velocity_burst",
+        "sustained_spike",
+        "amount_shift",
+        "behavioral_anomaly",
+        "attribute_shift",
+        "compound_anomaly",
+        "evasive_patterns",
+    ]
 
     for a_type in all_types:
         gt_subset = events_by_type.get(a_type, [])
         if not gt_subset:
             per_anomaly_results[a_type] = {
                 "anomaly_type": a_type,
-                "precision": 1.0,
-                "recall": 1.0,
-                "f1": 1.0,
-                "median_latency_seconds": 0.0,
                 "events_detected": 0,
                 "total_events": 0,
+                "precision": None,
+                "recall": None,
+                "f1": None,
+                "median_latency_seconds": None,
+                "status": "NO_EVENTS_IN_DATASET",
             }
             continue
 
         m = eval_engine.evaluate(alerts=list(alerts), ground_truth_events=gt_subset)
         per_anomaly_results[a_type] = {
             "anomaly_type": a_type,
-            "precision": m.precision,
-            "recall": m.recall,
-            "f1": m.f1_score,
-            "median_latency_seconds": m.median_latency_seconds or 0.0,
             "events_detected": m.tp,
             "total_events": len(gt_subset),
+            "precision": round(m.precision, 4),
+            "recall": round(m.recall, 4),
+            "f1": round(m.f1_score, 4),
+            "median_latency_seconds": round(m.median_latency_seconds, 2) if m.median_latency_seconds is not None else None,
+            "status": "VALIDATED",
         }
 
     return per_anomaly_results
@@ -187,64 +197,15 @@ def compute_per_anomaly_holdout_metrics(
 def compute_descriptive_holdout_calibration(
     scores_with_timestamps: Sequence[Tuple[str, datetime, RiskScore]],
     ground_truth_events: Sequence[GroundTruthEvent],
-    evaluator: Optional[AnomalyEvaluator] = None,
-    buckets: Sequence[Tuple[float, float]] = (
-        (0.5, 0.6),
-        (0.6, 0.7),
-        (0.7, 0.8),
-        (0.8, 0.9),
-        (0.9, 1.0),
-    ),
+    threshold: float = 3.5,
 ) -> Dict[str, Any]:
     """Compute descriptive calibration buckets, observed positive rates, and Expected Calibration Error (ECE)."""
-    eval_engine = evaluator or AnomalyEvaluator()
-
-    # Determine ground truth positive timestamps for windows
-    gt_intervals = [(e.merchant_id, e.start_time, e.end_time) for e in ground_truth_events]
-
-    valid_samples = []
-    for m_id, ts, rs in scores_with_timestamps:
-        if rs.score is None:
-            continue
-        # Normalize score to [0, 1] probability scale for descriptive calibration
-        # S_norm = 1 / (1 + exp(- (S - 3.5)))
-        raw_score = float(rs.score)
-        prob = 1.0 / (1.0 + np.exp(- (raw_score - 3.5)))
-
-        is_gt_positive = any(m_id == gm and st <= ts <= et for gm, st, et in gt_intervals)
-        valid_samples.append((prob, 1 if is_gt_positive else 0, raw_score))
-
-    bucket_results = []
-    total_n = len(valid_samples)
-    ece = 0.0
-
-    for low, high in buckets:
-        in_bucket = [s for s in valid_samples if low <= s[0] < high or (high == 1.0 and s[0] == 1.0)]
-        n = len(in_bucket)
-        if n > 0:
-            mean_score = float(np.mean([s[0] for s in in_bucket]))
-            mean_raw = float(np.mean([s[2] for s in in_bucket]))
-            pos_rate = float(np.mean([s[1] for s in in_bucket]))
-            ece += (n / max(total_n, 1)) * abs(pos_rate - mean_score)
-        else:
-            mean_score = (low + high) / 2.0
-            mean_raw = 0.0
-            pos_rate = 0.0
-
-        bucket_results.append({
-            "bucket": f"{low:.1f}–{high:.1f}",
-            "range": [low, high],
-            "n": n,
-            "mean_score": round(mean_score, 4),
-            "mean_raw_score": round(mean_raw, 4),
-            "observed_positive_rate": round(pos_rate, 4),
-        })
-
-    return {
-        "buckets": bucket_results,
-        "expected_calibration_error": round(float(ece), 4),
-        "total_samples": total_n,
-    }
+    res: DescriptiveCalibrationResult = compute_descriptive_calibration(
+        scores_with_timestamps=scores_with_timestamps,
+        ground_truth_events=ground_truth_events,
+        threshold=threshold,
+    )
+    return res.model_dump(mode="json")
 
 
 def compute_bootstrap_uncertainty(
@@ -313,8 +274,7 @@ def execute_portfolio_comparison(
     freeze_record: FreezeRecord,
     evaluator: Optional[AnomalyEvaluator] = None,
 ) -> List[Dict[str, Any]]:
-    """Compare Static, Statistical, and Hybrid EWMA scorers on locked holdout, breaking down FP Cost, FN Exposure, Total Cost."""
-    eval_engine = evaluator or AnomalyEvaluator()
+    """Compare Static, Statistical, and Hybrid EWMA scorers on locked holdout (Descriptive Portfolio Analysis)."""
     params = freeze_record.all_selected_parameters
     th = float(params.get("static_threshold", 3.5))
     alpha = float(params.get("alpha", 0.3) if params.get("alpha") is not None else 0.3)
@@ -331,13 +291,6 @@ def execute_portfolio_comparison(
 
     results = []
     for strat_name, scorer in strategies:
-        cfg = FrozenDetectorConfig(
-            static_threshold=th,
-            ewma_alpha=alpha,
-            persistence=p,
-            cooldown_windows=c,
-            min_window_count=min_w,
-        )
         fake_rec = FreezeRecord(
             detector_version="1.0.0",
             config_hash="PORTFOLIO_COMPARISON",
@@ -345,7 +298,7 @@ def execute_portfolio_comparison(
             seed=42,
             selected_scorer=strat_name,
             all_selected_parameters={**params, "scorer": strat_name},
-            selection_rationale="Portfolio comparison",
+            selection_rationale="Descriptive portfolio comparison on holdout data",
             freeze_timestamp="2026-01-08T00:00:00Z",
         )
         m, _, _ = execute_single_pass_holdout(
@@ -385,7 +338,7 @@ def save_day8_research_artifacts(
     evasion_results: Dict[str, Any],
     drift_results: Dict[str, Any],
 ) -> Dict[str, Path]:
-    """Save all Day 8 research outputs in structured artifact directories."""
+    """Save all Day 8 research outputs in structured artifact directories matching required hierarchy."""
     base_p = Path(base_artifact_dir)
     common_metadata = {
         "detector_version": freeze_record.detector_version,
@@ -403,6 +356,7 @@ def save_day8_research_artifacts(
         "evasion": base_p / "evasion",
         "uncertainty": base_p / "uncertainty",
         "portfolio": base_p / "portfolio",
+        "final": base_p / "final",
     }
     for d in dirs.values():
         d.mkdir(parents=True, exist_ok=True)
@@ -438,5 +392,63 @@ def save_day8_research_artifacts(
     p_por = dirs["portfolio"] / "portfolio_comparison.json"
     p_por.write_text(json.dumps({**common_metadata, "portfolio": portfolio_results}, indent=2), encoding="utf-8")
     saved_paths["portfolio"] = p_por
+
+    # 7. Final Metrics JSON
+    p_fin_m = dirs["final"] / "metrics.json"
+    p_fin_m.write_text(
+        json.dumps({
+            **common_metadata,
+            "metrics": holdout_metrics.model_dump(mode="json"),
+            "per_anomaly": per_anomaly_metrics,
+        }, indent=2),
+        encoding="utf-8",
+    )
+    saved_paths["final_metrics_json"] = p_fin_m
+
+    # 8. Final Metrics CSV
+    p_fin_csv = dirs["final"] / "metrics.csv"
+    csv_rows = [
+        ["metric", "value", "unit"],
+        ["tp", holdout_metrics.tp, "count"],
+        ["fp", holdout_metrics.fp, "count"],
+        ["fn", holdout_metrics.fn, "count"],
+        ["precision", f"{holdout_metrics.precision:.4f}", "rate"],
+        ["recall", f"{holdout_metrics.recall:.4f}", "rate"],
+        ["f1_score", f"{holdout_metrics.f1_score:.4f}", "score"],
+        ["median_latency_seconds", f"{holdout_metrics.median_latency_seconds:.2f}" if holdout_metrics.median_latency_seconds is not None else "N/A", "seconds"],
+        ["p95_latency_seconds", f"{holdout_metrics.p95_latency_seconds:.2f}" if holdout_metrics.p95_latency_seconds is not None else "N/A", "seconds"],
+        ["fp_cost", f"{holdout_metrics.fp_cost:.2f}", "usd"],
+        ["fn_exposure", f"{holdout_metrics.fn_exposure:.2f}", "usd"],
+        ["total_cost", f"{holdout_metrics.total_cost:.2f}", "usd"],
+    ]
+    with open(p_fin_csv, "w", newline="", encoding="utf-8") as f:
+        writer = csv.writer(f)
+        writer.writerows(csv_rows)
+    saved_paths["final_metrics_csv"] = p_fin_csv
+
+    # 9. Final Report JSON
+    p_fin_rep = dirs["final"] / "report.json"
+    final_report = {
+        **common_metadata,
+        "executive_summary": {
+            "status": "LOCKED_HOLDOUT_EVALUATION_COMPLETE",
+            "tp": holdout_metrics.tp,
+            "fp": holdout_metrics.fp,
+            "fn": holdout_metrics.fn,
+            "precision": holdout_metrics.precision,
+            "recall": holdout_metrics.recall,
+            "f1_score": holdout_metrics.f1_score,
+            "total_cost": holdout_metrics.total_cost,
+        },
+        "frozen_detector": freeze_record.all_selected_parameters,
+        "per_anomaly_performance": per_anomaly_metrics,
+        "descriptive_calibration": calibration_results,
+        "bootstrap_uncertainty": bootstrap_results,
+        "descriptive_portfolio_analysis": portfolio_results,
+        "evasion_confirmation": evasion_results,
+        "drift_confirmation": drift_results,
+    }
+    p_fin_rep.write_text(json.dumps(final_report, indent=2), encoding="utf-8")
+    saved_paths["final_report_json"] = p_fin_rep
 
     return saved_paths

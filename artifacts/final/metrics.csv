@@ -1,0 +1,12 @@
+metric,value,unit
+tp,1,count
+fp,0,count
+fn,0,count
+precision,1.0000,rate
+recall,1.0000,rate
+f1_score,1.0000,score
+median_latency_seconds,64.57,seconds
+p95_latency_seconds,64.57,seconds
+fp_cost,0.00,usd
+fn_exposure,0.00,usd
+total_cost,0.00,usd

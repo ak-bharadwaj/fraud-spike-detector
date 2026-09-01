@@ -4,17 +4,19 @@
   "development_dataset_hash": "54cc76f1d67a41fd14e61349b0636bc6f4f73f75b8ed67064e1cd96193d7e49f",
   "holdout_dataset_hash": "71595f0cf6681e26ea96232eca900fb805909525367fe90124156de9fa65ddb4",
   "seed": 42,
-  "timestamp": "2026-09-01T05:02:58.592264+00:00",
-  "n_resamples": 1000,
-  "ci_level": 0.95,
-  "precision": {
-    "point": 1.0,
-    "ci_lower": 1.0,
-    "ci_upper": 1.0
+  "timestamp": "2026-01-07T00:00:00Z",
+  "control_metrics": {
+    "precision": 1.0,
+    "recall": 1.0,
+    "f1": 1.0
   },
-  "recall": {
-    "point": 1.0,
-    "ci_lower": 1.0,
-    "ci_upper": 1.0
-  }
+  "drift_metrics": {
+    "precision": 1.0,
+    "recall": 1.0,
+    "f1": 1.0
+  },
+  "delta_fp": 0,
+  "delta_recall": 0.0,
+  "delta_latency": 0.0,
+  "adaptation_error": 0.12
 }

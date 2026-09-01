@@ -1,25 +1,134 @@
-"""DetectorCalibrator module for calibrating static threshold operating values on development/validation data.
+"""Calibration module for development-time threshold tuning and Day-8 descriptive final-holdout calibration.
 
 Key Invariants:
-- Calibrates static threshold T on calibration/validation dataset (NOT holdout!).
-- Structural Holdout Protection: Requires CalibrationDataset as single public entry point; rejects holdout streams with HoldoutAccessError.
-- Candidate threshold search grid: T in [1.0, 10.0] with step 0.5.
-- Calibration mechanism: Replays candidate threshold T through AlertStateMachine using frozen persistence P=2 and cooldown C=5.
-- Selection objective: Maximize F1-score evaluated using AnomalyEvaluator.
-- Tie-breaking rule: On equal F1-score, choose HIGHER threshold (more conservative, lower FP).
-- Minimum evidence rule: Minimum min_samples=10 scores required; if sample_count < 10, retains default_threshold=3.5 with status="INSUFFICIENT_EVIDENCE".
-- Upstream component immutability: Calibrator does NOT alter FeatureEngine, BaselineEngine, Scorer, or StateMachine.
-- Deterministic: Identical calibration dataset produces 100% identical CalibrationResult.
+- Day-8 Descriptive Holdout Calibration:
+  - Generates empirical statistics across score buckets [0.5-0.6, 0.6-0.7, 0.7-0.8, 0.8-0.9, 0.9-1.0].
+  - For populated buckets: reports empirical mean_score, observed_positive_rate, and sample count N.
+  - For empty buckets: explicitly reports N=0, mean_score=None, observed_positive_rate=None (no pseudo-values!).
+  - Computes Expected Calibration Error (ECE) strictly over populated samples.
+  - Generates reliability diagram visualization data.
+  - NO threshold search, fitting, or optimization on holdout data.
+- Development-only DetectorCalibrator:
+  - Calibrates static threshold T on development/validation data only (rejects holdout data with HoldoutAccessError).
 """
 
-from typing import List, Optional, Tuple, Any
+from typing import List, Optional, Tuple, Sequence, Dict, Any, Union
 from datetime import datetime
+from pathlib import Path
+import json
 import numpy as np
+from pydantic import BaseModel, Field
 
 from src.contracts.contracts import RiskScore, GroundTruthEvent, Alert, CalibrationResult
 from src.evaluation.evaluator import AnomalyEvaluator
 from src.evaluation.holdout import HoldoutAccessError
 from src.state.alert_state_machine import AlertStateMachine
+
+
+class CalibrationBucket(BaseModel):
+    """Container for a single calibration bucket."""
+    bucket: str
+    range: List[float]
+    n: int
+    mean_score: Optional[float] = None
+    observed_positive_rate: Optional[float] = None
+
+
+class DescriptiveCalibrationResult(BaseModel):
+    """Container for descriptive calibration results on holdout or validation data."""
+    buckets: List[CalibrationBucket]
+    expected_calibration_error: Optional[float] = None
+    total_samples: int
+    populated_samples: int
+    reliability_diagram_data: Dict[str, Any] = Field(default_factory=dict)
+
+
+def compute_descriptive_calibration(
+    scores_with_timestamps: Sequence[Tuple[str, datetime, RiskScore]],
+    ground_truth_events: Sequence[GroundTruthEvent],
+    buckets: Sequence[Tuple[float, float]] = (
+        (0.5, 0.6),
+        (0.6, 0.7),
+        (0.7, 0.8),
+        (0.8, 0.9),
+        (0.9, 1.0),
+    ),
+    threshold: float = 3.5,
+) -> DescriptiveCalibrationResult:
+    """Compute empirical descriptive calibration statistics across score/confidence buckets.
+
+    - Populated buckets: empirical mean score, empirical positive rate, sample count N.
+    - Empty buckets: N=0, mean_score=None, observed_positive_rate=None.
+    - ECE: Expected Calibration Error weighted by populated sample proportion.
+    """
+    gt_intervals = [(e.merchant_id, e.start_time, e.end_time) for e in ground_truth_events]
+
+    valid_samples: List[Tuple[float, int]] = []
+    for m_id, ts, rs in scores_with_timestamps:
+        if rs.score is None:
+            continue
+
+        raw_score = float(rs.score)
+        # Normalized score on [0, 1] probability scale
+        prob = float(np.clip(raw_score / max(threshold * 2.0, 1.0), 0.0, 1.0))
+        is_gt_positive = 1 if any(m_id == gm and st <= ts <= et for gm, st, et in gt_intervals) else 0
+        valid_samples.append((prob, is_gt_positive))
+
+    bucket_results: List[CalibrationBucket] = []
+    populated_samples = 0
+    weighted_error_sum = 0.0
+    rel_x = []
+    rel_y = []
+
+    for low, high in buckets:
+        # Match samples falling into bucket [low, high) (or [low, high] for last bucket)
+        in_b = [
+            s for s in valid_samples
+            if (low <= s[0] < high) or (high >= 1.0 and low <= s[0] <= 1.0)
+        ]
+        n_b = len(in_b)
+
+        if n_b > 0:
+            mean_s = float(np.mean([s[0] for s in in_b]))
+            obs_pos = float(np.mean([s[1] for s in in_b]))
+            populated_samples += n_b
+            weighted_error_sum += n_b * abs(obs_pos - mean_s)
+            rel_x.append(round(mean_s, 4))
+            rel_y.append(round(obs_pos, 4))
+
+            bucket_results.append(
+                CalibrationBucket(
+                    bucket=f"{low:.1f}–{high:.1f}",
+                    range=[float(low), float(high)],
+                    n=n_b,
+                    mean_score=round(mean_s, 4),
+                    observed_positive_rate=round(obs_pos, 4),
+                )
+            )
+        else:
+            # Empty bucket: Explicitly report N=0, None for mean_score and observed_positive_rate
+            bucket_results.append(
+                CalibrationBucket(
+                    bucket=f"{low:.1f}–{high:.1f}",
+                    range=[float(low), float(high)],
+                    n=0,
+                    mean_score=None,
+                    observed_positive_rate=None,
+                )
+            )
+
+    ece = round(weighted_error_sum / populated_samples, 4) if populated_samples > 0 else 0.0
+
+    return DescriptiveCalibrationResult(
+        buckets=bucket_results,
+        expected_calibration_error=ece,
+        total_samples=len(valid_samples),
+        populated_samples=populated_samples,
+        reliability_diagram_data={
+            "mean_predicted_probabilities": rel_x,
+            "fraction_of_positives": rel_y,
+        },
+    )
 
 
 class CalibrationDataset:
@@ -54,7 +163,7 @@ class CalibrationDataset:
 
 
 class DetectorCalibrator:
-    """Calibrates static risk score threshold using training/validation observations."""
+    """Development-only calibrator for searching static threshold operating values on training/validation data."""
 
     def __init__(
         self,
@@ -78,10 +187,7 @@ class DetectorCalibrator:
         dataset: CalibrationDataset,
         candidate_thresholds: Optional[List[float]] = None,
     ) -> CalibrationResult:
-        """Calibrate static threshold over candidate_thresholds using CalibrationDataset.
-
-        Requires CalibrationDataset input contract. Raises HoldoutAccessError if dataset is holdout.
-        """
+        """Calibrate static threshold over candidate_thresholds using CalibrationDataset."""
         if not isinstance(dataset, CalibrationDataset):
             raise TypeError(f"calibrate() requires CalibrationDataset input, got {type(dataset).__name__}")
 
@@ -113,11 +219,8 @@ class DetectorCalibrator:
         best_precision = 0.0
         best_recall = 0.0
 
-        # Sweep candidate thresholds in ascending order
         for th in sorted(candidate_thresholds):
             metrics = self._evaluate_threshold(th, scores_with_timestamps, ground_truth_events)
-
-            # Maximize F1-score. Tie-breaking: choose HIGHER threshold (ge threshold preferred)
             if metrics.f1_score > best_f1 or (metrics.f1_score == best_f1 and th >= best_threshold):
                 best_f1 = metrics.f1_score
                 best_threshold = th

@@ -1,0 +1,285 @@
+{
+  "detector_version": "1.0.0",
+  "config_hash": "4b70ee788eb888339498669fa65cfb30d59ffd8a59e1a01f493704d0b3c88920",
+  "development_dataset_hash": "54cc76f1d67a41fd14e61349b0636bc6f4f73f75b8ed67064e1cd96193d7e49f",
+  "holdout_dataset_hash": "71595f0cf6681e26ea96232eca900fb805909525367fe90124156de9fa65ddb4",
+  "seed": 42,
+  "timestamp": "2026-01-07T00:00:00Z",
+  "executive_summary": {
+    "status": "LOCKED_HOLDOUT_EVALUATION_COMPLETE",
+    "tp": 1,
+    "fp": 0,
+    "fn": 0,
+    "precision": 1.0,
+    "recall": 1.0,
+    "f1_score": 1.0,
+    "total_cost": 0.0
+  },
+  "frozen_detector": {
+    "scorer": "StaticThresholdScorer",
+    "alpha": null,
+    "static_threshold": 1.0,
+    "persistence": 1,
+    "cooldown_windows": 5,
+    "min_window_count": 5,
+    "signal_weights": {
+      "volume": 1.0,
+      "velocity": 1.0,
+      "amount": 1.0,
+      "behavioral": 1.0
+    },
+    "detector_version": "1.0.0"
+  },
+  "per_anomaly_performance": {
+    "volume_spike": {
+      "anomaly_type": "volume_spike",
+      "events_detected": 1,
+      "total_events": 1,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "median_latency_seconds": 64.57,
+      "status": "VALIDATED"
+    },
+    "velocity_burst": {
+      "anomaly_type": "velocity_burst",
+      "events_detected": 0,
+      "total_events": 0,
+      "precision": null,
+      "recall": null,
+      "f1": null,
+      "median_latency_seconds": null,
+      "status": "NO_EVENTS_IN_DATASET"
+    },
+    "sustained_spike": {
+      "anomaly_type": "sustained_spike",
+      "events_detected": 0,
+      "total_events": 0,
+      "precision": null,
+      "recall": null,
+      "f1": null,
+      "median_latency_seconds": null,
+      "status": "NO_EVENTS_IN_DATASET"
+    },
+    "amount_shift": {
+      "anomaly_type": "amount_shift",
+      "events_detected": 0,
+      "total_events": 0,
+      "precision": null,
+      "recall": null,
+      "f1": null,
+      "median_latency_seconds": null,
+      "status": "NO_EVENTS_IN_DATASET"
+    },
+    "behavioral_anomaly": {
+      "anomaly_type": "behavioral_anomaly",
+      "events_detected": 0,
+      "total_events": 0,
+      "precision": null,
+      "recall": null,
+      "f1": null,
+      "median_latency_seconds": null,
+      "status": "NO_EVENTS_IN_DATASET"
+    },
+    "attribute_shift": {
+      "anomaly_type": "attribute_shift",
+      "events_detected": 0,
+      "total_events": 0,
+      "precision": null,
+      "recall": null,
+      "f1": null,
+      "median_latency_seconds": null,
+      "status": "NO_EVENTS_IN_DATASET"
+    },
+    "compound_anomaly": {
+      "anomaly_type": "compound_anomaly",
+      "events_detected": 0,
+      "total_events": 0,
+      "precision": null,
+      "recall": null,
+      "f1": null,
+      "median_latency_seconds": null,
+      "status": "NO_EVENTS_IN_DATASET"
+    },
+    "evasive_patterns": {
+      "anomaly_type": "evasive_patterns",
+      "events_detected": 0,
+      "total_events": 0,
+      "precision": null,
+      "recall": null,
+      "f1": null,
+      "median_latency_seconds": null,
+      "status": "NO_EVENTS_IN_DATASET"
+    }
+  },
+  "descriptive_calibration": {
+    "buckets": [
+      {
+        "bucket": "0.5\u20130.6",
+        "range": [
+          0.5,
+          0.6
+        ],
+        "n": 0,
+        "mean_score": null,
+        "observed_positive_rate": null
+      },
+      {
+        "bucket": "0.6\u20130.7",
+        "range": [
+          0.6,
+          0.7
+        ],
+        "n": 1,
+        "mean_score": 0.6,
+        "observed_positive_rate": 1.0
+      },
+      {
+        "bucket": "0.7\u20130.8",
+        "range": [
+          0.7,
+          0.8
+        ],
+        "n": 2,
+        "mean_score": 0.725,
+        "observed_positive_rate": 1.0
+      },
+      {
+        "bucket": "0.8\u20130.9",
+        "range": [
+          0.8,
+          0.9
+        ],
+        "n": 1,
+        "mean_score": 0.875,
+        "observed_positive_rate": 1.0
+      },
+      {
+        "bucket": "0.9\u20131.0",
+        "range": [
+          0.9,
+          1.0
+        ],
+        "n": 0,
+        "mean_score": null,
+        "observed_positive_rate": null
+      }
+    ],
+    "expected_calibration_error": 0.2688,
+    "total_samples": 115,
+    "populated_samples": 4,
+    "reliability_diagram_data": {
+      "mean_predicted_probabilities": [
+        0.6,
+        0.725,
+        0.875
+      ],
+      "fraction_of_positives": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    }
+  },
+  "bootstrap_uncertainty": {
+    "n_resamples": 1000,
+    "seed": 42,
+    "ci_level": 0.95,
+    "precision": {
+      "point": 1.0,
+      "ci_lower": 1.0,
+      "ci_upper": 1.0
+    },
+    "recall": {
+      "point": 1.0,
+      "ci_lower": 1.0,
+      "ci_upper": 1.0
+    }
+  },
+  "descriptive_portfolio_analysis": [
+    {
+      "detector": "StaticThresholdScorer",
+      "fp_cost": 0.0,
+      "fn_exposure": 0.0,
+      "total_cost": 0.0,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1_score": 1.0,
+      "median_latency_seconds": 64.567352,
+      "p95_latency_seconds": 64.567352
+    },
+    {
+      "detector": "StatisticalDeviationScorer",
+      "fp_cost": 950.0,
+      "fn_exposure": 1005.1897489716794,
+      "total_cost": 1955.1897489716794,
+      "tp": 0,
+      "fp": 19,
+      "fn": 1,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1_score": 0.0,
+      "median_latency_seconds": null,
+      "p95_latency_seconds": null
+    },
+    {
+      "detector": "HybridEWMAScorer",
+      "fp_cost": 1000.0,
+      "fn_exposure": 1005.1897489716794,
+      "total_cost": 2005.1897489716794,
+      "tp": 0,
+      "fp": 20,
+      "fn": 1,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1_score": 0.0,
+      "median_latency_seconds": null,
+      "p95_latency_seconds": null
+    }
+  ],
+  "evasion_confirmation": {
+    "threshold_hugging_evasion": {
+      "outcome": "CONFIRMED_MITIGATED",
+      "tp": 1,
+      "fp": 0,
+      "fn": 0
+    },
+    "persistence_evasion": {
+      "outcome": "CONFIRMED_MITIGATED",
+      "tp": 1,
+      "fp": 0,
+      "fn": 0
+    },
+    "staircase_ramp": {
+      "outcome": "CONFIRMED_MITIGATED",
+      "tp": 1,
+      "fp": 0,
+      "fn": 0
+    },
+    "oscillating_sub_threshold": {
+      "outcome": "CONFIRMED_MITIGATED",
+      "tp": 1,
+      "fp": 0,
+      "fn": 0
+    }
+  },
+  "drift_confirmation": {
+    "control_metrics": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0
+    },
+    "drift_metrics": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0
+    },
+    "delta_fp": 0,
+    "delta_recall": 0.0,
+    "delta_latency": 0.0,
+    "adaptation_error": 0.12
+  }
+}

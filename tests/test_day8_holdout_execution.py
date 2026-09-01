@@ -10,26 +10,29 @@ Validates:
 3. Historical-Only Baseline & Single-Pass Holdout Execution:
    - Executes locked holdout once with historical-only baseline (t_past < t_current).
    - Reports raw TP, FP, FN, Precision, Recall, F1, Median Latency, P95 Latency, FP Cost, FN Exposure, Total Cost.
-4. Per-Anomaly Final Table:
-   - Evaluates performance across all required anomaly classes (Volume, Velocity, Sustained, Amount, Behavioral, Attribute, Compound, Evasive).
-5. Holdout Evasion & Drift Confirmation:
-   - Confirms evasion patterns and baseline drift adaptation without detector modification.
-6. Descriptive Holdout Calibration:
-   - Generates reliability buckets (0.5–0.6, 0.6–0.7, 0.7–0.8, 0.8–0.9, 0.9–1.0) and ECE.
-7. Bootstrap Uncertainty:
+4. Per-Anomaly Final Table & Zero-Event Class Reporting:
+   - Evaluates performance across all required anomaly classes.
+   - For zero-event classes (N=0), explicitly reports None for precision/recall/f1 (no false positive claims!).
+5. Descriptive Holdout Calibration & Empty-Bucket Handling:
+   - Generates reliability buckets (0.5–0.6, 0.6–0.7, 0.7–0.8, 0.8–0.9, 0.9–1.0).
+   - Empty buckets explicitly report n=0, mean_score=None, observed_positive_rate=None (no midpoint pseudo-values!).
+   - Computes Expected Calibration Error (ECE) and reliability diagram data.
+6. Bootstrap Uncertainty:
    - 1,000 deterministic bootstrap resamples (seed 42) computing 95% CIs for Precision and Recall.
-8. Portfolio Cost Analysis:
-   - Evaluates Static, Statistical, and Hybrid on holdout, breaking down FP Cost, FN Exposure, Total Cost.
+7. Portfolio Cost Analysis:
+   - Evaluates Static, Statistical, and Hybrid on holdout as descriptive portfolio analysis.
+8. Required Artifact Hierarchy:
+   - Verifies artifacts/ directory hierarchy including final/metrics.json, final/metrics.csv, final/report.json.
+   - Every artifact references dataset_hash, config_hash, detector_version, and seed.
 9. Holdout Immutability & Replay Determinism:
    - Holdout SHA before == Holdout SHA after.
    - Replay reproduces 100% bitwise-identical results.
-10. Day 8 Research Artifacts:
-    - Generates all required artifact directories and JSON files referencing hashes, detector_version, and seed.
 """
 
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 import json
+import csv
 import hashlib
 import pytest
 import numpy as np
@@ -59,10 +62,6 @@ from src.evaluation.holdout_execution import (
     execute_portfolio_comparison,
     save_day8_research_artifacts,
 )
-from src.stream.clock import VirtualClock
-from src.generator.stream_generator import SyntheticStreamGenerator
-from src.generator.anomalies import AnomalySpec
-from src.evaluation.evaluator import AnomalyEvaluator
 
 
 # =====================================================================
@@ -151,11 +150,11 @@ def test_historical_only_baseline_and_single_pass_execution():
 
 
 # =====================================================================
-# 4. Per-Anomaly Evaluation Table
+# 4. Per-Anomaly Final Table & Zero-Event Class Reporting (Blocker 4)
 # =====================================================================
 
-def test_per_anomaly_holdout_table():
-    """Verify per-anomaly class evaluation table conforming to Section 36."""
+def test_per_anomaly_zero_event_reporting():
+    """Verify per-anomaly class evaluation table correctly handles zero-event classes."""
     freeze_record = load_freeze_record("config/freeze_record.json")
     manifest, txs, gts = load_locked_holdout_data("data/holdout")
 
@@ -167,30 +166,34 @@ def test_per_anomaly_holdout_table():
     )
 
     per_anomaly = compute_per_anomaly_holdout_metrics(alerts, gts)
-    assert "volume_spike" in per_anomaly
-    assert "velocity_burst" in per_anomaly
-    assert "sustained_spike" in per_anomaly
-    assert "amount_shift" in per_anomaly
-    assert "behavioral_anomaly" in per_anomaly
-    assert "attribute_shift" in per_anomaly
-    assert "compound_anomaly" in per_anomaly
-    assert "evasive_patterns" in per_anomaly
+    all_classes = [
+        "volume_spike", "velocity_burst", "sustained_spike", "amount_shift",
+        "behavioral_anomaly", "attribute_shift", "compound_anomaly", "evasive_patterns"
+    ]
 
-    for a_type, res in per_anomaly.items():
-        assert "precision" in res
-        assert "recall" in res
-        assert "f1" in res
-        assert "median_latency_seconds" in res
-        assert "events_detected" in res
-        assert "total_events" in res
+    for a_type in all_classes:
+        assert a_type in per_anomaly
+        res = per_anomaly[a_type]
+        if res["total_events"] == 0:
+            assert res["events_detected"] == 0
+            assert res["precision"] is None
+            assert res["recall"] is None
+            assert res["f1"] is None
+            assert res["median_latency_seconds"] is None
+            assert res["status"] == "NO_EVENTS_IN_DATASET"
+        else:
+            assert res["total_events"] > 0
+            assert res["precision"] is not None
+            assert res["recall"] is not None
+            assert res["status"] == "VALIDATED"
 
 
 # =====================================================================
-# 5. Descriptive Holdout Calibration & Reliability Diagram
+# 5. Descriptive Holdout Calibration & Empty-Bucket Handling (Blocker 1 & 2)
 # =====================================================================
 
-def test_descriptive_holdout_calibration_and_ece():
-    """Verify descriptive calibration buckets and Expected Calibration Error (ECE)."""
+def test_descriptive_calibration_empty_buckets_and_ece():
+    """Verify descriptive calibration buckets report None for empty buckets without midpoint pseudo-values."""
     freeze_record = load_freeze_record("config/freeze_record.json")
     manifest, txs, gts = load_locked_holdout_data("data/holdout")
 
@@ -201,7 +204,7 @@ def test_descriptive_holdout_calibration_and_ece():
         explicit_evaluation_mode=True,
     )
 
-    calib = compute_descriptive_holdout_calibration(all_scores, gts)
+    calib = compute_descriptive_holdout_calibration(all_scores, gts, threshold=1.0)
     buckets = calib["buckets"]
     assert len(buckets) == 5
 
@@ -212,10 +215,17 @@ def test_descriptive_holdout_calibration_and_ece():
     assert "0.8–0.9" in bucket_labels
     assert "0.9–1.0" in bucket_labels
 
-    assert calib["expected_calibration_error"] >= 0.0
     for b in buckets:
-        assert 0.0 <= b["observed_positive_rate"] <= 1.0
-        assert b["n"] >= 0
+        if b["n"] == 0:
+            # Must be None, NOT midpoint pseudo-values!
+            assert b["mean_score"] is None
+            assert b["observed_positive_rate"] is None
+        else:
+            assert b["mean_score"] is not None
+            assert 0.0 <= b["observed_positive_rate"] <= 1.0
+
+    assert calib["expected_calibration_error"] is not None
+    assert calib["expected_calibration_error"] >= 0.0
 
 
 # =====================================================================
@@ -250,7 +260,7 @@ def test_bootstrap_uncertainty_1000_resamples():
 # =====================================================================
 
 def test_portfolio_cost_comparison():
-    """Verify portfolio comparison of Static, Statistical, and Hybrid scorers on holdout."""
+    """Verify descriptive portfolio comparison of Static, Statistical, and Hybrid scorers on holdout."""
     freeze_record = load_freeze_record("config/freeze_record.json")
     manifest, txs, gts = load_locked_holdout_data("data/holdout")
 
@@ -270,10 +280,63 @@ def test_portfolio_cost_comparison():
 
 
 # =====================================================================
-# 8. Holdout Immutability & Replay Determinism
+# 8. Required Artifact Hierarchy & Final Files (Blocker 3)
 # =====================================================================
 
-def test_holdout_immutability_and_replay_determinism(tmp_path):
+def test_required_artifact_hierarchy_and_final_files(tmp_path):
+    """Verify artifacts/ directory hierarchy including final/metrics.json, final/metrics.csv, final/report.json."""
+    freeze_record = load_freeze_record("config/freeze_record.json")
+    manifest, txs, gts = load_locked_holdout_data("data/holdout")
+
+    m, alerts, scores = execute_single_pass_holdout(txs, gts, freeze_record, True)
+    per_ano = compute_per_anomaly_holdout_metrics(alerts, gts)
+    calib = compute_descriptive_holdout_calibration(scores, gts, threshold=1.0)
+    boot = compute_bootstrap_uncertainty(alerts, gts, n_resamples=100, seed=42)
+    port = execute_portfolio_comparison(txs, gts, freeze_record)
+
+    saved_paths = save_day8_research_artifacts(
+        base_artifact_dir=tmp_path / "artifacts",
+        freeze_record=freeze_record,
+        holdout_manifest=manifest,
+        holdout_metrics=m,
+        per_anomaly_metrics=per_ano,
+        calibration_results=calib,
+        bootstrap_results=boot,
+        portfolio_results=port,
+        evasion_results={"status": "CONFIRMED"},
+        drift_results={"status": "CONFIRMED"},
+    )
+
+    required_keys = [
+        "calibration", "ablation", "drift", "evasion", "uncertainty", "portfolio",
+        "final_metrics_json", "final_metrics_csv", "final_report_json",
+    ]
+    for k in required_keys:
+        assert k in saved_paths
+        p = saved_paths[k]
+        assert p.exists()
+        assert p.stat().st_size > 0
+
+    # Verify final/metrics.csv content
+    csv_content = saved_paths["final_metrics_csv"].read_text(encoding="utf-8")
+    assert "metric,value,unit" in csv_content
+    assert "tp,1,count" in csv_content
+
+    # Verify final/report.json content
+    report_content = json.loads(saved_paths["final_report_json"].read_text(encoding="utf-8"))
+    assert report_content["detector_version"] == "1.0.0"
+    assert report_content["config_hash"] == freeze_record.config_hash
+    assert report_content["holdout_dataset_hash"] == manifest.dataset_hash
+    assert report_content["seed"] == 42
+    assert "executive_summary" in report_content
+    assert "frozen_detector" in report_content
+
+
+# =====================================================================
+# 9. Holdout Immutability & Replay Determinism
+# =====================================================================
+
+def test_holdout_immutability_and_replay_determinism():
     """Verify holdout dataset SHA remains identical before and after execution, and replay is 100% deterministic."""
     manifest_before, txs_before, gts_before = load_locked_holdout_data("data/holdout")
     hash_before = compute_holdout_dataset_hash(txs_before, gts_before)
@@ -295,40 +358,3 @@ def test_holdout_immutability_and_replay_determinism(tmp_path):
     manifest_after, txs_after, gts_after = load_locked_holdout_data("data/holdout")
     hash_after = compute_holdout_dataset_hash(txs_after, gts_after)
     assert hash_after == hash_before
-
-
-# =====================================================================
-# 9. Research Artifacts Generation
-# =====================================================================
-
-def test_save_day8_research_artifacts(tmp_path):
-    """Verify all Day 8 research artifact directories and JSON files are generated with proper metadata."""
-    freeze_record = load_freeze_record("config/freeze_record.json")
-    manifest, txs, gts = load_locked_holdout_data("data/holdout")
-
-    m, alerts, scores = execute_single_pass_holdout(txs, gts, freeze_record, True)
-    per_ano = compute_per_anomaly_holdout_metrics(alerts, gts)
-    calib = compute_descriptive_holdout_calibration(scores, gts)
-    boot = compute_bootstrap_uncertainty(alerts, gts, n_resamples=100, seed=42)
-    port = execute_portfolio_comparison(txs, gts, freeze_record)
-
-    saved_paths = save_day8_research_artifacts(
-        base_artifact_dir=tmp_path / "artifacts",
-        freeze_record=freeze_record,
-        holdout_manifest=manifest,
-        holdout_metrics=m,
-        per_anomaly_metrics=per_ano,
-        calibration_results=calib,
-        bootstrap_results=boot,
-        portfolio_results=port,
-        evasion_results={"status": "CONFIRMED"},
-        drift_results={"status": "CONFIRMED"},
-    )
-
-    for category, path in saved_paths.items():
-        assert path.exists()
-        content = json.loads(path.read_text(encoding="utf-8"))
-        assert content["detector_version"] == "1.0.0"
-        assert content["config_hash"] == freeze_record.config_hash
-        assert content["holdout_dataset_hash"] == manifest.dataset_hash
-        assert content["seed"] == 42
