@@ -97,7 +97,7 @@ def test_one_to_one_matching_case_b_two_overlapping_gt_one_alert():
     st = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
     gt1 = make_dummy_gt_event("M1", st, st + timedelta(minutes=5), event_id="GT-1")
     gt2 = make_dummy_gt_event("M1", st + timedelta(minutes=2), st + timedelta(minutes=7), event_id="GT-2")
-    alt = make_dummy_alert("M1", st + timedelta(minutes=3), alert_id="ALT-1")
+    alt = make_dummy_alert("M1", st + timedelta(minutes=1), alert_id="ALT-1")
 
     evaluator = AnomalyEvaluator()
     res = evaluator.evaluate([alt], [gt1, gt2])
@@ -114,8 +114,8 @@ def test_one_to_one_matching_case_c_two_gt_two_alerts():
     gt1 = make_dummy_gt_event("M1", st, st + timedelta(minutes=5), event_id="GT-1")
     gt2 = make_dummy_gt_event("M1", st + timedelta(minutes=10), st + timedelta(minutes=15), event_id="GT-2")
 
-    alt1 = make_dummy_alert("M1", st + timedelta(minutes=2), alert_id="ALT-1")
-    alt2 = make_dummy_alert("M1", st + timedelta(minutes=12), alert_id="ALT-2")
+    alt1 = make_dummy_alert("M1", st + timedelta(minutes=1), alert_id="ALT-1")
+    alt2 = make_dummy_alert("M1", st + timedelta(minutes=11), alert_id="ALT-2")
 
     evaluator = AnomalyEvaluator()
     res = evaluator.evaluate([alt1, alt2], [gt1, gt2])
@@ -130,17 +130,17 @@ def test_one_to_one_matching_case_c_two_gt_two_alerts():
 # =====================================================================
 
 def test_temporal_boundary_exact_start_and_end():
-    """Verify alerts at exact start_time and exact end_time match GT event."""
+    """Verify alerts at exact start_time and exact horizon end match GT event."""
     st = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
-    et = st + timedelta(minutes=5)
-    gt = make_dummy_gt_event("M1", st, et)
+    gt = make_dummy_gt_event("M1", st, st + timedelta(minutes=5))
 
     alt_start = make_dummy_alert("M1", st, alert_id="ALT-START")
     evaluator = AnomalyEvaluator()
     res_start = evaluator.evaluate([alt_start], [gt])
     assert res_start.tp == 1
 
-    alt_end = make_dummy_alert("M1", et, alert_id="ALT-END")
+    # Horizon for volume is 120s
+    alt_end = make_dummy_alert("M1", st + timedelta(seconds=120.0), alert_id="ALT-END")
     res_end = evaluator.evaluate([alt_end], [gt])
     assert res_end.tp == 1
 

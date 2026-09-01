@@ -143,6 +143,11 @@ class EvaluationMetrics(BaseModel):
     recall: float
     f1_score: float
     mean_latency_seconds: Optional[float] = None
+    median_latency_seconds: Optional[float] = None
+    p95_latency_seconds: Optional[float] = None
+    fp_cost: Optional[float] = None
+    fn_exposure: Optional[float] = None
+    total_cost: Optional[float] = None
     matched_events: list[dict[str, Any]] = Field(default_factory=list)
     unmatched_alerts: list[str] = Field(default_factory=list)
     unmatched_events: list[str] = Field(default_factory=list)
