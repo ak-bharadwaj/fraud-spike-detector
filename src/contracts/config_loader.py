@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Union, Optional, Dict, Any
 import yaml
 import json
+import hashlib
 
 from src.contracts.config_schemas import DetectorConfig, GeneratorConfig, EvaluationConfig
 from src.contracts.contracts import FrozenDetectorConfig
@@ -82,6 +83,11 @@ def load_runtime_frozen_config(
             raise ValueError(f"Detector YAML version '{y_cfg.version}' does not match freeze record version '{params.get('detector_version')}'")
         if y_cfg.scorer.type != params["scorer"]:
             raise ValueError(f"Detector YAML scorer '{y_cfg.scorer.type}' does not match freeze record scorer '{params['scorer']}'")
+        
+        freeze_alpha = params.get("alpha")
+        if y_cfg.scorer.alpha != freeze_alpha:
+            raise ValueError(f"Detector YAML alpha '{y_cfg.scorer.alpha}' does not match freeze record alpha '{freeze_alpha}'")
+
         if y_cfg.scorer.static_threshold != params["static_threshold"]:
             raise ValueError(f"Detector YAML threshold '{y_cfg.scorer.static_threshold}' does not match freeze record threshold '{params['static_threshold']}'")
         if y_cfg.scorer.persistence != params["persistence"]:
@@ -92,6 +98,27 @@ def load_runtime_frozen_config(
             raise ValueError(f"Detector YAML min_window_count '{y_cfg.evidence.min_window_count}' does not match freeze record '{params.get('min_window_count')}'")
         if y_cfg.state_machine.cooldown_windows != params["cooldown_windows"]:
             raise ValueError(f"Detector YAML cooldown_windows '{y_cfg.state_machine.cooldown_windows}' does not match freeze record '{params['cooldown_windows']}'")
+
+        freeze_weights = params.get("signal_weights", {"volume": 1.0, "velocity": 1.0, "amount": 1.0, "behavioral": 1.0})
+        if y_cfg.signal_weights != freeze_weights:
+            raise ValueError(f"Detector YAML signal_weights '{y_cfg.signal_weights}' does not match freeze record signal_weights '{freeze_weights}'")
+
+        # Explicitly verify config hash computed from YAML directly matches canonical freeze hash
+        yaml_dict = {
+            "scorer": y_cfg.scorer.type,
+            "alpha": y_cfg.scorer.alpha,
+            "static_threshold": y_cfg.scorer.static_threshold,
+            "persistence": y_cfg.scorer.persistence,
+            "cooldown_windows": y_cfg.state_machine.cooldown_windows,
+            "min_history_count": y_cfg.evidence.min_history_count,
+            "min_window_count": y_cfg.evidence.min_window_count,
+            "signal_weights": y_cfg.signal_weights,
+            "detector_version": y_cfg.version,
+        }
+        yaml_canonical = json.dumps(yaml_dict, sort_keys=True, separators=(",", ":"))
+        yaml_hash = hashlib.sha256(yaml_canonical.encode("utf-8")).hexdigest()
+        if yaml_hash != f_data["config_hash"]:
+            raise ValueError(f"Detector YAML computed config hash '{yaml_hash}' does not match freeze record hash '{f_data['config_hash']}'")
 
     return FrozenDetectorConfig(
         scorer=params["scorer"],

@@ -502,13 +502,13 @@ def test_runtime_detector_configuration_binding_and_consistency(tmp_path):
     }
     assert compute_config_hash(runtime_dict) == freeze_record.config_hash
 
-    # 3. Mutated detector.yaml -> ValueError
-    bad_yaml = tmp_path / "bad_detector.yaml"
-    bad_yaml.write_text(
+    # 3. Mutated static_threshold -> ValueError
+    bad_yaml_th = tmp_path / "bad_th.yaml"
+    bad_yaml_th.write_text(
         """
-version: "1.0.0"
+version: 1.0.0
 scorer:
-  type: "StatisticalDeviationScorer"
+  type: StatisticalDeviationScorer
   alpha: null
   persistence: 1
   static_threshold: 9.9
@@ -517,11 +517,95 @@ evidence:
   min_window_count: 1
 state_machine:
   cooldown_windows: 5
+signal_weights:
+  volume: 1.0
+  velocity: 1.0
+  amount: 1.0
+  behavioral: 1.0
 """,
         encoding="utf-8",
     )
-    with pytest.raises(ValueError, match="does not match freeze record"):
-        load_runtime_frozen_config("config/freeze_record.json", bad_yaml)
+    with pytest.raises(ValueError, match="does not match freeze record threshold"):
+        load_runtime_frozen_config("config/freeze_record.json", bad_yaml_th)
+
+    # 4. Mutated alpha -> ValueError
+    bad_yaml_alpha = tmp_path / "bad_alpha.yaml"
+    bad_yaml_alpha.write_text(
+        """
+version: 1.0.0
+scorer:
+  type: StatisticalDeviationScorer
+  alpha: 0.5
+  persistence: 1
+  static_threshold: 5.0
+evidence:
+  min_history_count: 1
+  min_window_count: 1
+state_machine:
+  cooldown_windows: 5
+signal_weights:
+  volume: 1.0
+  velocity: 1.0
+  amount: 1.0
+  behavioral: 1.0
+""",
+        encoding="utf-8",
+    )
+    with pytest.raises(ValueError, match="does not match freeze record alpha"):
+        load_runtime_frozen_config("config/freeze_record.json", bad_yaml_alpha)
+
+    # 5. Mutated signal_weights -> ValueError
+    bad_yaml_weights = tmp_path / "bad_weights.yaml"
+    bad_yaml_weights.write_text(
+        """
+version: 1.0.0
+scorer:
+  type: StatisticalDeviationScorer
+  alpha: null
+  persistence: 1
+  static_threshold: 5.0
+evidence:
+  min_history_count: 1
+  min_window_count: 1
+state_machine:
+  cooldown_windows: 5
+signal_weights:
+  volume: 0.5
+  velocity: 1.0
+  amount: 1.0
+  behavioral: 1.0
+""",
+        encoding="utf-8",
+    )
+    with pytest.raises(ValueError, match="does not match freeze record signal_weights"):
+        load_runtime_frozen_config("config/freeze_record.json", bad_yaml_weights)
+
+    # 6. Mutated scorer -> ValueError
+    bad_yaml_scorer = tmp_path / "bad_scorer.yaml"
+    bad_yaml_scorer.write_text(
+        """
+version: 1.0.0
+scorer:
+  type: HybridEWMAScorer
+  alpha: null
+  persistence: 1
+  static_threshold: 5.0
+evidence:
+  min_history_count: 1
+  min_window_count: 1
+state_machine:
+  cooldown_windows: 5
+signal_weights:
+  volume: 1.0
+  velocity: 1.0
+  amount: 1.0
+  behavioral: 1.0
+""",
+        encoding="utf-8",
+    )
+    with pytest.raises(ValueError, match="does not match freeze record scorer"):
+        load_runtime_frozen_config("config/freeze_record.json", bad_yaml_scorer)
+
 
 
 
