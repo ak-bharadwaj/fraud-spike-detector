@@ -3,6 +3,7 @@
 Key Invariants:
 - EventBus-driven execution: process_transactions publishes transactions onto TimeOrderedEventBus and calls bus.drain(handler=pipeline._on_transaction_dispatched).
 - Sole time authority: VirtualClock advances monotonically as transactions are drained by the bus.
+- Half-open window boundaries: Aligned to minute boundaries [HH:MM:00 .. HH:MM:00 + duration) matching whole-minute generator specifications.
 - Historical-only baseline: BaselineEngine.get_baseline() is invoked BEFORE updating BaselineEngine with current window features.
 - Scorer-level signal masking: supports ablation studies by passing signal_mask to scorer.calculate_score without perturbing baseline history.
 - Section 20 Scorer Exception Path:
@@ -94,7 +95,9 @@ class StreamingDetectorPipeline:
         merchant_id = tx.merchant_id
 
         if merchant_id not in self._merchant_window_starts:
-            self._merchant_window_starts[merchant_id] = tx.timestamp
+            # Align window start to whole minute boundary of first transaction
+            w_start_aligned = tx.timestamp.replace(second=0, microsecond=0)
+            self._merchant_window_starts[merchant_id] = w_start_aligned
             self._merchant_buffers[merchant_id] = [tx]
             return
 

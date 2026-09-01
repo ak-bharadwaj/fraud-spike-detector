@@ -167,6 +167,7 @@ class AblationVariantConfig(BaseModel):
     """Configuration for a single isolated ablation study variant."""
     variant_id: str
     description: str
+    signal_mask: Optional[list[str]] = None
     disable_ewma: bool = False
     persistence: int = 2
     cooldown_windows: int = 5

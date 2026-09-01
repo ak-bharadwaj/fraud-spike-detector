@@ -87,7 +87,7 @@ def test_ablation_suite_control_baseline_delta(characterization_dataset):
     assert len(results) == 5  # Control + 4 standard ablation variants
 
     control = results[0]
-    assert control.variant_id == "FULL_PIPELINE"
+    assert control.variant_id in ("FULL", "FULL_PIPELINE")
     assert control.delta_f1 == 0.0
     assert control.delta_precision == 0.0
     assert control.delta_recall == 0.0

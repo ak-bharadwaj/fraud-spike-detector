@@ -1,12 +1,18 @@
-"""AblationRunner module for executing isolated component ablation studies.
+"""AblationRunner module for executing isolated component and signal ablation studies.
 
 Key Invariants:
-- Single-factor causation: Each ablation variant modifies EXACTLY ONE pipeline component or mechanism relative to FULL_PIPELINE control.
-- Single-factor validation: Enforces that diff_count == 1 for every ablation variant; multi-factor variants raise ValueError.
-- Control baseline configuration: FULL_PIPELINE control uses FrozenDetectorConfig (threshold=3.5, alpha=0.3, P=2, C=5).
+- Canonical signal ablation variants (scorer-level signal masking):
+    FULL        : All 4 feature groups enabled (volume, velocity, amount, behavioral).
+    -VOLUME     : Excludes volume signal.
+    -VELOCITY   : Excludes velocity signal.
+    -AMOUNT     : Excludes amount statistics signal.
+    -BEHAVIORAL : Excludes behavioral/device cardinality signal.
+- Single-factor causation: Each ablation variant modifies EXACTLY ONE causal mechanism relative to FULL control.
+- Control baseline configuration: FULL uses FrozenDetectorConfig (threshold=3.5, alpha=0.3, P=2, C=5).
+- Scorer-level signal masking: Ablation occurs strictly inside Scorer.calculate_score(..., signal_mask=...).
+  Does NOT zero FeatureSnapshot fields, does NOT alter FeatureEngine, does NOT starve BaselineEngine, does NOT alter evidence_state.
 - Characterization dataset: Ablation runs EXCLUSIVELY against development/characterization datasets (data/development/). Zero holdout contamination!
 - Holdout rejection: Passing locked holdout dataset or data/holdout/ to ablation runner raises ValueError.
-- Zero upstream mutation: Does NOT alter FeatureEngine, BaselineEngine, Scorer, or StateMachine implementations.
 - Schema compliance: All emitted results validate strictly against AblationResult Pydantic contract.
 """
 
@@ -22,13 +28,12 @@ from src.contracts.contracts import (
     EvaluationMetrics,
     AblationVariantConfig,
     AblationResult,
+    FrozenDetectorConfig,
 )
-from src.features.feature_engine import FeatureEngine
-from src.baseline.baseline_engine import BaselineEngine
+from src.detector.pipeline import StreamingDetectorPipeline
 from src.scoring.hybrid_ewma import HybridEWMAScorer
-from src.state.alert_state_machine import AlertStateMachine
 from src.evaluation.evaluator import AnomalyEvaluator
-from src.evaluation.holdout import FrozenDetectorConfig, HoldoutManifest
+from src.evaluation.holdout import HoldoutManifest
 
 
 def load_characterization_data(data_dir: Union[str, Path] = "data/development") -> Tuple[HoldoutManifest, List[Transaction], List[GroundTruthEvent]]:
@@ -88,13 +93,51 @@ class AblationRunner:
     ):
         self.config = config if config is not None else FrozenDetectorConfig()
         self.temporal_tolerance_seconds = temporal_tolerance_seconds
+        self.evaluator = AnomalyEvaluator(temporal_tolerance_seconds=temporal_tolerance_seconds)
+
+    @classmethod
+    def get_canonical_signal_ablation_variants(cls) -> List[AblationVariantConfig]:
+        """Return the canonical five scorer-level signal ablation variants."""
+        return [
+            AblationVariantConfig(
+                variant_id="FULL",
+                description="Control full pipeline with all 4 feature groups enabled",
+                signal_mask=None,
+            ),
+            AblationVariantConfig(
+                variant_id="-VOLUME",
+                description="Ablate volume signal (velocity, amount, behavioral active)",
+                signal_mask=["velocity", "amount", "behavioral"],
+            ),
+            AblationVariantConfig(
+                variant_id="-VELOCITY",
+                description="Ablate velocity signal (volume, amount, behavioral active)",
+                signal_mask=["volume", "amount", "behavioral"],
+            ),
+            AblationVariantConfig(
+                variant_id="-AMOUNT",
+                description="Ablate amount statistics signal (volume, velocity, behavioral active)",
+                signal_mask=["volume", "velocity", "behavioral"],
+            ),
+            AblationVariantConfig(
+                variant_id="-BEHAVIORAL",
+                description="Ablate behavioral/device signal (volume, velocity, amount active)",
+                signal_mask=["volume", "velocity", "amount"],
+            ),
+        ]
+
+    def get_standard_ablation_variants(self) -> List[AblationVariantConfig]:
+        """Return the standard ablation variants."""
+        return self.get_canonical_signal_ablation_variants()
 
     def validate_single_factor_variant(self, variant: AblationVariantConfig) -> None:
         """Validate that an ablation variant modifies EXACTLY ONE causal mechanism relative to control config."""
-        if variant.variant_id == "FULL_PIPELINE":
+        if variant.variant_id in ("FULL", "FULL_PIPELINE"):
             return
 
         diff_count = 0
+        if variant.signal_mask is not None:
+            diff_count += 1
         if variant.disable_ewma is True:
             diff_count += 1
         if variant.persistence != self.config.persistence:
@@ -124,21 +167,20 @@ class AblationRunner:
     ) -> List[AblationResult]:
         """Run full control pipeline and a suite of ablation variants, returning delta comparison results."""
         if variants is None:
-            variants = self.get_standard_ablation_variants()
+            variants = self.get_canonical_signal_ablation_variants()
 
         # Enforce single-factor causation validation on all supplied variants
         for var in variants:
             self.validate_single_factor_variant(var)
 
-        # 1. Run Control Baseline (FULL_PIPELINE)
-        control_variant = AblationVariantConfig(
-            variant_id="FULL_PIPELINE",
-            description="Control full pipeline with EWMA, persistence P=2, cooldown C=5, and all 11 features",
-            disable_ewma=False,
-            persistence=self.config.persistence,
-            cooldown_windows=self.config.cooldown_windows,
-            feature_subset=None,
-            static_threshold=self.config.static_threshold,
+        # 1. Run Control Baseline (FULL)
+        control_variant = next(
+            (v for v in variants if v.variant_id in ("FULL", "FULL_PIPELINE")),
+            AblationVariantConfig(
+                variant_id="FULL",
+                description="Control full pipeline with all 4 feature groups enabled",
+                signal_mask=None,
+            ),
         )
 
         control_metrics = self.evaluate_variant(control_variant, transactions, ground_truth_events)
@@ -159,7 +201,7 @@ class AblationRunner:
 
         # 2. Run each isolated ablation variant
         for var in variants:
-            if var.variant_id == "FULL_PIPELINE":
+            if var.variant_id in ("FULL", "FULL_PIPELINE"):
                 continue
 
             var_metrics = self.evaluate_variant(var, transactions, ground_truth_events)
@@ -169,7 +211,9 @@ class AblationRunner:
             d_r = var_metrics.recall - control_metrics.recall
 
             d_lat = None
-            if var_metrics.mean_latency_seconds is not None and control_metrics.mean_latency_seconds is not None:
+            if var_metrics.median_latency_seconds is not None and control_metrics.median_latency_seconds is not None:
+                d_lat = var_metrics.median_latency_seconds - control_metrics.median_latency_seconds
+            elif var_metrics.mean_latency_seconds is not None and control_metrics.mean_latency_seconds is not None:
                 d_lat = var_metrics.mean_latency_seconds - control_metrics.mean_latency_seconds
 
             results.append(
@@ -191,99 +235,22 @@ class AblationRunner:
         transactions: List[Transaction],
         ground_truth_events: List[GroundTruthEvent],
     ) -> EvaluationMetrics:
-        """Run detector evaluation pipeline for a single ablation variant."""
-        feature_engine = FeatureEngine()
-        baseline_engine = BaselineEngine(min_window_count=self.config.min_window_count)
-
+        """Run detector evaluation pipeline for a single ablation variant using exact scorer-level signal masking."""
         alpha = 1.0 if variant.disable_ewma else self.config.ewma_alpha
-        scorer = HybridEWMAScorer(alpha=alpha)
+        scorer = HybridEWMAScorer(alpha=alpha, static_threshold=variant.static_threshold)
 
-        state_machine = AlertStateMachine(
-            persistence=variant.persistence,
-            cooldown_windows=variant.cooldown_windows,
-            static_threshold=variant.static_threshold,
+        cfg = self.config.model_copy(update={
+            "persistence": variant.persistence,
+            "cooldown_windows": variant.cooldown_windows,
+            "static_threshold": variant.static_threshold,
+        })
+
+        pipeline = StreamingDetectorPipeline(
+            config=cfg,
+            scorer=scorer,
+            signal_mask=variant.signal_mask,
+            db_path=":memory:",
         )
 
-        tx_by_merchant: Dict[str, List[Transaction]] = {}
-        for tx in sorted(transactions, key=lambda x: x.timestamp):
-            tx_by_merchant.setdefault(tx.merchant_id, []).append(tx)
-
-        alerts: List[Alert] = []
-
-        for merchant_id in sorted(tx_by_merchant.keys()):
-            m_txs = tx_by_merchant[merchant_id]
-            if not m_txs:
-                continue
-
-            start_time = m_txs[0].timestamp
-            end_time = m_txs[-1].timestamp
-            curr_window_start = start_time
-
-            while curr_window_start <= end_time:
-                curr_window_end = curr_window_start + timedelta(minutes=feature_engine.window_duration_minutes)
-                curr_txs = [t for t in m_txs if curr_window_start <= t.timestamp < curr_window_end]
-
-                feat_snap = feature_engine.extract_snapshot(merchant_id, curr_txs, curr_window_start, curr_window_end)
-
-                # Feature subset ablation filtering if specified
-                if variant.feature_subset is not None:
-                    if "volume" in variant.feature_subset:
-                        feat_snap = feat_snap.model_copy(
-                            update={
-                                "velocity": 0.0,
-                                "unique_customers": 0,
-                                "unique_devices": 0,
-                                "amount_statistics": {k: 0.0 for k in feat_snap.amount_statistics},
-                            }
-                        )
-
-                base_snap = baseline_engine.get_baseline(merchant_id, feat_snap)
-                risk_score = scorer.calculate_score(feat_snap, base_snap)
-                baseline_engine.update(feat_snap)
-
-                _, alert = state_machine.process_score(merchant_id, curr_window_end, risk_score)
-                if alert is not None:
-                    alerts.append(alert)
-
-                curr_window_start = curr_window_end
-
-        evaluator = AnomalyEvaluator(temporal_tolerance_seconds=self.temporal_tolerance_seconds)
-        return evaluator.evaluate(alerts, ground_truth_events)
-
-    def get_standard_ablation_variants(self) -> List[AblationVariantConfig]:
-        """Return standard suite of single-factor ablation study variants derived from frozen control config."""
-        return [
-            AblationVariantConfig(
-                variant_id="NO_EWMA",
-                description="EWMA smoothing disabled (alpha=1.0, raw z-scores scored directly)",
-                disable_ewma=True,
-                persistence=self.config.persistence,
-                cooldown_windows=self.config.cooldown_windows,
-                static_threshold=self.config.static_threshold,
-            ),
-            AblationVariantConfig(
-                variant_id="NO_PERSISTENCE",
-                description="Persistence disabled (P=1, single breaching window triggers alert)",
-                disable_ewma=False,
-                persistence=1,
-                cooldown_windows=self.config.cooldown_windows,
-                static_threshold=self.config.static_threshold,
-            ),
-            AblationVariantConfig(
-                variant_id="NO_COOLDOWN",
-                description="Cooldown suppression disabled (C=0, no alert suppression windows)",
-                disable_ewma=False,
-                persistence=self.config.persistence,
-                cooldown_windows=0,
-                static_threshold=self.config.static_threshold,
-            ),
-            AblationVariantConfig(
-                variant_id="SINGLE_FEATURE_VOLUME_ONLY",
-                description="Feature set reduced to volume feature only",
-                disable_ewma=False,
-                persistence=self.config.persistence,
-                cooldown_windows=self.config.cooldown_windows,
-                static_threshold=self.config.static_threshold,
-                feature_subset=["volume"],
-            ),
-        ]
+        alerts = pipeline.process_transactions(transactions)
+        return self.evaluator.evaluate(alerts, ground_truth_events)
