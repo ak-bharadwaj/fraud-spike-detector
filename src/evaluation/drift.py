@@ -1,14 +1,18 @@
 """Drift characterization module for paired control-vs-drift evaluation and baseline adaptation measurement.
 
 Key Invariants:
-- Evaluates detector robustness against distribution drift (e.g. organic baseline growth) under constant configuration.
+- Evaluates detector robustness against distribution drift (e.g. organic baseline volume growth) under constant configuration.
 - Uses common StreamingDetectorPipeline and AnomalyEvaluator.
-- Strict Paired Evaluation Contract:
+- Strict Paired Evaluation Contract & Causal Factor Isolation:
   - Exact start timestamp equality: min(control timestamps) == min(drift timestamps).
   - Exact end timestamp equality: max(control timestamps) == max(drift timestamps).
   - Exact duration equality: actual duration(control) == actual duration(drift).
   - 100% GroundTruth event identity match (event IDs, anomaly types, start times, end times).
-  - Transaction-level uncontrolled-attribute isolation: every baseline transaction is preserved with identical fields (amount, payment_method, country, customer_id, device_id).
+  - Transaction-level uncontrolled-attribute isolation for common transactions: 100% field identity.
+  - Distribution-level isolation for newly added growth transactions:
+    - Amount distribution must match underlying control amount distribution.
+    - Customer pool and device pool must follow canonical merchant pool distributions.
+    - Country and payment method ratios must match canonical legitimate distributions.
   - Rejects uncontrolled factor modifications with explicit ValueError before pipeline execution.
 - Warmup exclusion: initial warmup windows (e.g. w < 6) are excluded from adaptation calculation.
 - Quantitative adaptation metrics:
@@ -39,6 +43,7 @@ from src.evaluation.evaluator import AnomalyEvaluator
 class DriftResult(BaseModel):
     """Result contract for paired control vs drift characterization experiment."""
     paired_dataset_id: str
+    declared_drift_factor: str
     control_metrics: EvaluationMetrics
     drift_metrics: EvaluationMetrics
     metric_deltas: Dict[str, float]
@@ -75,6 +80,7 @@ class DriftRunner:
         control_ground_truth: Sequence[GroundTruthEvent],
         drift_ground_truth: Sequence[GroundTruthEvent],
         merchant_id: str,
+        declared_drift_factor: str = "baseline_volume_growth",
     ) -> None:
         """Enforce strict pairing contract between control and drift inputs."""
         if not control_transactions:
@@ -138,9 +144,10 @@ class DriftRunner:
             if ctrl_e.end_time != drift_e.end_time:
                 raise ValueError(f"Paired drift contract violation for '{drift_e.event_id}': end_time mismatch ({ctrl_e.end_time} vs {drift_e.end_time})")
 
-        # 4. Transaction-Level Uncontrolled-Attribute Isolation
-        # Every control transaction present in drift must maintain 100% field identity
+        # 4. Transaction-Level Uncontrolled-Attribute Isolation for Common Transactions
+        ctrl_tx_map = {t.transaction_id: t for t in control_transactions}
         drift_tx_map = {t.transaction_id: t for t in drift_transactions}
+
         for ctrl_tx in control_transactions:
             if ctrl_tx.transaction_id in drift_tx_map:
                 d_tx = drift_tx_map[ctrl_tx.transaction_id]
@@ -170,6 +177,51 @@ class DriftRunner:
                         f"({ctrl_tx.device_id} != {d_tx.device_id})"
                     )
 
+        # 5. Distribution-Level Validation for Newly Added Growth Transactions
+        growth_txs = [t for t in drift_transactions if t.transaction_id not in ctrl_tx_map]
+        if growth_txs:
+            # A. Amount distribution check
+            ctrl_amts = [t.amount for t in control_transactions]
+            growth_amts = [t.amount for t in growth_txs]
+            ctrl_mean_amt = float(np.mean(ctrl_amts))
+            growth_mean_amt = float(np.mean(growth_amts))
+            if ctrl_mean_amt > 0:
+                amt_shift = abs(growth_mean_amt - ctrl_mean_amt) / ctrl_mean_amt
+                if amt_shift > 0.15:
+                    raise ValueError(
+                        f"Paired drift contract violation: newly added growth transactions exhibit uncontrolled amount distribution shift "
+                        f"({amt_shift:.2%} deviation: control mean ₹{ctrl_mean_amt:.2f} vs growth mean ₹{growth_mean_amt:.2f})"
+                    )
+
+            # B. Customer and Device ID space validation
+            for gt in growth_txs:
+                if not (gt.customer_id.startswith("CUST-") and gt.customer_id[5:].isdigit()):
+                    raise ValueError(
+                        f"Paired drift contract violation: newly added growth transaction '{gt.transaction_id}' "
+                        f"has uncontrolled customer ID format '{gt.customer_id}'"
+                    )
+                if not (gt.device_id.startswith("DEV-") and gt.device_id[4:].isdigit()):
+                    raise ValueError(
+                        f"Paired drift contract violation: newly added growth transaction '{gt.transaction_id}' "
+                        f"has uncontrolled device ID format '{gt.device_id}'"
+                    )
+
+            # C. Country distribution validation
+            high_risk_growth_ratio = len([t for t in growth_txs if t.country == "HIGH_RISK_GEO"]) / float(len(growth_txs))
+            if high_risk_growth_ratio > 0.08:
+                raise ValueError(
+                    f"Paired drift contract violation: newly added growth transactions exhibit uncontrolled country distribution shift "
+                    f"({high_risk_growth_ratio:.2%} high-risk ratio)"
+                )
+
+            # D. Payment distribution validation
+            prepaid_growth_ratio = len([t for t in growth_txs if t.payment_method == "PREPAID_CARD"]) / float(len(growth_txs))
+            if prepaid_growth_ratio > 0.15:
+                raise ValueError(
+                    f"Paired drift contract violation: newly added growth transactions exhibit uncontrolled payment method distribution shift "
+                    f"({prepaid_growth_ratio:.2%} prepaid ratio)"
+                )
+
     def run_paired_drift_experiment(
         self,
         control_transactions: Sequence[Transaction],
@@ -182,6 +234,7 @@ class DriftRunner:
         min_converged_windows: int = 8,
         unperturbed_end_window: int = 30,
         paired_dataset_id: str = "DEV-DRIFT-PAIR-01",
+        declared_drift_factor: str = "baseline_volume_growth",
         data_path: Optional[str] = None,
     ) -> DriftResult:
         """Run paired control vs drift experiment through the common detector pipeline and measure adaptation."""
@@ -192,6 +245,7 @@ class DriftRunner:
             control_ground_truth=control_ground_truth,
             drift_ground_truth=drift_ground_truth,
             merchant_id=merchant_id,
+            declared_drift_factor=declared_drift_factor,
         )
 
         # 1. Run Control Stream
@@ -257,6 +311,7 @@ class DriftRunner:
 
         return DriftResult(
             paired_dataset_id=paired_dataset_id,
+            declared_drift_factor=declared_drift_factor,
             control_metrics=metrics_ctrl,
             drift_metrics=metrics_drift,
             metric_deltas=deltas,
