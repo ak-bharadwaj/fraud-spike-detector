@@ -53,8 +53,13 @@
     "run_002_corrected": {
       "experiment_id": "EXP-DAY8-HOLDOUT-CORRECTED-002",
       "execution_commit": "fb3c7f9",
-      "artifact_commit": "cc2872b",
+      "artifact_commit": "e28d6d3",
       "prior_artifact_commit": "775e779",
+      "historical_artifact_chain": [
+        "20bf655",
+        "775e779",
+        "cc2872b"
+      ],
       "status": "ACCEPTED_CANONICAL",
       "reason": "Corrected post-holdout descriptive calibration (direct RiskScore bucketing, explicit population accounting), complete bootstrap uncertainty reporting contract with raw counts, and INR '\u20b9' units.",
       "detector_parameters": {

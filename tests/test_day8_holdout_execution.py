@@ -33,7 +33,7 @@ Validates:
    - Verifies artifacts/ directory hierarchy including final/metrics.json, final/metrics.csv, final/report.json.
    - Every artifact references experiment_id (EXP-DAY8-HOLDOUT-CORRECTED-002), dataset_hash, config_hash, detector_version, and seed.
 10. Unambiguous Provenance Verification Test (Blocker):
-    - execution_commit exists (fb3c7f9) and artifact_commit exists (cc2872b) with prior_artifact_commit (775e779).
+    - execution_commit exists (fb3c7f9) and artifact_commit exists (e28d6d3) with prior_artifact_commit (775e779) and historical_artifact_chain.
     - Neither is a placeholder or PENDING_COMMIT.
     - Experiment identity is stable (EXP-DAY8-HOLDOUT-CORRECTED-002).
     - Original run remains disclosed (EXP-DAY8-HOLDOUT-CONFIRMATION-001, 414998f).
@@ -347,8 +347,9 @@ def test_cost_reporting_unit_is_inr_prevent_usd_regression(tmp_path):
         drift_results={"status": "CONFIRMED"},
         experiment_id="EXP-DAY8-HOLDOUT-CORRECTED-002",
         execution_commit="fb3c7f9",
-        artifact_commit="cc2872b",
+        artifact_commit="e28d6d3",
         prior_artifact_commit="775e779",
+        historical_artifact_chain=["20bf655", "775e779", "cc2872b"],
     )
 
     csv_path = saved_paths["final_metrics_csv"]
@@ -416,8 +417,9 @@ def test_required_artifact_hierarchy(tmp_path):
         drift_results={"status": "CONFIRMED"},
         experiment_id="EXP-DAY8-HOLDOUT-CORRECTED-002",
         execution_commit="fb3c7f9",
-        artifact_commit="cc2872b",
+        artifact_commit="e28d6d3",
         prior_artifact_commit="775e779",
+        historical_artifact_chain=["20bf655", "775e779", "cc2872b"],
     )
 
     required_keys = [
@@ -459,8 +461,9 @@ def test_unambiguous_provenance_and_dual_run_disclosure(tmp_path):
         drift_results={"status": "CONFIRMED"},
         experiment_id="EXP-DAY8-HOLDOUT-CORRECTED-002",
         execution_commit="fb3c7f9",
-        artifact_commit="cc2872b",
+        artifact_commit="e28d6d3",
         prior_artifact_commit="775e779",
+        historical_artifact_chain=["20bf655", "775e779", "cc2872b"],
     )
 
     report_text = saved_paths["final_report_json"].read_text(encoding="utf-8")
@@ -485,8 +488,9 @@ def test_unambiguous_provenance_and_dual_run_disclosure(tmp_path):
     r2 = dual["run_002_corrected"]
     assert r2["experiment_id"] == "EXP-DAY8-HOLDOUT-CORRECTED-002"
     assert r2["execution_commit"] == "fb3c7f9"
-    assert r2["artifact_commit"] == "cc2872b"
+    assert r2["artifact_commit"] == "e28d6d3"
     assert r2["prior_artifact_commit"] == "775e779"
+    assert r2["historical_artifact_chain"] == ["20bf655", "775e779", "cc2872b"]
     assert r2["status"] == "ACCEPTED_CANONICAL"
     
     # 3. No placeholders
