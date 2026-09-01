@@ -462,3 +462,106 @@ def test_smoke_benchmark_fixture():
     txs, events = gen.generate_window(duration_minutes=5.0)
     assert len(txs) > 0
     assert len(events) == 1
+
+
+# =====================================================================
+# Day 2 Explicit Volume Spike Behavioral & Severity Proof Tests
+# =====================================================================
+
+def test_sudden_volume_spike_behavioral_elevation_and_isolation():
+    """Directly prove that programmed volume spike produces elevated observed volume relative to normal baseline, and unaffected merchants remain identical."""
+    st = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
+    merchants = [{"id": "M1", "archetype": "stable"}, {"id": "M2", "archetype": "sparse"}]
+
+    # 1. Generate normal baseline window without anomaly
+    gen_normal = SyntheticStreamGenerator(global_seed=42, merchant_configs=merchants, clock=VirtualClock(initial_time=st))
+    txs_normal, events_normal = gen_normal.generate_window(duration_minutes=10.0)
+
+    m1_normal_count = len([t for t in txs_normal if t.merchant_id == "M1"])
+    m2_normal_count = len([t for t in txs_normal if t.merchant_id == "M2"])
+
+    assert events_normal == []
+    assert m1_normal_count > 0
+    assert m2_normal_count > 0
+
+    # 2. Generate same window with a programmed 4.0x volume spike on M1
+    gen_spike = SyntheticStreamGenerator(global_seed=42, merchant_configs=merchants, clock=VirtualClock(initial_time=st))
+    spec = AnomalySpec(
+        anomaly_type="volume_spike",
+        start_time=st,
+        duration_seconds=600.0,  # 10 minutes
+        target_magnitude=4.0,
+        parameters={"rate_multiplier": 4.0},
+    )
+    gen_spike.schedule_anomaly("M1", spec, "EVT-VOL-SPIKE-001")
+    txs_spike, events_spike = gen_spike.generate_window(duration_minutes=10.0)
+
+    m1_spike_count = len([t for t in txs_spike if t.merchant_id == "M1"])
+    m2_spike_count = len([t for t in txs_spike if t.merchant_id == "M2"])
+
+    # 3. Direct behavioral proof: M1 volume is materially elevated (~4x higher)
+    assert m1_spike_count > m1_normal_count * 2.5, (
+        f"Programmed 4x volume spike failed to elevate volume: normal={m1_normal_count}, spike={m1_spike_count}"
+    )
+    assert len(events_spike) == 1
+    assert events_spike[0].event_id == "EVT-VOL-SPIKE-001"
+    assert events_spike[0].merchant_id == "M1"
+    assert events_spike[0].anomaly_type == "volume_spike"
+
+    # 4. Unaffected merchant isolation: M2 is completely unchanged
+    assert m2_spike_count == m2_normal_count, (
+        f"Unaffected merchant M2 volume changed during M1 spike: normal={m2_normal_count}, spike={m2_spike_count}"
+    )
+
+
+def test_volume_spike_severity_magnitude_and_level_derivation():
+    """Verify volume spike standardized deviation magnitude M derivation and categorical level mapping against frozen contracts."""
+    st = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
+    merchants = [{"id": "M1", "archetype": "stable"}]
+
+    # Test cases: Moderate spike (MEDIUM severity) and High spike (HIGH severity)
+    test_cases = [
+        ("volume_spike", 2.5, 300.0, {"rate_multiplier": 2.5}),
+        ("volume_spike", 5.0, 300.0, {"rate_multiplier": 5.0}),
+    ]
+
+    for a_type, mult, dur, params in test_cases:
+        gen = SyntheticStreamGenerator(global_seed=100, merchant_configs=merchants, clock=VirtualClock(initial_time=st))
+        spec = AnomalySpec(
+            anomaly_type=a_type,
+            start_time=st,
+            duration_seconds=dur,
+            target_magnitude=mult,
+            parameters=params,
+        )
+        gen.schedule_anomaly("M1", spec, f"EVT-SEV-{mult}")
+        txs, events = gen.generate_window(duration_minutes=dur / 60.0)
+
+        assert len(events) == 1
+        gt = events[0]
+
+        # 1. Verify target magnitude stored in parameters
+        assert gt.parameters["target_magnitude"] == mult
+
+        # 2. Independent calculation of realized magnitude M = |obs - exp| / robust_scale
+        dur_min = dur / 60.0
+        obs_rate = len(txs) / dur_min
+        prof = gen.profiles["M1"]
+        exp_rate = compute_legitimate_rate(prof, st, gen.simulation_start)
+        scale_rate = max(0.5, 0.2 * exp_rate)
+        expected_m = abs(obs_rate - exp_rate) / scale_rate
+
+        assert abs(gt.severity - expected_m) < 0.01, (
+            f"GroundTruthEvent severity ({gt.severity}) deviated from independent M ({expected_m})"
+        )
+
+        # 3. Verify frozen severity level rules (Section 14)
+        if gt.severity < 2.0:
+            assert gt.severity_level == "LOW"
+        elif 2.0 <= gt.severity < 4.0:
+            assert gt.severity_level == "MEDIUM"
+        else:
+            assert gt.severity_level == "HIGH"
+
+
+
