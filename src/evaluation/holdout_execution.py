@@ -8,9 +8,9 @@ Key Invariants:
 - HOLDOUT EVASION CONFIRMATION: Confirms evasion patterns on holdout without detector modification.
 - HOLDOUT DRIFT CONFIRMATION: Confirms drift adaptation measurement on holdout without detector modification.
 - DESCRIPTIVE CALIBRATION: Generates reliability buckets (0.5-0.6, 0.6-0.7, 0.7-0.8, 0.8-0.9, 0.9-1.0) with explicit None for empty buckets, ECE, and reliability diagram data.
-- BOOTSTRAP UNCERTAINTY: 1,000 deterministic resamples (seed 42) computing 95% CIs for Precision and Recall.
+- BOOTSTRAP UNCERTAINTY: 1,000 deterministic resamples (seed 42) computing 95% CIs for Precision and Recall with complete raw counts and N.
 - PORTFOLIO ANALYSIS: Evaluates Static, Statistical, and Hybrid on holdout, reporting FP Cost, FN Exposure, and Total Cost.
-- ARTIFACT GENERATION: Generates required hierarchy under artifacts/ (including final/metrics.json, final/metrics.csv, final/report.json).
+- ARTIFACT GENERATION: Generates required hierarchy under artifacts/ (including final/metrics.json, final/metrics.csv with '₹' unit, final/report.json).
 - HOLDOUT IMMUTABILITY: Verifies holdout SHA before == holdout SHA after.
 """
 
@@ -41,7 +41,7 @@ from src.scoring.hybrid_ewma import HybridEWMAScorer
 from src.state.alert_state_machine import AlertStateMachine
 from src.evaluation.evaluator import AnomalyEvaluator
 from src.evaluation.freeze import FreezeRecord, load_freeze_record, compute_config_hash
-from src.evaluation.calibration import compute_descriptive_calibration, DescriptiveCalibrationResult
+from src.evaluation.calibration import compute_descriptive_calibration, DescriptiveCalibrationResult, DescriptiveHoldoutCalibrator
 from src.evaluation.holdout import (
     HoldoutManifest,
     HoldoutProtection,
@@ -197,13 +197,13 @@ def compute_per_anomaly_holdout_metrics(
 def compute_descriptive_holdout_calibration(
     scores_with_timestamps: Sequence[Tuple[str, datetime, RiskScore]],
     ground_truth_events: Sequence[GroundTruthEvent],
-    threshold: float = 3.5,
+    threshold: float = 1.0,
 ) -> Dict[str, Any]:
-    """Compute descriptive calibration buckets, observed positive rates, and Expected Calibration Error (ECE)."""
-    res: DescriptiveCalibrationResult = compute_descriptive_calibration(
+    """Compute descriptive calibration buckets, observed positive rates, population accounting, and ECE."""
+    calibrator = DescriptiveHoldoutCalibrator(threshold=threshold)
+    res: DescriptiveCalibrationResult = calibrator.calibrate_holdout(
         scores_with_timestamps=scores_with_timestamps,
         ground_truth_events=ground_truth_events,
-        threshold=threshold,
     )
     return res.model_dump(mode="json")
 
@@ -216,27 +216,46 @@ def compute_bootstrap_uncertainty(
     seed: int = 42,
     ci: float = 0.95,
 ) -> Dict[str, Any]:
-    """Compute 95% Confidence Intervals for Precision and Recall using deterministic bootstrap resampling."""
+    """Compute 95% Confidence Intervals for Precision and Recall using deterministic bootstrap resampling with raw counts."""
     eval_engine = evaluator or AnomalyEvaluator()
     rng = np.random.RandomState(seed)
 
     base_metrics = eval_engine.evaluate(alerts=list(alerts), ground_truth_events=list(ground_truth_events))
     point_precision = base_metrics.precision
     point_recall = base_metrics.recall
+    raw_tp = base_metrics.tp
+    raw_fp = base_metrics.fp
+    raw_fn = base_metrics.fn
+    n_events = len(ground_truth_events)
+    n_alerts = len(alerts)
 
     if not ground_truth_events:
         return {
             "n_resamples": n_resamples,
             "seed": seed,
             "ci_level": ci,
-            "precision": {"point": point_precision, "ci_lower": point_precision, "ci_upper": point_precision},
-            "recall": {"point": point_recall, "ci_lower": point_recall, "ci_upper": point_recall},
+            "precision": {
+                "point": point_precision,
+                "ci_lower": point_precision,
+                "ci_upper": point_precision,
+                "raw_numerator_tp": raw_tp,
+                "raw_denominator_alerts": n_alerts,
+                "n_alerts": n_alerts,
+            },
+            "recall": {
+                "point": point_recall,
+                "ci_lower": point_recall,
+                "ci_upper": point_recall,
+                "raw_numerator_tp": raw_tp,
+                "raw_denominator_events": n_events,
+                "n_events": n_events,
+            },
+            "raw_counts": {"tp": raw_tp, "fp": raw_fp, "fn": raw_fn, "n_events": n_events, "n_alerts": n_alerts},
         }
 
     precisions = []
     recalls = []
     gt_list = list(ground_truth_events)
-    n_events = len(gt_list)
 
     for _ in range(n_resamples):
         sampled_indices = rng.choice(n_events, size=n_events, replace=True)
@@ -259,11 +278,24 @@ def compute_bootstrap_uncertainty(
             "point": round(point_precision, 4),
             "ci_lower": round(p_lower, 4),
             "ci_upper": round(p_upper, 4),
+            "raw_numerator_tp": raw_tp,
+            "raw_denominator_alerts": raw_tp + raw_fp,
+            "n_alerts": n_alerts,
         },
         "recall": {
             "point": round(point_recall, 4),
             "ci_lower": round(r_lower, 4),
             "ci_upper": round(r_upper, 4),
+            "raw_numerator_tp": raw_tp,
+            "raw_denominator_events": raw_tp + raw_fn,
+            "n_events": n_events,
+        },
+        "raw_counts": {
+            "tp": raw_tp,
+            "fp": raw_fp,
+            "fn": raw_fn,
+            "n_events": n_events,
+            "n_alerts": n_alerts,
         },
     }
 
@@ -313,6 +345,7 @@ def execute_portfolio_comparison(
             "fp_cost": m.fp_cost,
             "fn_exposure": m.fn_exposure,
             "total_cost": m.total_cost,
+            "cost_unit": "₹",
             "tp": m.tp,
             "fp": m.fp,
             "fn": m.fn,
@@ -337,10 +370,12 @@ def save_day8_research_artifacts(
     portfolio_results: List[Dict[str, Any]],
     evasion_results: Dict[str, Any],
     drift_results: Dict[str, Any],
+    experiment_id: str = "EXP-DAY8-HOLDOUT-CONFIRMATION-001",
 ) -> Dict[str, Path]:
-    """Save all Day 8 research outputs in structured artifact directories matching required hierarchy."""
+    """Save all Day 8 research outputs in structured artifact directories matching required Section 39 hierarchy."""
     base_p = Path(base_artifact_dir)
     common_metadata = {
+        "experiment_id": experiment_id,
         "detector_version": freeze_record.detector_version,
         "config_hash": freeze_record.config_hash,
         "development_dataset_hash": freeze_record.development_dataset_hash,
@@ -398,6 +433,7 @@ def save_day8_research_artifacts(
     p_fin_m.write_text(
         json.dumps({
             **common_metadata,
+            "cost_unit": "₹",
             "metrics": holdout_metrics.model_dump(mode="json"),
             "per_anomaly": per_anomaly_metrics,
         }, indent=2),
@@ -405,7 +441,7 @@ def save_day8_research_artifacts(
     )
     saved_paths["final_metrics_json"] = p_fin_m
 
-    # 8. Final Metrics CSV
+    # 8. Final Metrics CSV with '₹' cost unit
     p_fin_csv = dirs["final"] / "metrics.csv"
     csv_rows = [
         ["metric", "value", "unit"],
@@ -417,9 +453,9 @@ def save_day8_research_artifacts(
         ["f1_score", f"{holdout_metrics.f1_score:.4f}", "score"],
         ["median_latency_seconds", f"{holdout_metrics.median_latency_seconds:.2f}" if holdout_metrics.median_latency_seconds is not None else "N/A", "seconds"],
         ["p95_latency_seconds", f"{holdout_metrics.p95_latency_seconds:.2f}" if holdout_metrics.p95_latency_seconds is not None else "N/A", "seconds"],
-        ["fp_cost", f"{holdout_metrics.fp_cost:.2f}", "usd"],
-        ["fn_exposure", f"{holdout_metrics.fn_exposure:.2f}", "usd"],
-        ["total_cost", f"{holdout_metrics.total_cost:.2f}", "usd"],
+        ["fp_cost", f"{holdout_metrics.fp_cost:.2f}", "₹"],
+        ["fn_exposure", f"{holdout_metrics.fn_exposure:.2f}", "₹"],
+        ["total_cost", f"{holdout_metrics.total_cost:.2f}", "₹"],
     ]
     with open(p_fin_csv, "w", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
@@ -439,6 +475,7 @@ def save_day8_research_artifacts(
             "recall": holdout_metrics.recall,
             "f1_score": holdout_metrics.f1_score,
             "total_cost": holdout_metrics.total_cost,
+            "cost_unit": "₹",
         },
         "frozen_detector": freeze_record.all_selected_parameters,
         "per_anomaly_performance": per_anomaly_metrics,

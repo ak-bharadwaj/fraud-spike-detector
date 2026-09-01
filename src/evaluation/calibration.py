@@ -1,10 +1,11 @@
-"""Calibration module for development-time threshold tuning and Day-8 descriptive final-holdout calibration.
+"""Descriptive holdout calibration and development calibration module.
 
 Key Invariants:
 - Day-8 Descriptive Holdout Calibration:
   - Generates empirical statistics across score buckets [0.5-0.6, 0.6-0.7, 0.7-0.8, 0.8-0.9, 0.9-1.0].
   - For populated buckets: reports empirical mean_score, observed_positive_rate, and sample count N.
   - For empty buckets: explicitly reports N=0, mean_score=None, observed_positive_rate=None (no pseudo-values!).
+  - Full population accounting: explicitly accounts for all holdout window samples and why each falls into its respective range.
   - Computes Expected Calibration Error (ECE) strictly over populated samples.
   - Generates reliability diagram visualization data.
   - NO threshold search, fitting, or optimization on holdout data.
@@ -40,6 +41,7 @@ class DescriptiveCalibrationResult(BaseModel):
     expected_calibration_error: Optional[float] = None
     total_samples: int
     populated_samples: int
+    population_breakdown: Dict[str, int] = Field(default_factory=dict)
     reliability_diagram_data: Dict[str, Any] = Field(default_factory=dict)
 
 
@@ -53,12 +55,13 @@ def compute_descriptive_calibration(
         (0.8, 0.9),
         (0.9, 1.0),
     ),
-    threshold: float = 3.5,
+    threshold: float = 1.0,
 ) -> DescriptiveCalibrationResult:
     """Compute empirical descriptive calibration statistics across score/confidence buckets.
 
     - Populated buckets: empirical mean score, empirical positive rate, sample count N.
     - Empty buckets: N=0, mean_score=None, observed_positive_rate=None.
+    - Full population breakdown: accounts for all window samples.
     - ECE: Expected Calibration Error weighted by populated sample proportion.
     """
     gt_intervals = [(e.merchant_id, e.start_time, e.end_time) for e in ground_truth_events]
@@ -79,6 +82,13 @@ def compute_descriptive_calibration(
     weighted_error_sum = 0.0
     rel_x = []
     rel_y = []
+
+    # Focus range min and max
+    min_focus = min(b[0] for b in buckets)
+    max_focus = max(b[1] for b in buckets)
+
+    below_focus_count = sum(1 for s in valid_samples if s[0] < min_focus)
+    above_focus_count = sum(1 for s in valid_samples if s[0] > max_focus)
 
     for low, high in buckets:
         # Match samples falling into bucket [low, high) (or [low, high] for last bucket)
@@ -124,11 +134,36 @@ def compute_descriptive_calibration(
         expected_calibration_error=ece,
         total_samples=len(valid_samples),
         populated_samples=populated_samples,
+        population_breakdown={
+            "total_evaluated_samples": len(valid_samples),
+            "below_focus_range_samples": below_focus_count,
+            "in_focus_range_samples": populated_samples,
+            "above_focus_range_samples": above_focus_count,
+        },
         reliability_diagram_data={
             "mean_predicted_probabilities": rel_x,
             "fraction_of_positives": rel_y,
         },
     )
+
+
+class DescriptiveHoldoutCalibrator:
+    """Performs descriptive calibration on locked holdout risk-score outputs without parameter search or tuning."""
+
+    def __init__(self, threshold: float = 1.0):
+        self.threshold = float(threshold)
+
+    def calibrate_holdout(
+        self,
+        scores_with_timestamps: Sequence[Tuple[str, datetime, RiskScore]],
+        ground_truth_events: Sequence[GroundTruthEvent],
+    ) -> DescriptiveCalibrationResult:
+        """Run descriptive holdout calibration."""
+        return compute_descriptive_calibration(
+            scores_with_timestamps=scores_with_timestamps,
+            ground_truth_events=ground_truth_events,
+            threshold=self.threshold,
+        )
 
 
 class CalibrationDataset:
@@ -142,7 +177,7 @@ class CalibrationDataset:
     ):
         if is_holdout:
             raise HoldoutAccessError(
-                "Holdout access denied: Locked holdout dataset cannot be used for calibration."
+                "Holdout access denied: Locked holdout dataset cannot be used for threshold tuning."
             )
         self.scores_with_timestamps = scores_with_timestamps
         self.ground_truth_events = ground_truth_events

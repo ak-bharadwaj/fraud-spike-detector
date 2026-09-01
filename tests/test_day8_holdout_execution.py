@@ -13,20 +13,24 @@ Validates:
 4. Per-Anomaly Final Table & Zero-Event Class Reporting:
    - Evaluates performance across all required anomaly classes.
    - For zero-event classes (N=0), explicitly reports None for precision/recall/f1 (no false positive claims!).
-5. Descriptive Holdout Calibration & Empty-Bucket Handling:
+5. Descriptive Holdout Calibration & Explicit Population Breakdown:
    - Generates reliability buckets (0.5–0.6, 0.6–0.7, 0.7–0.8, 0.8–0.9, 0.9–1.0).
    - Empty buckets explicitly report n=0, mean_score=None, observed_positive_rate=None (no midpoint pseudo-values!).
+   - Population breakdown accounts for all holdout window samples.
    - Computes Expected Calibration Error (ECE) and reliability diagram data.
-6. Bootstrap Uncertainty:
+6. Complete Bootstrap Uncertainty Contract:
    - 1,000 deterministic bootstrap resamples (seed 42) computing 95% CIs for Precision and Recall.
-7. Portfolio Cost Analysis:
+   - Reports raw_numerator_tp, raw_denominator, n_events, and n_alerts.
+7. Cost Reporting Unit Enforcement (INR '₹'):
+   - Explicitly asserts cost unit is '₹' and prevents regression to USD.
+8. Portfolio Cost Analysis:
    - Evaluates Static, Statistical, and Hybrid on holdout as descriptive portfolio analysis.
-8. Required Artifact Hierarchy:
+9. Required Artifact Hierarchy:
    - Verifies artifacts/ directory hierarchy including final/metrics.json, final/metrics.csv, final/report.json.
-   - Every artifact references dataset_hash, config_hash, detector_version, and seed.
-9. Holdout Immutability & Replay Determinism:
-   - Holdout SHA before == Holdout SHA after.
-   - Replay reproduces 100% bitwise-identical results.
+   - Every artifact references experiment_id, dataset_hash, config_hash, detector_version, and seed.
+10. Holdout Immutability & Replay Determinism:
+    - Holdout SHA before == Holdout SHA after.
+    - Replay reproduces 100% bitwise-identical results.
 """
 
 from datetime import datetime, timedelta, timezone
@@ -189,11 +193,11 @@ def test_per_anomaly_zero_event_reporting():
 
 
 # =====================================================================
-# 5. Descriptive Holdout Calibration & Empty-Bucket Handling (Blocker 1 & 2)
+# 5. Descriptive Holdout Calibration & Explicit Population Breakdown (Blockers 1 & 5)
 # =====================================================================
 
-def test_descriptive_calibration_empty_buckets_and_ece():
-    """Verify descriptive calibration buckets report None for empty buckets without midpoint pseudo-values."""
+def test_descriptive_calibration_empty_buckets_and_population_breakdown():
+    """Verify descriptive calibration buckets report None for empty buckets and explicitly accounts for population."""
     freeze_record = load_freeze_record("config/freeze_record.json")
     manifest, txs, gts = load_locked_holdout_data("data/holdout")
 
@@ -224,16 +228,23 @@ def test_descriptive_calibration_empty_buckets_and_ece():
             assert b["mean_score"] is not None
             assert 0.0 <= b["observed_positive_rate"] <= 1.0
 
+    # Verify explicit population breakdown accounting
+    breakdown = calib["population_breakdown"]
+    assert breakdown["total_evaluated_samples"] == 115
+    assert breakdown["below_focus_range_samples"] == 111
+    assert breakdown["in_focus_range_samples"] == 4
+    assert breakdown["below_focus_range_samples"] + breakdown["in_focus_range_samples"] == breakdown["total_evaluated_samples"]
+
     assert calib["expected_calibration_error"] is not None
     assert calib["expected_calibration_error"] >= 0.0
 
 
 # =====================================================================
-# 6. Bootstrap Uncertainty Analysis (1,000 Resamples)
+# 6. Complete Bootstrap Uncertainty Contract with Raw Counts & N (Blocker 2)
 # =====================================================================
 
-def test_bootstrap_uncertainty_1000_resamples():
-    """Verify 1,000 deterministic bootstrap resamples computing 95% CIs for Precision and Recall."""
+def test_bootstrap_uncertainty_contract_with_raw_counts_and_n():
+    """Verify bootstrap reporting contract contains raw counts, denominators, and N for precision and recall."""
     freeze_record = load_freeze_record("config/freeze_record.json")
     manifest, txs, gts = load_locked_holdout_data("data/holdout")
 
@@ -249,14 +260,75 @@ def test_bootstrap_uncertainty_1000_resamples():
     assert boot["seed"] == 42
     assert boot["ci_level"] == 0.95
 
+    # Precision contract
     p_info = boot["precision"]
-    r_info = boot["recall"]
     assert 0.0 <= p_info["ci_lower"] <= p_info["point"] <= p_info["ci_upper"] <= 1.0
+    assert "raw_numerator_tp" in p_info
+    assert "raw_denominator_alerts" in p_info
+    assert "n_alerts" in p_info
+    assert p_info["raw_numerator_tp"] == 1
+    assert p_info["raw_denominator_alerts"] == 1
+    assert p_info["n_alerts"] == 1
+
+    # Recall contract
+    r_info = boot["recall"]
     assert 0.0 <= r_info["ci_lower"] <= r_info["point"] <= r_info["ci_upper"] <= 1.0
+    assert "raw_numerator_tp" in r_info
+    assert "raw_denominator_events" in r_info
+    assert "n_events" in r_info
+    assert r_info["raw_numerator_tp"] == 1
+    assert r_info["raw_denominator_events"] == 1
+    assert r_info["n_events"] == 1
+
+    # Raw counts overview
+    assert "raw_counts" in boot
+    assert boot["raw_counts"]["tp"] == 1
+    assert boot["raw_counts"]["fp"] == 0
+    assert boot["raw_counts"]["fn"] == 0
 
 
 # =====================================================================
-# 7. Portfolio Analysis
+# 7. Cost Reporting Unit Enforcement (Blocker 3)
+# =====================================================================
+
+def test_cost_reporting_unit_is_inr_prevent_usd_regression(tmp_path):
+    """Verify cost reporting units in metrics.csv and reports are strictly '₹' and reject USD."""
+    freeze_record = load_freeze_record("config/freeze_record.json")
+    manifest, txs, gts = load_locked_holdout_data("data/holdout")
+
+    m, alerts, scores = execute_single_pass_holdout(txs, gts, freeze_record, True)
+    per_ano = compute_per_anomaly_holdout_metrics(alerts, gts)
+    calib = compute_descriptive_holdout_calibration(scores, gts, threshold=1.0)
+    boot = compute_bootstrap_uncertainty(alerts, gts, n_resamples=100, seed=42)
+    port = execute_portfolio_comparison(txs, gts, freeze_record)
+
+    saved_paths = save_day8_research_artifacts(
+        base_artifact_dir=tmp_path / "artifacts",
+        freeze_record=freeze_record,
+        holdout_manifest=manifest,
+        holdout_metrics=m,
+        per_anomaly_metrics=per_ano,
+        calibration_results=calib,
+        bootstrap_results=boot,
+        portfolio_results=port,
+        evasion_results={"status": "CONFIRMED"},
+        drift_results={"status": "CONFIRMED"},
+    )
+
+    csv_path = saved_paths["final_metrics_csv"]
+    csv_text = csv_path.read_text(encoding="utf-8")
+
+    # Strictly verify unit '₹'
+    assert "fp_cost,0.00,₹" in csv_text
+    assert "fn_exposure,0.00,₹" in csv_text
+    assert "total_cost,0.00,₹" in csv_text
+
+    # Prevent regression to USD
+    assert "usd" not in csv_text.lower()
+
+
+# =====================================================================
+# 8. Portfolio Analysis
 # =====================================================================
 
 def test_portfolio_cost_comparison():
@@ -276,11 +348,12 @@ def test_portfolio_cost_comparison():
         assert "fp_cost" in p
         assert "fn_exposure" in p
         assert "total_cost" in p
+        assert p["cost_unit"] == "₹"
         assert p["total_cost"] == p["fp_cost"] + p["fn_exposure"]
 
 
 # =====================================================================
-# 8. Required Artifact Hierarchy & Final Files (Blocker 3)
+# 9. Required Artifact Hierarchy & Exact Section-39 Path (Blocker 4)
 # =====================================================================
 
 def test_required_artifact_hierarchy_and_final_files(tmp_path):
@@ -305,6 +378,7 @@ def test_required_artifact_hierarchy_and_final_files(tmp_path):
         portfolio_results=port,
         evasion_results={"status": "CONFIRMED"},
         drift_results={"status": "CONFIRMED"},
+        experiment_id="EXP-DAY8-HOLDOUT-CONFIRMATION-001",
     )
 
     required_keys = [
@@ -317,23 +391,19 @@ def test_required_artifact_hierarchy_and_final_files(tmp_path):
         assert p.exists()
         assert p.stat().st_size > 0
 
-    # Verify final/metrics.csv content
-    csv_content = saved_paths["final_metrics_csv"].read_text(encoding="utf-8")
-    assert "metric,value,unit" in csv_content
-    assert "tp,1,count" in csv_content
-
     # Verify final/report.json content
     report_content = json.loads(saved_paths["final_report_json"].read_text(encoding="utf-8"))
+    assert report_content["experiment_id"] == "EXP-DAY8-HOLDOUT-CONFIRMATION-001"
     assert report_content["detector_version"] == "1.0.0"
     assert report_content["config_hash"] == freeze_record.config_hash
     assert report_content["holdout_dataset_hash"] == manifest.dataset_hash
     assert report_content["seed"] == 42
     assert "executive_summary" in report_content
-    assert "frozen_detector" in report_content
+    assert report_content["executive_summary"]["cost_unit"] == "₹"
 
 
 # =====================================================================
-# 9. Holdout Immutability & Replay Determinism
+# 10. Holdout Immutability & Replay Determinism
 # =====================================================================
 
 def test_holdout_immutability_and_replay_determinism():

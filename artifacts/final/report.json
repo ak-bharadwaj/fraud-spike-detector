@@ -1,4 +1,5 @@
 {
+  "experiment_id": "EXP-DAY8-HOLDOUT-CONFIRMATION-001",
   "detector_version": "1.0.0",
   "config_hash": "4b70ee788eb888339498669fa65cfb30d59ffd8a59e1a01f493704d0b3c88920",
   "development_dataset_hash": "54cc76f1d67a41fd14e61349b0636bc6f4f73f75b8ed67064e1cd96193d7e49f",
@@ -13,7 +14,8 @@
     "precision": 1.0,
     "recall": 1.0,
     "f1_score": 1.0,
-    "total_cost": 0.0
+    "total_cost": 0.0,
+    "cost_unit": "\u20b9"
   },
   "frozen_detector": {
     "scorer": "StaticThresholdScorer",
@@ -168,6 +170,12 @@
     "expected_calibration_error": 0.2688,
     "total_samples": 115,
     "populated_samples": 4,
+    "population_breakdown": {
+      "total_evaluated_samples": 115,
+      "below_focus_range_samples": 111,
+      "in_focus_range_samples": 4,
+      "above_focus_range_samples": 0
+    },
     "reliability_diagram_data": {
       "mean_predicted_probabilities": [
         0.6,
@@ -188,12 +196,25 @@
     "precision": {
       "point": 1.0,
       "ci_lower": 1.0,
-      "ci_upper": 1.0
+      "ci_upper": 1.0,
+      "raw_numerator_tp": 1,
+      "raw_denominator_alerts": 1,
+      "n_alerts": 1
     },
     "recall": {
       "point": 1.0,
       "ci_lower": 1.0,
-      "ci_upper": 1.0
+      "ci_upper": 1.0,
+      "raw_numerator_tp": 1,
+      "raw_denominator_events": 1,
+      "n_events": 1
+    },
+    "raw_counts": {
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "n_events": 1,
+      "n_alerts": 1
     }
   },
   "descriptive_portfolio_analysis": [
@@ -202,6 +223,7 @@
       "fp_cost": 0.0,
       "fn_exposure": 0.0,
       "total_cost": 0.0,
+      "cost_unit": "\u20b9",
       "tp": 1,
       "fp": 0,
       "fn": 0,
@@ -216,6 +238,7 @@
       "fp_cost": 950.0,
       "fn_exposure": 1005.1897489716794,
       "total_cost": 1955.1897489716794,
+      "cost_unit": "\u20b9",
       "tp": 0,
       "fp": 19,
       "fn": 1,
@@ -230,6 +253,7 @@
       "fp_cost": 1000.0,
       "fn_exposure": 1005.1897489716794,
       "total_cost": 2005.1897489716794,
+      "cost_unit": "\u20b9",
       "tp": 0,
       "fp": 20,
       "fn": 1,
