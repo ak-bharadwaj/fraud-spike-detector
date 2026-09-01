@@ -63,6 +63,7 @@ from src.evaluation.freeze import load_freeze_record, compute_config_hash
 from src.evaluation.holdout import (
     HoldoutManifest,
     HoldoutProtection,
+    HoldoutEvaluator,
     compute_holdout_dataset_hash,
     load_locked_holdout_data,
     HoldoutAccessError,
@@ -241,8 +242,23 @@ def test_descriptive_calibration_direct_bucketing_and_population():
             assert b["range"][0] <= b["mean_predicted_score"] <= b["range"][1]
 
     # Verify complete population accounting of window samples
+    # Invariant Rule: Eligible calibration population is defined strictly as all holdout window observations
+    # where evidence is sufficient to produce a numeric RiskScore (rs.score is not None).
+    # Warmup window(s) where baseline evidence is INSUFFICIENT (rs.score is None) are excluded from numeric score
+    # calibration because no prediction score was emitted. Total eligible samples N equals exact count of non-null RiskScores.
+    non_null_scores = [rs for _, _, rs in all_scores if rs.score is not None]
+    null_scores = [rs for _, _, rs in all_scores if rs.score is None]
+    assert len(null_scores) == 1
+    assert null_scores[0].data_quality == "INSUFFICIENT"
+    assert len(non_null_scores) == 119
+    assert len(all_scores) == 120
+
     breakdown = calib["population_breakdown"]
-    assert breakdown["total_evaluated_samples"] == len(all_scores) - 1
+    assert breakdown["total_evaluated_samples"] == len(non_null_scores)
+    assert breakdown["total_evaluated_samples"] == 119
+    assert breakdown["below_display_buckets_count"] == 3
+    assert breakdown["in_display_buckets_count"] == 20
+    assert breakdown["above_display_buckets_count"] == 96
     assert breakdown["below_display_buckets_count"] + breakdown["in_display_buckets_count"] + breakdown["above_display_buckets_count"] == breakdown["total_evaluated_samples"]
 
     # Verify ECE and reliability diagram data
@@ -459,10 +475,10 @@ def test_unambiguous_provenance_and_artifact_sha_reproducibility(tmp_path):
         evasion_results={"status": "CONFIRMED"},
         drift_results={"status": "CONFIRMED"},
         experiment_id="EXP-DAY8-HOLDOUT-CORRECTED-002",
-        execution_commit="fb3c7f9",
-        artifact_finalization_commit="26837b7",
-        prior_artifact_commit="f21ddeb",
-        historical_artifact_chain=["20bf655", "775e779", "cc2872b", "e28d6d3", "f21ddeb", "26837b7"],
+        execution_commit="bc29c36",
+        artifact_finalization_commit="049caf5",
+        prior_artifact_commit="bc29c36",
+        historical_artifact_chain=["20bf655", "775e779", "cc2872b", "e28d6d3", "f21ddeb", "26837b7", "bc29c36", "049caf5"],
     )
 
     report_text = saved_paths["final_report_json"].read_text(encoding="utf-8")
@@ -491,10 +507,10 @@ def test_unambiguous_provenance_and_artifact_sha_reproducibility(tmp_path):
     assert "run_002_corrected" in dual
     r2 = dual["run_002_corrected"]
     assert r2["experiment_id"] == "EXP-DAY8-HOLDOUT-CORRECTED-002"
-    assert r2["execution_commit"] == "fb3c7f9"
-    assert r2["artifact_finalization_commit"] == "26837b7"
-    assert r2["prior_artifact_commit"] == "f21ddeb"
-    assert r2["historical_artifact_chain"] == ["20bf655", "775e779", "cc2872b", "e28d6d3", "f21ddeb", "26837b7"]
+    assert r2["execution_commit"] == "bc29c36"
+    assert r2["artifact_finalization_commit"] == "049caf5"
+    assert r2["prior_artifact_commit"] == "bc29c36"
+    assert r2["historical_artifact_chain"] == ["20bf655", "775e779", "cc2872b", "e28d6d3", "f21ddeb", "26837b7", "bc29c36", "049caf5"]
     assert r2["status"] == "ACCEPTED_CANONICAL"
     
     # 3. No placeholders
@@ -503,6 +519,25 @@ def test_unambiguous_provenance_and_artifact_sha_reproducibility(tmp_path):
             assert r[field]
             assert "pending" not in r[field].lower()
             assert "placeholder" not in r[field].lower()
+
+
+def test_published_canonical_report_provenance_and_artifact_sha():
+    """Verify published artifacts/final/report.json provenance matches actual canonical repository state."""
+    report_path = Path("artifacts/final/report.json")
+    if not report_path.exists():
+        pytest.skip("Artifacts not yet generated on clean checkout.")
+
+    data = json.loads(report_path.read_text(encoding="utf-8"))
+    assert data["experiment_id"] == "EXP-DAY8-HOLDOUT-CORRECTED-002"
+    assert data["detector_version"] == "1.0.0"
+    assert data["config_hash"] == "59034aef4ef11333008c128d7f45ddd88194887460f7856695d13cc9a9834e9d"
+    assert data["holdout_dataset_hash"] == "71595f0cf6681e26ea96232eca900fb805909525367fe90124156de9fa65ddb4"
+    assert compute_canonical_artifact_hash(data) == data["artifact_sha256"]
+
+    r2 = data["dual_run_disclosure"]["run_002_corrected"]
+    assert r2["execution_commit"] == "bc29c36"
+    assert r2["artifact_finalization_commit"] == "049caf5"
+    assert r2["status"] == "ACCEPTED_CANONICAL"
 
 
 # =====================================================================
@@ -531,3 +566,34 @@ def test_holdout_immutability_and_replay_determinism():
     manifest_after, txs_after, gts_after = load_locked_holdout_data("data/holdout")
     hash_after = compute_holdout_dataset_hash(txs_after, gts_after)
     assert hash_after == hash_before
+
+
+# =====================================================================
+# 12. Single Authoritative Execution Path & Architecture Test
+# =====================================================================
+
+def test_single_authoritative_holdout_execution_path():
+    """Verify HoldoutEvaluator and execute_single_pass_holdout share the exact same canonical execution path and frozen scorer."""
+    manifest, txs, gts = load_locked_holdout_data("data/holdout")
+    freeze_record = load_freeze_record("config/freeze_record.json")
+
+    # Both execution paths execute against the same frozen detector
+    m_direct, alerts_direct, scores_direct = execute_single_pass_holdout(txs, gts, freeze_record, explicit_evaluation_mode=True)
+    
+    evaluator = HoldoutEvaluator(manifest=manifest, freeze_record=freeze_record, explicit_evaluation_mode=True)
+    m_eval = evaluator.evaluate_holdout(txs, gts)
+
+    # 1. Assert exact 100% metrics equality
+    assert m_direct.model_dump() == m_eval.model_dump()
+    assert m_eval.tp == 1
+    assert m_eval.fp == 1
+    assert m_eval.fn == 0
+    assert m_eval.precision == 0.5
+    assert m_eval.recall == 1.0
+    assert m_eval.f1_score == pytest.approx(0.6666666666666666)
+
+    # 2. Verify scorer used is strictly the selected frozen scorer (StatisticalDeviationScorer)
+    scorer = build_frozen_scorer(freeze_record)
+    assert scorer.__class__.__name__ == freeze_record.selected_scorer
+    assert scorer.__class__.__name__ == "StatisticalDeviationScorer"
+

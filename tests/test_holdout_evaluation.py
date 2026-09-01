@@ -167,9 +167,8 @@ def test_holdout_historical_only_baseline_no_current_leakage():
 def test_single_pass_holdout_evaluation_success(stored_locked_holdout_artifact):
     """Verify single-pass holdout evaluation with explicit_evaluation_mode=True emits valid EvaluationMetrics."""
     manifest, transactions, gt_events = stored_locked_holdout_artifact
-    config = FrozenDetectorConfig(static_threshold=3.5, ewma_alpha=0.3, persistence=2, cooldown_windows=5)
 
-    evaluator = HoldoutEvaluator(manifest=manifest, config=config, explicit_evaluation_mode=True)
+    evaluator = HoldoutEvaluator(manifest=manifest, explicit_evaluation_mode=True)
     metrics = evaluator.evaluate_holdout(transactions=transactions, ground_truth_events=gt_events)
 
     assert isinstance(metrics, EvaluationMetrics)

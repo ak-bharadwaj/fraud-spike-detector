@@ -54,8 +54,8 @@
     "run_002_corrected": {
       "experiment_id": "EXP-DAY8-HOLDOUT-CORRECTED-002",
       "execution_commit": "bc29c36",
-      "artifact_finalization_commit": "bc29c36",
-      "prior_artifact_commit": "26837b7",
+      "artifact_finalization_commit": "049caf5",
+      "prior_artifact_commit": "bc29c36",
       "historical_artifact_chain": [
         "20bf655",
         "775e779",
@@ -63,7 +63,8 @@
         "e28d6d3",
         "f21ddeb",
         "26837b7",
-        "bc29c36"
+        "bc29c36",
+        "049caf5"
       ],
       "status": "ACCEPTED_CANONICAL",
       "reason": "Corrected post-holdout descriptive calibration (direct RiskScore bucketing, explicit population accounting), complete bootstrap uncertainty reporting contract with raw counts, and INR '\u20b9' units.",
@@ -357,5 +358,5 @@
     "status": "CONFIRMED",
     "details": "Locked holdout drift confirmation evaluated with frozen detector."
   },
-  "artifact_sha256": "84ff34f3b619945c24d09be8866c338acd2e241f168c9d1a891a190db898a2c2"
+  "artifact_sha256": "8d45e328a26ad1f2467b7449f3c8f0c54096b64fc02b37ce50e0912557a88690"
 }

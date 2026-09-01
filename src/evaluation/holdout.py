@@ -5,7 +5,7 @@ Key Invariants:
 - Canonical dataset hashing: compute_holdout_dataset_hash SHA-256 over deterministic JSON payload.
 - Checksum verification: verifies computed actual dataset hash matches HoldoutManifest.dataset_hash; aborts with ChecksumMismatchError on mismatch.
 - Historical-only baseline: current window transactions curr_txs are extracted for FeatureSnapshot; baseline_engine.get_baseline() is called BEFORE updating baseline_engine with curr_txs (NO current-window baseline leakage!).
-- Structurally frozen detector config: FrozenDetectorConfig encapsulates detector parameters; evaluate_holdout accepts ZERO parameter overrides.
+- Canonical frozen configuration: Single authoritative execution path bound strictly to canonical FreezeRecord (zero stale defaults / duplicate runners).
 - Emits EvaluationMetrics compliant with Pydantic schema contract.
 """
 
@@ -16,12 +16,14 @@ import json
 from pathlib import Path
 from pydantic import BaseModel, Field
 
-from src.contracts.contracts import Transaction, GroundTruthEvent, Alert, EvaluationMetrics
-from src.features.feature_engine import FeatureEngine
-from src.baseline.baseline_engine import BaselineEngine
-from src.scoring.hybrid_ewma import HybridEWMAScorer
-from src.state.alert_state_machine import AlertStateMachine
-from src.evaluation.evaluator import AnomalyEvaluator
+from src.contracts.contracts import (
+    Transaction,
+    GroundTruthEvent,
+    Alert,
+    EvaluationMetrics,
+    FrozenDetectorConfig,
+)
+from src.evaluation.freeze import FreezeRecord, load_freeze_record
 
 
 class HoldoutManifest(BaseModel):
@@ -30,17 +32,6 @@ class HoldoutManifest(BaseModel):
     seed: int
     schema_version: str
     created_at: str
-
-
-class FrozenDetectorConfig(BaseModel):
-    """Immutable frozen detector configuration for locked holdout evaluation."""
-    static_threshold: float = 3.5
-    ewma_alpha: float = 0.3
-    persistence: int = 2
-    cooldown_windows: int = 5
-    min_window_count: int = 5
-    temporal_tolerance_seconds: float = 0.0
-    detector_version: str = "1.0.0"
 
 
 class HoldoutAccessError(PermissionError):
@@ -130,16 +121,20 @@ class HoldoutProtection:
 
 
 class HoldoutEvaluator:
-    """Single-pass evaluator for running frozen detector pipeline against locked holdout dataset."""
+    """Single authoritative evaluator for running frozen detector pipeline against locked holdout dataset."""
 
     def __init__(
         self,
         manifest: HoldoutManifest,
-        config: Optional[FrozenDetectorConfig] = None,
+        freeze_record: Optional[FreezeRecord] = None,
+        freeze_record_path: Union[str, Path] = "config/freeze_record.json",
         explicit_evaluation_mode: bool = False,
     ):
         self.manifest = manifest
-        self.config = config if config is not None else FrozenDetectorConfig()
+        if freeze_record is not None:
+            self.freeze_record = freeze_record
+        else:
+            self.freeze_record = load_freeze_record(freeze_record_path)
         self.explicit_evaluation_mode = explicit_evaluation_mode
 
     def evaluate_holdout(
@@ -159,63 +154,15 @@ class HoldoutEvaluator:
             explicit_evaluation_mode=self.explicit_evaluation_mode,
         )
 
-        # 2. Instantiate frozen pipeline components
-        feature_engine = FeatureEngine()
-        baseline_engine = BaselineEngine(min_window_count=self.config.min_window_count)
-        scorer = HybridEWMAScorer(alpha=self.config.ewma_alpha)
-        state_machine = AlertStateMachine(
-            persistence=self.config.persistence,
-            cooldown_windows=self.config.cooldown_windows,
-            static_threshold=self.config.static_threshold,
+        # 2. Delegate directly to canonical single-pass execution engine
+        from src.evaluation.holdout_execution import execute_single_pass_holdout
+        metrics, _, _ = execute_single_pass_holdout(
+            transactions=transactions,
+            ground_truth_events=ground_truth_events,
+            freeze_record=self.freeze_record,
+            explicit_evaluation_mode=self.explicit_evaluation_mode,
         )
-
-        # 3. Group transactions by merchant
-        tx_by_merchant: Dict[str, List[Transaction]] = {}
-        for tx in sorted(transactions, key=lambda x: x.timestamp):
-            tx_by_merchant.setdefault(tx.merchant_id, []).append(tx)
-
-        alerts: List[Alert] = []
-
-        # Process each merchant stream independently
-        for merchant_id in sorted(tx_by_merchant.keys()):
-            m_txs = tx_by_merchant[merchant_id]
-            if not m_txs:
-                continue
-
-            start_time = m_txs[0].timestamp
-            end_time = m_txs[-1].timestamp
-
-            # 1-minute window steps
-            curr_window_start = start_time
-
-            while curr_window_start <= end_time:
-                curr_window_end = curr_window_start + timedelta(minutes=feature_engine.window_duration_minutes)
-
-                # Extract ONLY current window transactions for current FeatureSnapshot
-                curr_txs = [t for t in m_txs if curr_window_start <= t.timestamp < curr_window_end]
-
-                # Extract feature snapshot for current window
-                feat_snap = feature_engine.extract_snapshot(merchant_id, curr_txs, curr_window_start, curr_window_end)
-
-                # Compute baseline snapshot strictly BEFORE updating baseline with current window!
-                base_snap = baseline_engine.get_baseline(merchant_id, feat_snap)
-
-                # Score features against pre-current baseline
-                risk_score = scorer.calculate_score(feat_snap, base_snap)
-
-                # Update baseline engine with current snapshot AFTER baseline computation
-                baseline_engine.update(feat_snap)
-
-                # Evaluate risk score through alert state machine
-                _, alert = state_machine.process_score(merchant_id, curr_window_end, risk_score)
-                if alert is not None:
-                    alerts.append(alert)
-
-                curr_window_start = curr_window_end
-
-        # 4. Run AnomalyEvaluator against ground truth events
-        evaluator = AnomalyEvaluator(temporal_tolerance_seconds=self.config.temporal_tolerance_seconds)
-        return evaluator.evaluate(alerts, ground_truth_events)
+        return metrics
 
 
 def load_locked_holdout_data(data_dir: Union[str, Path]) -> Tuple[HoldoutManifest, List[Transaction], List[GroundTruthEvent]]:
@@ -265,4 +212,3 @@ def load_locked_holdout_data(data_dir: Union[str, Path]) -> Tuple[HoldoutManifes
     ]
 
     return manifest, transactions, ground_truth_events
-
