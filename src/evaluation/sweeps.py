@@ -6,10 +6,10 @@ Key Invariants:
   1. StaticThresholdScorer
   2. StatisticalDeviationScorer
   3. HybridEWMAScorer
-- Parameter sweeps:
+- Complete candidate space (all defaults evaluated simultaneously):
   - alpha: {0.2, 0.3, 0.5, 0.7, 0.9}
   - persistence: {1, 2, 3}
-  - threshold: complete operating-point sweep over [1.0, 10.0] with step 0.5
+  - threshold: complete operating-point sweep over [1.0, 10.0] with step 0.5 (19 points)
   - signal weights: candidate feature group weight vectors (EQUAL, VOLUME_VELOCITY_HEAVY, AMOUNT_HEAVY, BEHAVIORAL_HEAVY)
   - cooldown: candidate cooldown windows {1, 3, 5, 10}
   - evidence parameters: candidate min_window_count {1, 3, 5, 10}
@@ -20,9 +20,10 @@ Key Invariants:
   - Minimizes Total Cost (FP Cost + FN Exposure) with tie-breaking on higher F1 and lower latency.
 """
 
-from typing import List, Dict, Any, Optional, Sequence, Tuple
+from typing import List, Dict, Any, Optional, Sequence, Tuple, Union
 from pathlib import Path
 from datetime import datetime, timezone, timedelta
+import json
 import numpy as np
 
 from src.contracts.contracts import (
@@ -61,6 +62,53 @@ def _verify_development_only_data(data_path: Optional[str] = None) -> None:
     """Ensure data path is not pointing to locked holdout directory."""
     if data_path and "holdout" in str(data_path).lower():
         raise HoldoutAccessViolationError("Parameter sweep is strictly prohibited on holdout data. Use development data only.")
+
+
+def load_development_data(data_dir: Union[str, Path] = "data/development") -> Tuple[List[Transaction], List[GroundTruthEvent]]:
+    """Load canonical development dataset transactions and ground truth events."""
+    d_path = Path(data_dir)
+    _verify_development_only_data(str(d_path))
+
+    tx_path = d_path / "transactions.json"
+    gt_path = d_path / "ground_truth.json"
+
+    if not tx_path.exists() or not gt_path.exists():
+        raise FileNotFoundError(f"Development artifact missing in {d_path}")
+
+    tx_raw = json.loads(tx_path.read_text(encoding="utf-8"))
+    transactions = [
+        Transaction(
+            transaction_id=t["id"],
+            timestamp=datetime.fromisoformat(t["ts"]),
+            merchant_id=t["m_id"],
+            customer_id=t["c_id"],
+            amount=float(t["amt"]),
+            payment_method=t["pm"],
+            country=t["country"],
+            device_id=t["d_id"],
+        )
+        for t in tx_raw
+    ]
+
+    gt_raw = json.loads(gt_path.read_text(encoding="utf-8"))
+    ground_truth_events = [
+        GroundTruthEvent(
+            event_id=e["id"],
+            merchant_id=e["m_id"],
+            anomaly_type=e["type"],
+            start_time=datetime.fromisoformat(e["st"]),
+            end_time=datetime.fromisoformat(e["et"]),
+            severity=float(e["sev"]),
+            parameters=e.get("params", {
+                "excess_transaction_count": max(1.0, float(round(10.0 * e["sev"]))),
+                "mean_transaction_amount": 50.0,
+                "exposure_factor": 1.0,
+            }),
+        )
+        for e in gt_raw
+    ]
+
+    return transactions, ground_truth_events
 
 
 def run_strategy_comparison(
@@ -405,8 +453,8 @@ def select_final_development_configuration(
     thresholds: Optional[Sequence[float]] = None,
     alphas: Sequence[float] = (0.2, 0.3, 0.5, 0.7, 0.9),
     persistences: Sequence[int] = (1, 2, 3),
-    cooldowns: Sequence[int] = (5,),
-    min_window_counts: Sequence[int] = (5,),
+    cooldowns: Sequence[int] = (1, 3, 5, 10),
+    min_window_counts: Sequence[int] = (1, 3, 5, 10),
     weight_candidates: Optional[Dict[str, Dict[str, float]]] = None,
     data_path: Optional[str] = None,
 ) -> Dict[str, Any]:
@@ -419,10 +467,10 @@ def select_final_development_configuration(
       3. HybridEWMAScorer
     - Alphas: {0.2, 0.3, 0.5, 0.7, 0.9} (for Hybrid)
     - Persistence: {1, 2, 3}
-    - Thresholds: [1.0, 10.0] step 0.5
-    - Signal Weights: Equal, Volume/Velocity Heavy, Amount Heavy, Behavioral Heavy
-    - Cooldown: candidate cooldowns
-    - Evidence min_window_count: candidate min_window_counts
+    - Thresholds: [1.0, 10.0] step 0.5 (19 points)
+    - Signal Weights: Equal, Volume/Velocity Heavy, Amount Heavy, Behavioral Heavy (4 vectors)
+    - Cooldown: {1, 3, 5, 10} (4 windows)
+    - Evidence min_window_count: {1, 3, 5, 10} (4 counts)
     """
     _verify_development_only_data(data_path)
     evaluator = AnomalyEvaluator()

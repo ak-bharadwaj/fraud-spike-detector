@@ -1,16 +1,16 @@
 {
   "detector_version": "1.0.0",
-  "config_hash": "4b70ee788eb888339498669fa65cfb30d59ffd8a59e1a01f493704d0b3c88920",
-  "development_dataset_hash": "54cc76f1d67a41fd14e61349b0636bc6f4f73f75b8ed67064e1cd96193d7e49f",
+  "config_hash": "fd63f889792ccbe8e65ca4b2e4a5cffbb4aa04be3797ace217240d936c1eb865",
+  "development_dataset_hash": "dea8f7c2928eb24835120b8604bd564cecdd190227bd6558988793ff673a4dbe",
   "seed": 42,
-  "selected_scorer": "StaticThresholdScorer",
+  "selected_scorer": "StatisticalDeviationScorer",
   "all_selected_parameters": {
-    "scorer": "StaticThresholdScorer",
+    "scorer": "StatisticalDeviationScorer",
     "alpha": null,
-    "static_threshold": 1.0,
+    "static_threshold": 5.0,
     "persistence": 1,
     "cooldown_windows": 5,
-    "min_window_count": 5,
+    "min_window_count": 1,
     "signal_weights": {
       "volume": 1.0,
       "velocity": 1.0,
@@ -19,6 +19,6 @@
     },
     "detector_version": "1.0.0"
   },
-  "selection_rationale": "Selected optimal detector operating point minimizing total cost and maximizing F1 on development benchmark data.",
+  "selection_rationale": "Selected optimal operating point minimizing total cost and maximizing F1 from complete development grid search.",
   "freeze_timestamp": "2026-01-07T00:00:00Z"
 }

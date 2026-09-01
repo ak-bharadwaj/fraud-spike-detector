@@ -58,6 +58,7 @@ from src.evaluation.sweeps import (
     run_evidence_parameter_sweep,
     run_signal_weight_sweep,
     select_final_development_configuration,
+    load_development_data,
     HoldoutAccessViolationError,
     CANDIDATE_SIGNAL_WEIGHTS,
 )
@@ -395,6 +396,8 @@ def test_selection_procedure_reproducibility(dev_benchmark_stream):
         thresholds=[2.5, 3.5, 4.5],
         alphas=[0.3, 0.5],
         persistences=[1, 2],
+        cooldowns=[3, 5],
+        min_window_counts=[3, 5],
     )
     run2 = select_final_development_configuration(
         txs,
@@ -402,6 +405,8 @@ def test_selection_procedure_reproducibility(dev_benchmark_stream):
         thresholds=[2.5, 3.5, 4.5],
         alphas=[0.3, 0.5],
         persistences=[1, 2],
+        cooldowns=[3, 5],
+        min_window_counts=[3, 5],
     )
 
     assert run1["selected_scorer"] == run2["selected_scorer"]
@@ -412,4 +417,57 @@ def test_selection_procedure_reproducibility(dev_benchmark_stream):
     hash1 = compute_config_hash(run1["all_selected_parameters"])
     hash2 = compute_config_hash(run2["all_selected_parameters"])
     assert hash1 == hash2
+
+
+def test_default_selector_evaluates_complete_candidate_space(dev_benchmark_stream):
+    """Verify default selector evaluates all 4 cooldowns x 4 evidence min_window_counts x scorers x thresholds x persistences x weights x alphas (25,536 candidates)."""
+    txs, events = dev_benchmark_stream
+
+    selected = select_final_development_configuration(txs, events)
+    candidates = selected["all_evaluated_candidates"]
+
+    # Total combinations:
+    # 4 mwc * 4 weights * 19 thresholds * 4 cooldowns * 3 persistences * (1 static + 1 statistical + 5 hybrid) = 25,536
+    assert len(candidates) == 25536
+
+    evaluated_cooldowns = {c["selected_cooldown"] for c in candidates}
+    assert evaluated_cooldowns == {1, 3, 5, 10}
+
+    evaluated_evidence = {c["selected_evidence_params"]["min_window_count"] for c in candidates}
+    assert evaluated_evidence == {1, 3, 5, 10}
+
+    evaluated_scorers = {c["selected_scorer"] for c in candidates}
+    assert evaluated_scorers == {"StaticThresholdScorer", "StatisticalDeviationScorer", "HybridEWMAScorer"}
+
+    evaluated_persistences = {c["selected_persistence"] for c in candidates}
+    assert evaluated_persistences == {1, 2, 3}
+
+    evaluated_alphas = {c["selected_alpha"] for c in candidates if c["selected_scorer"] == "HybridEWMAScorer"}
+    assert evaluated_alphas == {0.2, 0.3, 0.5, 0.7, 0.9}
+
+
+def test_canonical_freeze_record_matches_derived_development_selection():
+    """Verify config/freeze_record.json exactly matches the dynamically derived output of full development selection."""
+    txs, gts = load_development_data("data/development")
+    assert len(txs) > 0
+    assert len(gts) > 0
+
+    # 1. Run complete development selection
+    derived_selection = select_final_development_configuration(txs, gts)
+
+    # 2. Load canonical freeze record
+    freeze_path = Path("config/freeze_record.json")
+    assert freeze_path.exists(), "config/freeze_record.json must exist"
+    record = load_freeze_record(freeze_path)
+
+    # 3. Verify exact match with derived selection
+    assert record.selected_scorer == derived_selection["selected_scorer"]
+    assert record.all_selected_parameters == derived_selection["all_selected_parameters"]
+
+    # 4. Verify hashes match
+    assert record.config_hash == compute_config_hash(derived_selection["all_selected_parameters"])
+    assert record.development_dataset_hash == compute_dataset_hash(txs, seed=42)
+    assert record.verify_config(derived_selection["all_selected_parameters"]) is True
+    assert record.verify_dataset(txs, seed=42) is True
+
 
