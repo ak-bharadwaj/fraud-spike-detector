@@ -1,14 +1,16 @@
 """Merchant archetypes and legitimate traffic generation.
 
-Six required archetypes:
-1. stable: steady transaction volume, low variance.
-2. seasonal: diurnal (time-of-day) and weekly cyclic patterns.
-3. growing: organic baseline growth over time.
-4. volatile: high transaction rate and amount variance.
-5. sparse: low transaction frequency with extended inter-arrival gaps.
-6. mixed: combination of seasonality, growth, and moderate variance.
+Nine required merchant archetypes (M1 through M9):
+1. M1 (small / low_volume / sparse): low transaction frequency with extended inter-arrival gaps (0.2 <= rate <= 0.8).
+2. M2 (medium / stable): steady transaction volume, low variance (8.0 <= rate <= 15.0).
+3. M3 (high_volume / large): high transaction throughput (30.0 <= rate <= 60.0).
+4. M4 (seasonal): diurnal (time-of-day) and weekly cyclic patterns.
+5. M5 (weekend_heavy): significantly higher transaction rates on weekend days (Saturday/Sunday).
+6. M6 (highly_variable / volatile): high transaction rate variance and dispersion.
+7. M7 (night_heavy): peak transaction activity concentrated during night hours (22:00-05:00 UTC).
+8. M8 (mixed): combination of seasonality, growth, and moderate variance.
+9. M9 (growing / organic_growth): progressive organic baseline growth over time.
 
-Legitimate promotional surges generate realistic volume spikes without ground-truth fraud events.
 All RNG behavior uses deterministic per-merchant Generators derived from (global_seed, merchant_id).
 Legitimate baselines for device, customer, country, and payment method are mathematically derived from sampling probabilities.
 """
@@ -38,43 +40,61 @@ def create_merchant_profile(global_seed: int, merchant_id: str, archetype: str) 
     from src.generator.rng import get_merchant_rng
     rng = get_merchant_rng(global_seed, f"{merchant_id}_profile")
 
-    arch = archetype.lower()
-    if arch in ("sparse", "low_volume", "small"):
+    arch = archetype.lower().strip()
+    if arch in ("sparse", "low_volume", "small", "m1"):
         rate = float(rng.uniform(0.2, 0.8))
         mean_amt = float(rng.uniform(15.0, 40.0))
         std_amt = float(mean_amt * 0.2)
-    elif arch in ("stable", "medium"):
+        canonical_arch = "sparse"
+    elif arch in ("stable", "medium", "m2"):
         rate = float(rng.uniform(8.0, 15.0))
         mean_amt = float(rng.uniform(40.0, 80.0))
         std_amt = float(mean_amt * 0.15)
-    elif arch in ("high_volume", "high", "large"):
+        canonical_arch = "stable"
+    elif arch in ("high_volume", "high", "large", "m3"):
         rate = float(rng.uniform(30.0, 60.0))
         mean_amt = float(rng.uniform(50.0, 100.0))
         std_amt = float(mean_amt * 0.2)
-    elif arch == "seasonal":
+        canonical_arch = "high_volume"
+    elif arch in ("seasonal", "m4"):
         rate = float(rng.uniform(10.0, 20.0))
         mean_amt = float(rng.uniform(50.0, 100.0))
         std_amt = float(mean_amt * 0.25)
-    elif arch == "growing":
-        rate = float(rng.uniform(5.0, 10.0))
-        mean_amt = float(rng.uniform(30.0, 70.0))
+        canonical_arch = "seasonal"
+    elif arch in ("weekend_heavy", "weekend", "m5"):
+        rate = float(rng.uniform(8.0, 16.0))
+        mean_amt = float(rng.uniform(40.0, 90.0))
         std_amt = float(mean_amt * 0.2)
-    elif arch == "volatile":
+        canonical_arch = "weekend_heavy"
+    elif arch in ("volatile", "highly_variable", "m6"):
         rate = float(rng.uniform(12.0, 25.0))
         mean_amt = float(rng.uniform(60.0, 150.0))
         std_amt = float(mean_amt * 0.6)
-    elif arch == "mixed":
+        canonical_arch = "volatile"
+    elif arch in ("night_heavy", "night", "m7"):
+        rate = float(rng.uniform(6.0, 14.0))
+        mean_amt = float(rng.uniform(35.0, 85.0))
+        std_amt = float(mean_amt * 0.25)
+        canonical_arch = "night_heavy"
+    elif arch in ("mixed", "m8"):
         rate = float(rng.uniform(8.0, 18.0))
         mean_amt = float(rng.uniform(45.0, 110.0))
         std_amt = float(mean_amt * 0.3)
+        canonical_arch = "mixed"
+    elif arch in ("growing", "organic_growth", "growth", "m9"):
+        rate = float(rng.uniform(5.0, 10.0))
+        mean_amt = float(rng.uniform(30.0, 70.0))
+        std_amt = float(mean_amt * 0.2)
+        canonical_arch = "growing"
     else:
         rate = 10.0
         mean_amt = 50.0
         std_amt = 10.0
+        canonical_arch = arch
 
     return MerchantProfile(
         merchant_id=merchant_id,
-        archetype=arch,
+        archetype=canonical_arch,
         base_rate_per_min=rate,
         base_mean_amount=mean_amt,
         base_std_amount=std_amt,
@@ -147,19 +167,30 @@ def compute_legitimate_rate(
     arch = profile.archetype
     if arch == "stable":
         effective_rate = rate
+    elif arch == "high_volume":
+        effective_rate = rate
+    elif arch == "sparse":
+        effective_rate = rate
     elif arch == "seasonal":
         effective_rate = rate * diurnal_mult * weekly_mult
-    elif arch == "growing":
-        effective_rate = rate * growth_mult
+    elif arch == "weekend_heavy":
+        # Saturday (5) & Sunday (6) have 3x traffic compared to weekdays
+        weekend_factor = 2.5 if day_of_week in (5, 6) else 0.6
+        effective_rate = rate * weekend_factor
     elif arch == "volatile":
         noise = 1.0 + 0.3 * math.sin(2.0 * math.pi * elapsed_days * 3.0)
         effective_rate = rate * noise
-    elif arch == "sparse":
-        effective_rate = rate
+    elif arch == "night_heavy":
+        # Night peak 22:00 to 05:00 UTC
+        if hour >= 22.0 or hour < 5.0:
+            night_factor = 2.4
+        else:
+            night_factor = 0.5
+        effective_rate = rate * night_factor
+    elif arch == "growing":
+        effective_rate = rate * growth_mult
     elif arch == "mixed":
         effective_rate = rate * diurnal_mult * growth_mult
-    elif arch in ("high_volume", "high", "large"):
-        effective_rate = rate
     else:
         effective_rate = rate
 

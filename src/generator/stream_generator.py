@@ -4,14 +4,26 @@ Generates deterministic transaction streams and ground-truth events using Virtua
 
 Key Invariants:
 - Uses VirtualClock for time management.
-- Enforces No Overlapping Active Events per merchant.
+- Enforces No Overlapping Active Events per merchant (touching boundaries end_time == next.start_time permitted).
 - schedule_anomaly returns ONLY the scheduling handle (event_id: str).
 - Enforces global event_id uniqueness across generator instance.
 - GroundTruthEvents are created and emitted ONLY after the complete [start_time, end_time) interval has finished.
-- Exact continuous Poisson intensity lam=effective_rate (no integer rounding before Poisson sampling).
-- Derives realized ground-truth magnitude from actual generated transaction stream statistics over the anomaly's exact temporal interval [start_time, end_time).
-- Integrates time-varying legitimate expectation (including surge state) over the entire anomaly interval [start_time, end_time).
-- Validates Option A whole-minute anomaly durations (duration_seconds % 60 == 0).
+- Supports all 9 merchant archetypes (M1 through M9).
+- Supports all 11 anomaly classes:
+    1. sudden_volume_spike / volume_spike
+    2. velocity_burst / velocity_spike
+    3. sustained_spike / sustained_anomaly
+    4. amount_distribution_shift / amount_spike
+    5. device_behavior_anomaly / behavioral_shift
+    6. attribute_geographic_shift / attribute_anomaly
+    7. compound_anomaly
+    8. threshold_hugging_evasion
+    9. persistence_evasion
+    10. staircase_ramp
+    11. oscillating_sub_threshold
+- Exact continuous Poisson intensity lam=effective_rate.
+- Derives realized ground-truth magnitude from actual generated transaction stream statistics.
+- Validates whole-minute anomaly durations (duration_seconds % 60 == 0).
 - Guarantees exact window-partitioning identity via minute-indexed RNG states.
 - 128-bit SHA-256 deterministic collision-resistant Event IDs.
 - Customer population independent of device population.
@@ -101,7 +113,7 @@ class SyntheticStreamGenerator:
         et = spec.end_time if spec.end_time.tzinfo else spec.end_time.replace(tzinfo=timezone.utc)
 
         # Validate attribute anomaly specification
-        if spec.anomaly_type == "attribute_anomaly":
+        if spec.anomaly_type in ("attribute_anomaly", "attribute_geographic_shift"):
             valid_keys = {"country", "payment_method"}
             if not spec.parameters:
                 raise ValueError(
@@ -111,7 +123,7 @@ class SyntheticStreamGenerator:
                 if k not in valid_keys:
                     raise ValueError(f"Unsupported attribute parameter '{k}' for attribute_anomaly.")
 
-        # Enforce No Overlapping Active Events invariant per merchant
+        # Enforce No Overlapping Active Events invariant per merchant (boundary-touching st == ex_et is permitted)
         for _, existing_spec in self.scheduled_specs[merchant_id]:
             ex_st = existing_spec.start_time if existing_spec.start_time.tzinfo else existing_spec.start_time.replace(tzinfo=timezone.utc)
             ex_et = existing_spec.end_time if existing_spec.end_time.tzinfo else existing_spec.end_time.replace(tzinfo=timezone.utc)
@@ -185,16 +197,19 @@ class SyntheticStreamGenerator:
                     params = spec.parameters
                     tm = spec.target_magnitude
 
-                    if atype == "velocity_spike":
+                    minute_into_anomaly = int((step_start - spec.start_time).total_seconds() // 60)
+                    total_dur_min = max(1, int(round(spec.duration_seconds / 60.0)))
+
+                    if atype in ("velocity_spike", "velocity_burst"):
                         rate_multiplier *= params.get("rate_multiplier", max(3.0, tm))
-                    elif atype in ("volume_spike", "sustained_anomaly"):
+                    elif atype in ("volume_spike", "sudden_volume_spike", "sustained_anomaly", "sustained_spike"):
                         rate_multiplier *= params.get("rate_multiplier", max(2.5, tm))
-                    elif atype == "amount_spike":
+                    elif atype in ("amount_spike", "amount_distribution_shift"):
                         amount_multiplier *= params.get("amount_multiplier", max(3.0, tm))
-                    elif atype == "behavioral_shift":
+                    elif atype in ("behavioral_shift", "device_behavior_anomaly"):
                         is_behavioral_spike = True
                         rate_multiplier *= params.get("rate_multiplier", 1.8)
-                    elif atype == "attribute_anomaly":
+                    elif atype in ("attribute_anomaly", "attribute_geographic_shift"):
                         if "country" in params:
                             override_country = params["country"]
                         if "payment_method" in params:
@@ -207,6 +222,24 @@ class SyntheticStreamGenerator:
                             override_country = params["country"]
                         if "payment_method" in params:
                             override_payment = params["payment_method"]
+                    elif atype == "threshold_hugging_evasion":
+                        # Hugging static threshold: subtle elevation
+                        rate_multiplier *= params.get("rate_multiplier", 1.85)
+                    elif atype == "persistence_evasion":
+                        # Alternating 1-minute bursts (burst on even minutes, quiet on odd minutes)
+                        if minute_into_anomaly % 2 == 0:
+                            rate_multiplier *= params.get("rate_multiplier", max(3.5, tm))
+                        else:
+                            rate_multiplier *= 1.0
+                    elif atype == "staircase_ramp":
+                        # Step-wise ramp over duration
+                        ramp_step = (minute_into_anomaly + 1) / float(total_dur_min)
+                        max_mult = params.get("rate_multiplier", max(3.5, tm))
+                        rate_multiplier *= (1.0 + (max_mult - 1.0) * ramp_step)
+                    elif atype == "oscillating_sub_threshold":
+                        # Periodic sinusoidal sub-threshold oscillation
+                        osc_cycle = 1.0 + 0.8 * abs(math.sin(math.pi * minute_into_anomaly / 2.0))
+                        rate_multiplier *= params.get("rate_multiplier", osc_cycle)
 
                 effective_rate = float(legit_rate * rate_multiplier)
                 tx_count = max(0, int(rng.poisson(lam=max(0.0, effective_rate))))
@@ -315,29 +348,42 @@ class SyntheticStreamGenerator:
                             if "payment_method" in params:
                                 active_signals.append(m_payment)
                             realized_m = compute_compound_severity(active_signals)
-                        elif atype in ("velocity_spike", "volume_spike", "sustained_anomaly"):
+                        elif atype in (
+                            "velocity_spike", "velocity_burst",
+                            "volume_spike", "sudden_volume_spike",
+                            "sustained_anomaly", "sustained_spike",
+                            "threshold_hugging_evasion", "persistence_evasion",
+                            "staircase_ramp", "oscillating_sub_threshold",
+                        ):
                             realized_m = m_rate
-                        elif atype == "amount_spike":
+                        elif atype in ("amount_spike", "amount_distribution_shift"):
                             realized_m = m_amt
-                        elif atype == "behavioral_shift":
+                        elif atype in ("behavioral_shift", "device_behavior_anomaly"):
                             realized_m = m_dev
-                        elif atype == "attribute_anomaly":
-                            attr_signals = []
-                            if "country" in params:
-                                attr_signals.append(m_country)
-                            if "payment_method" in params:
-                                attr_signals.append(m_payment)
-                            realized_m = compute_compound_severity(attr_signals or [m_country])
+                        elif atype in ("attribute_anomaly", "attribute_geographic_shift"):
+                            if "country" in params and "payment_method" in params:
+                                realized_m = max(m_country, m_payment)
+                            elif "country" in params:
+                                realized_m = m_country
+                            else:
+                                realized_m = m_payment
                         else:
-                            realized_m = spec.target_magnitude
+                            realized_m = m_rate
 
-                        finalized_gt = create_ground_truth_event(eid, m_id, spec, realized_magnitude=realized_m)
-                        self.finalized_events[m_id].append(finalized_gt)
+                        gt_event = create_ground_truth_event(
+                            event_id=eid,
+                            merchant_id=m_id,
+                            spec=spec,
+                            realized_magnitude=realized_m,
+                        )
                         self.completed_eids.add(eid)
-                        emitted_events.append(finalized_gt)
+                        self.finalized_events[m_id].append(gt_event)
+                        emitted_events.append(gt_event)
 
-        # Advance virtual clock
-        self.clock.advance(duration_minutes * 60.0)
+        # Advance VirtualClock to window end
+        self.clock.set_time(window_end)
 
-        all_txs.sort(key=lambda x: x.timestamp)
+        # Sort transactions chronologically with deterministic tie-breaking (timestamp, merchant_id, transaction_id)
+        all_txs.sort(key=lambda t: (t.timestamp, t.merchant_id, t.transaction_id))
+
         return all_txs, emitted_events
