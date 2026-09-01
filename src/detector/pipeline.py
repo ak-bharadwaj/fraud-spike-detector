@@ -61,7 +61,10 @@ class StreamingDetectorPipeline:
             min_history_count=self.config.min_window_count,
             min_window_count=self.config.min_window_count,
         )
-        self.scorer = scorer if scorer is not None else StatisticalDeviationScorer(static_threshold=self.config.static_threshold)
+        self.scorer = scorer if scorer is not None else HybridEWMAScorer(
+            alpha=self.config.ewma_alpha,
+            static_threshold=self.config.static_threshold,
+        )
         self.state_machine = AlertStateMachine(
             persistence=self.config.persistence,
             cooldown_windows=self.config.cooldown_windows,
