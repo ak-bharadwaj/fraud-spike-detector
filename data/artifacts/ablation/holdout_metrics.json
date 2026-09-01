@@ -1,0 +1,110 @@
+{
+  "detector_version": "1.0.0",
+  "config_hash": "4b70ee788eb888339498669fa65cfb30d59ffd8a59e1a01f493704d0b3c88920",
+  "development_dataset_hash": "54cc76f1d67a41fd14e61349b0636bc6f4f73f75b8ed67064e1cd96193d7e49f",
+  "holdout_dataset_hash": "71595f0cf6681e26ea96232eca900fb805909525367fe90124156de9fa65ddb4",
+  "seed": 42,
+  "timestamp": "2026-09-01T05:02:58.592264+00:00",
+  "metrics": {
+    "tp": 1,
+    "fp": 0,
+    "fn": 0,
+    "tn": null,
+    "precision": 1.0,
+    "recall": 1.0,
+    "f1_score": 1.0,
+    "mean_latency_seconds": 64.567352,
+    "median_latency_seconds": 64.567352,
+    "p95_latency_seconds": 64.567352,
+    "fp_cost": 0.0,
+    "fn_exposure": 0.0,
+    "total_cost": 0.0,
+    "matched_events": [
+      {
+        "event_id": "EVT-HOLDOUT-001",
+        "merchant_id": "HOLDOUT_M1",
+        "alert_id": "ALT-75c3b67cbf4064481d39bc36cb9f4636",
+        "latency_seconds": 64.567352,
+        "horizon_seconds": 120.0,
+        "severity": 10.051897489716794,
+        "severity_level": "HIGH"
+      }
+    ],
+    "unmatched_alerts": [],
+    "unmatched_events": []
+  },
+  "per_anomaly": {
+    "volume_spike": {
+      "anomaly_type": "volume_spike",
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "median_latency_seconds": 64.567352,
+      "events_detected": 1,
+      "total_events": 1
+    },
+    "velocity_burst": {
+      "anomaly_type": "velocity_burst",
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "median_latency_seconds": 0.0,
+      "events_detected": 0,
+      "total_events": 0
+    },
+    "sustained_spike": {
+      "anomaly_type": "sustained_spike",
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "median_latency_seconds": 0.0,
+      "events_detected": 0,
+      "total_events": 0
+    },
+    "amount_shift": {
+      "anomaly_type": "amount_shift",
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "median_latency_seconds": 0.0,
+      "events_detected": 0,
+      "total_events": 0
+    },
+    "behavioral_anomaly": {
+      "anomaly_type": "behavioral_anomaly",
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "median_latency_seconds": 0.0,
+      "events_detected": 0,
+      "total_events": 0
+    },
+    "attribute_shift": {
+      "anomaly_type": "attribute_shift",
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "median_latency_seconds": 0.0,
+      "events_detected": 0,
+      "total_events": 0
+    },
+    "compound_anomaly": {
+      "anomaly_type": "compound_anomaly",
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "median_latency_seconds": 0.0,
+      "events_detected": 0,
+      "total_events": 0
+    },
+    "evasive_patterns": {
+      "anomaly_type": "evasive_patterns",
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "median_latency_seconds": 0.0,
+      "events_detected": 0,
+      "total_events": 0
+    }
+  }
+}
