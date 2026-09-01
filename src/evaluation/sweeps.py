@@ -126,7 +126,7 @@ def run_strategy_comparison(
     strategies = [
         ("StaticThresholdScorer", StaticThresholdScorer(static_threshold=base_cfg.static_threshold)),
         ("StatisticalDeviationScorer", StatisticalDeviationScorer(static_threshold=base_cfg.static_threshold)),
-        ("HybridEWMAScorer", HybridEWMAScorer(alpha=base_cfg.ewma_alpha, static_threshold=base_cfg.static_threshold)),
+        ("HybridEWMAScorer", HybridEWMAScorer(alpha=base_cfg.ewma_alpha or 0.3, static_threshold=base_cfg.static_threshold)),
     ]
 
     results = []
@@ -209,7 +209,7 @@ def run_persistence_sweep(
 
     for p in persistences:
         cfg = base_cfg.model_copy(update={"persistence": int(p)})
-        scorer = HybridEWMAScorer(alpha=cfg.ewma_alpha, static_threshold=cfg.static_threshold)
+        scorer = HybridEWMAScorer(alpha=cfg.ewma_alpha or 0.3, static_threshold=cfg.static_threshold)
         pipeline = StreamingDetectorPipeline(config=cfg, scorer=scorer, db_path=":memory:")
         alerts = pipeline.process_transactions(transactions)
         metrics: EvaluationMetrics = eval_engine.evaluate(alerts=alerts, ground_truth_events=list(ground_truth_events))
@@ -252,7 +252,7 @@ def run_threshold_operating_point_sweep(
     results = []
     for th in thresholds:
         cfg = base_cfg.model_copy(update={"static_threshold": float(th)})
-        scorer = HybridEWMAScorer(alpha=cfg.ewma_alpha, static_threshold=cfg.static_threshold)
+        scorer = HybridEWMAScorer(alpha=cfg.ewma_alpha or 0.3, static_threshold=cfg.static_threshold)
         pipeline = StreamingDetectorPipeline(config=cfg, scorer=scorer, db_path=":memory:")
         alerts = pipeline.process_transactions(transactions)
         metrics: EvaluationMetrics = eval_engine.evaluate(alerts=alerts, ground_truth_events=list(ground_truth_events))
@@ -292,7 +292,7 @@ def run_cooldown_sweep(
 
     for cd in cooldowns:
         cfg = base_cfg.model_copy(update={"cooldown_windows": int(cd)})
-        scorer = HybridEWMAScorer(alpha=cfg.ewma_alpha, static_threshold=cfg.static_threshold)
+        scorer = HybridEWMAScorer(alpha=cfg.ewma_alpha or 0.3, static_threshold=cfg.static_threshold)
         pipeline = StreamingDetectorPipeline(config=cfg, scorer=scorer, db_path=":memory:")
         alerts = pipeline.process_transactions(transactions)
         metrics: EvaluationMetrics = eval_engine.evaluate(alerts=alerts, ground_truth_events=list(ground_truth_events))
@@ -332,7 +332,7 @@ def run_evidence_parameter_sweep(
 
     for mwc in min_window_counts:
         cfg = base_cfg.model_copy(update={"min_window_count": int(mwc), "min_history_count": int(mwc)})
-        scorer = HybridEWMAScorer(alpha=cfg.ewma_alpha, static_threshold=cfg.static_threshold)
+        scorer = HybridEWMAScorer(alpha=cfg.ewma_alpha or 0.3, static_threshold=cfg.static_threshold)
         pipeline = StreamingDetectorPipeline(config=cfg, scorer=scorer, db_path=":memory:")
         alerts = pipeline.process_transactions(transactions)
         metrics: EvaluationMetrics = eval_engine.evaluate(alerts=alerts, ground_truth_events=list(ground_truth_events))
@@ -372,7 +372,7 @@ def run_signal_weight_sweep(
     results = []
 
     for name, weights in candidates.items():
-        scorer = HybridEWMAScorer(alpha=base_cfg.ewma_alpha, static_threshold=base_cfg.static_threshold, signal_weights=weights)
+        scorer = HybridEWMAScorer(alpha=base_cfg.ewma_alpha or 0.3, static_threshold=base_cfg.static_threshold, signal_weights=weights)
         pipeline = StreamingDetectorPipeline(config=base_cfg, scorer=scorer, db_path=":memory:")
         alerts = pipeline.process_transactions(transactions)
         metrics: EvaluationMetrics = eval_engine.evaluate(alerts=alerts, ground_truth_events=list(ground_truth_events))
@@ -517,7 +517,7 @@ def select_final_development_configuration(
                             "selected_threshold": th,
                             "selected_persistence": p,
                             "selected_cooldown": cd,
-                            "selected_evidence_params": {"min_window_count": mwc},
+                            "selected_evidence_params": {"min_window_count": mwc, "min_history_count": mwc},
                             "selected_signal_weights": weights,
                             "all_selected_parameters": {
                                 "scorer": "StaticThresholdScorer",
@@ -525,6 +525,7 @@ def select_final_development_configuration(
                                 "static_threshold": th,
                                 "persistence": p,
                                 "cooldown_windows": cd,
+                                "min_history_count": mwc,
                                 "min_window_count": mwc,
                                 "signal_weights": weights,
                                 "detector_version": "1.0.0",
@@ -565,7 +566,7 @@ def select_final_development_configuration(
                             "selected_threshold": th,
                             "selected_persistence": p,
                             "selected_cooldown": cd,
-                            "selected_evidence_params": {"min_window_count": mwc},
+                            "selected_evidence_params": {"min_window_count": mwc, "min_history_count": mwc},
                             "selected_signal_weights": weights,
                             "all_selected_parameters": {
                                 "scorer": "StatisticalDeviationScorer",
@@ -573,6 +574,7 @@ def select_final_development_configuration(
                                 "static_threshold": th,
                                 "persistence": p,
                                 "cooldown_windows": cd,
+                                "min_history_count": mwc,
                                 "min_window_count": mwc,
                                 "signal_weights": weights,
                                 "detector_version": "1.0.0",
@@ -614,7 +616,7 @@ def select_final_development_configuration(
                                 "selected_threshold": th,
                                 "selected_persistence": p,
                                 "selected_cooldown": cd,
-                                "selected_evidence_params": {"min_window_count": mwc},
+                                "selected_evidence_params": {"min_window_count": mwc, "min_history_count": mwc},
                                 "selected_signal_weights": weights,
                                 "all_selected_parameters": {
                                     "scorer": "HybridEWMAScorer",
@@ -622,6 +624,7 @@ def select_final_development_configuration(
                                     "static_threshold": th,
                                     "persistence": p,
                                     "cooldown_windows": cd,
+                                    "min_history_count": mwc,
                                     "min_window_count": mwc,
                                     "signal_weights": weights,
                                     "detector_version": "1.0.0",

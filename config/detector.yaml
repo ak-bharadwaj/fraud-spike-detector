@@ -1,13 +1,16 @@
-version: "1.0.0"
+version: 1.0.0
 scorer:
-  type: "HybridEWMAScorer"
-  alpha: 0.3
-  persistence: 2
-  static_threshold: 3.5
-
+  type: StatisticalDeviationScorer
+  alpha: null
+  persistence: 1
+  static_threshold: 5.0
 evidence:
-  min_history_count: 50
-  min_window_count: 5
-
+  min_history_count: 1
+  min_window_count: 1
 state_machine:
   cooldown_windows: 5
+signal_weights:
+  volume: 1.0
+  velocity: 1.0
+  amount: 1.0
+  behavioral: 1.0

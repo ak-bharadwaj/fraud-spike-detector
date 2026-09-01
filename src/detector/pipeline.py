@@ -30,6 +30,7 @@ from src.contracts.contracts import (
 )
 from src.features.feature_engine import FeatureEngine
 from src.baseline.baseline_engine import BaselineEngine
+from src.scoring.static import StaticThresholdScorer
 from src.scoring.statistical import StatisticalDeviationScorer
 from src.scoring.hybrid_ewma import HybridEWMAScorer
 from src.state.alert_state_machine import AlertStateMachine
@@ -56,17 +57,34 @@ class StreamingDetectorPipeline:
         self.bus = TimeOrderedEventBus(clock=self.clock)
         self.audit_store = SQLiteAuditStore(db_path=db_path)
         self.signal_mask = list(signal_mask) if signal_mask is not None else None
-        self.signal_weights = dict(signal_weights) if signal_weights is not None else None
+        self.signal_weights = dict(signal_weights) if signal_weights is not None else getattr(self.config, "signal_weights", None)
 
         self.feature_engine = FeatureEngine()
+        eff_min_history = self.config.min_history_count if self.config.min_history_count is not None else self.config.min_window_count
         self.baseline_engine = BaselineEngine(
-            min_history_count=self.config.min_window_count,
+            min_history_count=eff_min_history,
             min_window_count=self.config.min_window_count,
         )
-        self.scorer = scorer if scorer is not None else HybridEWMAScorer(
-            alpha=self.config.ewma_alpha,
-            static_threshold=self.config.static_threshold,
-        )
+
+        if scorer is not None:
+            self.scorer = scorer
+        elif getattr(self.config, "scorer", None) == "StaticThresholdScorer":
+            self.scorer = StaticThresholdScorer(
+                static_threshold=self.config.static_threshold,
+                signal_weights=self.signal_weights,
+            )
+        elif getattr(self.config, "scorer", None) == "StatisticalDeviationScorer":
+            self.scorer = StatisticalDeviationScorer(
+                static_threshold=self.config.static_threshold,
+                signal_weights=self.signal_weights,
+            )
+        else:
+            self.scorer = HybridEWMAScorer(
+                alpha=self.config.ewma_alpha or 0.3,
+                static_threshold=self.config.static_threshold,
+                signal_weights=self.signal_weights,
+            )
+
         self.state_machine = AlertStateMachine(
             persistence=self.config.persistence,
             cooldown_windows=self.config.cooldown_windows,

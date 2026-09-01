@@ -1,6 +1,6 @@
 {
   "detector_version": "1.0.0",
-  "config_hash": "fd63f889792ccbe8e65ca4b2e4a5cffbb4aa04be3797ace217240d936c1eb865",
+  "config_hash": "59034aef4ef11333008c128d7f45ddd88194887460f7856695d13cc9a9834e9d",
   "development_dataset_hash": "dea8f7c2928eb24835120b8604bd564cecdd190227bd6558988793ff673a4dbe",
   "seed": 42,
   "selected_scorer": "StatisticalDeviationScorer",
@@ -10,6 +10,7 @@
     "static_threshold": 5.0,
     "persistence": 1,
     "cooldown_windows": 5,
+    "min_history_count": 1,
     "min_window_count": 1,
     "signal_weights": {
       "volume": 1.0,

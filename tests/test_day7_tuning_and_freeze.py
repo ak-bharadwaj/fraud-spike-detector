@@ -62,6 +62,7 @@ from src.evaluation.sweeps import (
     HoldoutAccessViolationError,
     CANDIDATE_SIGNAL_WEIGHTS,
 )
+from src.contracts.config_loader import load_runtime_frozen_config
 from src.evaluation.freeze import (
     FreezeRecord,
     create_freeze_record,
@@ -469,5 +470,58 @@ def test_canonical_freeze_record_matches_derived_development_selection():
     assert record.development_dataset_hash == compute_dataset_hash(txs, seed=42)
     assert record.verify_config(derived_selection["all_selected_parameters"]) is True
     assert record.verify_dataset(txs, seed=42) is True
+
+
+def test_runtime_detector_configuration_binding_and_consistency(tmp_path):
+    """Verify runtime detector configuration binds directly to canonical freeze record and rejects drift/override."""
+    freeze_record = load_freeze_record("config/freeze_record.json")
+    runtime_config = load_runtime_frozen_config("config/freeze_record.json", "config/detector.yaml")
+
+    # 1. Verify exact 1:1 parameter equality between freeze record and runtime detector configuration
+    assert runtime_config.scorer == freeze_record.selected_scorer
+    assert runtime_config.ewma_alpha == freeze_record.all_selected_parameters.get("alpha")
+    assert runtime_config.static_threshold == freeze_record.all_selected_parameters["static_threshold"]
+    assert runtime_config.persistence == freeze_record.all_selected_parameters["persistence"]
+    assert runtime_config.cooldown_windows == freeze_record.all_selected_parameters["cooldown_windows"]
+    assert runtime_config.min_history_count == freeze_record.all_selected_parameters["min_history_count"]
+    assert runtime_config.min_window_count == freeze_record.all_selected_parameters["min_window_count"]
+    assert runtime_config.signal_weights == freeze_record.all_selected_parameters["signal_weights"]
+    assert runtime_config.detector_version == freeze_record.detector_version
+
+    # 2. Verify runtime config hash equals freeze record config hash
+    runtime_dict = {
+        "scorer": runtime_config.scorer,
+        "alpha": runtime_config.ewma_alpha,
+        "static_threshold": runtime_config.static_threshold,
+        "persistence": runtime_config.persistence,
+        "cooldown_windows": runtime_config.cooldown_windows,
+        "min_history_count": runtime_config.min_history_count,
+        "min_window_count": runtime_config.min_window_count,
+        "signal_weights": runtime_config.signal_weights,
+        "detector_version": runtime_config.detector_version,
+    }
+    assert compute_config_hash(runtime_dict) == freeze_record.config_hash
+
+    # 3. Mutated detector.yaml -> ValueError
+    bad_yaml = tmp_path / "bad_detector.yaml"
+    bad_yaml.write_text(
+        """
+version: "1.0.0"
+scorer:
+  type: "StatisticalDeviationScorer"
+  alpha: null
+  persistence: 1
+  static_threshold: 9.9
+evidence:
+  min_history_count: 1
+  min_window_count: 1
+state_machine:
+  cooldown_windows: 5
+""",
+        encoding="utf-8",
+    )
+    with pytest.raises(ValueError, match="does not match freeze record"):
+        load_runtime_frozen_config("config/freeze_record.json", bad_yaml)
+
 
 

@@ -146,13 +146,13 @@ class AblationRunner:
             diff_count += 1
         if variant.disable_ewma is True:
             diff_count += 1
-        if variant.persistence != self.config.persistence:
+        if variant.persistence is not None and variant.persistence != self.config.persistence:
             diff_count += 1
-        if variant.cooldown_windows != self.config.cooldown_windows:
+        if variant.cooldown_windows is not None and variant.cooldown_windows != self.config.cooldown_windows:
             diff_count += 1
         if variant.feature_subset is not None:
             diff_count += 1
-        if variant.static_threshold != self.config.static_threshold:
+        if variant.static_threshold is not None and variant.static_threshold != self.config.static_threshold:
             diff_count += 1
 
         if diff_count > 1:
@@ -242,13 +242,17 @@ class AblationRunner:
         ground_truth_events: List[GroundTruthEvent],
     ) -> EvaluationMetrics:
         """Run detector evaluation pipeline for a single ablation variant using exact scorer-level signal masking."""
-        alpha = 1.0 if variant.disable_ewma else self.config.ewma_alpha
-        scorer = HybridEWMAScorer(alpha=alpha, static_threshold=variant.static_threshold)
+        alpha = 1.0 if variant.disable_ewma else (self.config.ewma_alpha or 0.3)
+        eff_threshold = variant.static_threshold if variant.static_threshold is not None else self.config.static_threshold
+        eff_persistence = variant.persistence if variant.persistence is not None else self.config.persistence
+        eff_cooldown = variant.cooldown_windows if variant.cooldown_windows is not None else self.config.cooldown_windows
+
+        scorer = HybridEWMAScorer(alpha=alpha, static_threshold=eff_threshold)
 
         cfg = self.config.model_copy(update={
-            "persistence": variant.persistence,
-            "cooldown_windows": variant.cooldown_windows,
-            "static_threshold": variant.static_threshold,
+            "persistence": eff_persistence,
+            "cooldown_windows": eff_cooldown,
+            "static_threshold": eff_threshold,
         })
 
         pipeline = StreamingDetectorPipeline(

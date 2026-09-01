@@ -34,6 +34,7 @@ class DetectorConfig(BaseModel):
     scorer: ScorerConfig
     evidence: EvidenceConfig
     state_machine: StateMachineConfig
+    signal_weights: Optional[dict[str, float]] = None
 
 
 class MerchantConfig(BaseModel):
