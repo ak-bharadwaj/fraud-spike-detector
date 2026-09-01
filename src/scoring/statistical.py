@@ -131,7 +131,7 @@ class StatisticalDeviationScorer(AnomalyScorer):
         ]
 
         # 5. Evidence state and confidence mapping
-        if baseline_snapshot.evidence_state == "DEGRADED":
+        if baseline_snapshot.evidence_state == "DEGRADED" or feature_snapshot.data_quality == "DEGRADED":
             confidence = 0.5
             data_quality = "DEGRADED"
         else:

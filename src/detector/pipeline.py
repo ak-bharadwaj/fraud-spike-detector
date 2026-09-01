@@ -84,7 +84,14 @@ class StreamingDetectorPipeline:
         self._emitted_alerts.clear()
 
         self.bus.clear()
-        self.bus.publish_batch(transactions)
+        seen_tx_ids = set()
+        unique_txs: List[Transaction] = []
+        for tx in transactions:
+            if tx.transaction_id not in seen_tx_ids:
+                seen_tx_ids.add(tx.transaction_id)
+                unique_txs.append(tx)
+
+        self.bus.publish_batch(unique_txs)
 
         # EventBus-driven execution: bus.drain dispatches events sequentially via handler
         self.bus.drain(handler=self._on_transaction_dispatched)

@@ -144,6 +144,127 @@ def test_small_merchant_sparse_and_empty_windows_robustness():
             assert rec["confidence"] == 0.5
 
 
+def test_real_missing_and_degraded_transaction_injection_through_pipeline():
+    """Verify real transactions with missing/degraded device_id, customer_id, or non-positive amount are processed safely by pipeline."""
+    st = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
+    config = FrozenDetectorConfig(min_window_count=1)
+    pipeline = StreamingDetectorPipeline(config=config, db_path=":memory:")
+
+    # Window 0: standard warmup transactions to establish baseline history
+    warmup_txs = [
+        Transaction(transaction_id=f"tx_warm_{i}", timestamp=st + timedelta(seconds=i * 10), merchant_id="M_DEG", customer_id="C1", amount=50.0, payment_method="CREDIT_CARD", country="US", device_id="DEV_VALID")
+        for i in range(5)
+    ]
+
+    # Window 1: transactions with degraded fields (empty device_id, unknown customer_id, 0 amount)
+    w1_st = st + timedelta(minutes=1)
+    degraded_txs = [
+        Transaction(transaction_id="tx_deg_1", timestamp=w1_st + timedelta(seconds=5), merchant_id="M_DEG", customer_id="UNKNOWN", amount=0.0, payment_method="CREDIT_CARD", country="US", device_id=""),
+        Transaction(transaction_id="tx_deg_2", timestamp=w1_st + timedelta(seconds=15), merchant_id="M_DEG", customer_id="", amount=25.0, payment_method="DEBIT_CARD", country="US", device_id="UNKNOWN"),
+        Transaction(transaction_id="tx_deg_3", timestamp=w1_st + timedelta(seconds=25), merchant_id="M_DEG", customer_id="C3", amount=50.0, payment_method="CREDIT_CARD", country="US", device_id="DEV_VALID"),
+    ]
+
+    alerts = pipeline.process_transactions(warmup_txs + degraded_txs)
+    assert len(alerts) == 0
+
+    audits = pipeline.audit_store.get_audit_records("M_DEG")
+    assert len(audits) == 2
+    rec = audits[1]
+    assert rec["data_quality_status"] == "DEGRADED"
+    assert rec["confidence"] == 0.5
+    assert rec["features"]["volume"] == 3.0
+    assert rec["features"]["data_quality"] == "DEGRADED"
+
+
+def test_duplicate_transaction_deduplication_through_pipeline():
+    """Verify duplicate transactions with identical transaction_id are deduplicated and do not double-count volume or corrupt baseline."""
+    st = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
+    config = FrozenDetectorConfig(min_window_count=1)
+
+    # 1. Pipeline with single-copy stream (10 transactions)
+    pipe_single = StreamingDetectorPipeline(config=config, db_path=":memory:")
+    single_txs = [
+        Transaction(transaction_id=f"tx_dup_{i}", timestamp=st + timedelta(seconds=i * 5), merchant_id="M_DUP", customer_id="C1", amount=50.0, payment_method="CREDIT_CARD", country="US", device_id="D1")
+        for i in range(10)
+    ]
+    pipe_single.process_transactions(single_txs)
+    audits_single = pipe_single.audit_store.get_audit_records("M_DUP")
+
+    # 2. Pipeline with 3x duplicated stream (30 transactions with same IDs)
+    pipe_dup = StreamingDetectorPipeline(config=config, db_path=":memory:")
+    duplicated_txs = single_txs + single_txs + single_txs
+    pipe_dup.process_transactions(duplicated_txs)
+    audits_dup = pipe_dup.audit_store.get_audit_records("M_DUP")
+
+    assert len(audits_single) == 1
+    assert len(audits_dup) == 1
+    assert audits_dup[0]["features"]["volume"] == 10.0
+    assert audits_dup[0]["features"]["volume"] == audits_single[0]["features"]["volume"]
+    assert audits_dup[0]["risk_score"] == audits_single[0]["risk_score"]
+
+
+def test_out_of_order_transaction_arrival_through_pipeline():
+    """Verify out-of-order transactions are ordered chronologically by EventBus within the pipeline."""
+    st = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
+    config = FrozenDetectorConfig(min_window_count=1)
+
+    tx1 = Transaction(transaction_id="tx_ord_1", timestamp=st + timedelta(seconds=10), merchant_id="M_ORD", customer_id="C1", amount=50.0, payment_method="CREDIT_CARD", country="US", device_id="D1")
+    tx2 = Transaction(transaction_id="tx_ord_2", timestamp=st + timedelta(seconds=20), merchant_id="M_ORD", customer_id="C1", amount=50.0, payment_method="CREDIT_CARD", country="US", device_id="D1")
+    tx3 = Transaction(transaction_id="tx_ord_3", timestamp=st + timedelta(minutes=1, seconds=10), merchant_id="M_ORD", customer_id="C1", amount=50.0, payment_method="CREDIT_CARD", country="US", device_id="D1")
+
+    # Inject out of order: tx3 (min 1) -> tx1 (min 0) -> tx2 (min 0)
+    pipeline = StreamingDetectorPipeline(config=config, db_path=":memory:")
+    pipeline.process_transactions([tx3, tx1, tx2])
+
+    audits = pipeline.audit_store.get_audit_records("M_ORD")
+    assert len(audits) == 2
+    # Window 0 (first minute) has 2 transactions (tx1, tx2)
+    assert audits[0]["features"]["volume"] == 2.0
+    # Window 1 (second minute) has 1 transaction (tx3)
+    assert audits[1]["features"]["volume"] == 1.0
+
+
+def test_reusable_drift_runner_and_artifact_generation():
+    """Verify reusable DriftRunner executes paired experiment and produces DriftResult with valid adaptation metrics."""
+    from src.evaluation.drift import DriftRunner, DriftResult
+
+    st = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
+    spike_spec = AnomalySpec("sustained_spike", st + timedelta(minutes=30), 300.0, 4.5, {"rate_multiplier": 4.0})
+
+    # Generate Control (stable)
+    gen_ctrl = SyntheticStreamGenerator(42, [{"id": "M_DRIFT_RUNNER", "archetype": "stable"}], VirtualClock(initial_time=st))
+    txs_ctrl_base, _ = gen_ctrl.generate_window(30.0)
+    gen_ctrl.schedule_anomaly("M_DRIFT_RUNNER", spike_spec, event_id="EVT-DRIFT-SPIKE")
+    txs_ctrl_anom, evs_ctrl = gen_ctrl.generate_window(5.0)
+
+    # Generate Drift (growing)
+    gen_drift = SyntheticStreamGenerator(42, [{"id": "M_DRIFT_RUNNER", "archetype": "growing"}], VirtualClock(initial_time=st))
+    txs_drift_base, _ = gen_drift.generate_window(30.0)
+    gen_drift.schedule_anomaly("M_DRIFT_RUNNER", spike_spec, event_id="EVT-DRIFT-SPIKE")
+    txs_drift_anom, evs_drift = gen_drift.generate_window(5.0)
+
+    runner = DriftRunner()
+    result = runner.run_paired_drift_experiment(
+        control_transactions=txs_ctrl_base + txs_ctrl_anom,
+        drift_transactions=txs_drift_base + txs_drift_anom,
+        control_ground_truth=evs_ctrl,
+        drift_ground_truth=evs_drift,
+        merchant_id="M_DRIFT_RUNNER",
+    )
+
+    assert isinstance(result, DriftResult)
+    assert result.control_metrics.tp == 1
+    assert result.drift_metrics.tp == 1
+    assert result.convergence_window_count >= 8
+    assert result.passed_adaptation_criterion is True
+    assert result.relative_adaptation_error <= 0.20
+
+    # Ensure holdout access is rejected
+    with pytest.raises(PermissionError, match="holdout data"):
+        runner.verify_development_only("data/holdout/stream.json")
+
+
+
 # =====================================================================
 # 3. Scorer Exception Stress, Recovery & Merchant Isolation
 # =====================================================================

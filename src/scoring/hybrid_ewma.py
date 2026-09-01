@@ -158,7 +158,7 @@ class HybridEWMAScorer(AnomalyScorer):
         self._ewma_states[m_id] = s_ewma
 
         # 4. Map evidence state confidence and data_quality
-        if baseline_snapshot.evidence_state == "DEGRADED":
+        if baseline_snapshot.evidence_state == "DEGRADED" or feature_snapshot.data_quality == "DEGRADED":
             confidence = 0.5
             dq = "DEGRADED"
         else:

@@ -88,7 +88,29 @@ class FeatureEngine:
         volume = float(n_txs)
         velocity = volume / duration_min
 
-        amounts = np.array([t.amount for t in merchant_txs], dtype=np.float64)
+        has_degraded = False
+        valid_amounts = []
+        cust_set = set()
+        dev_set = set()
+
+        for t in merchant_txs:
+            if not t.device_id or str(t.device_id).strip().lower() in ("", "unknown", "none", "null", "missing"):
+                has_degraded = True
+            else:
+                dev_set.add(t.device_id)
+
+            if not t.customer_id or str(t.customer_id).strip().lower() in ("", "unknown", "none", "null", "missing"):
+                has_degraded = True
+            else:
+                cust_set.add(t.customer_id)
+
+            if t.amount is not None and t.amount > 0:
+                valid_amounts.append(float(t.amount))
+            else:
+                has_degraded = True
+                valid_amounts.append(0.0)
+
+        amounts = np.array(valid_amounts, dtype=np.float64)
         total_amt = float(np.sum(amounts))
         mean_amt = float(np.mean(amounts))
         std_amt = float(np.std(amounts, ddof=1)) if n_txs > 1 else 0.0
@@ -97,8 +119,8 @@ class FeatureEngine:
         min_amt = float(np.min(amounts))
         max_amt = float(np.max(amounts))
 
-        unique_custs = len({t.customer_id for t in merchant_txs})
-        unique_devs = len({t.device_id for t in merchant_txs})
+        unique_custs = len(cust_set) if cust_set else (1 if has_degraded else 0)
+        unique_devs = len(dev_set) if dev_set else (1 if has_degraded else 0)
 
         amount_stats = {
             "total_amount": total_amt,
@@ -110,6 +132,8 @@ class FeatureEngine:
             "max_amount": max_amt,
         }
 
+        data_quality = "DEGRADED" if has_degraded else "GOOD"
+
         return FeatureSnapshot(
             merchant_id=merchant_id,
             timestamp=w_end,
@@ -118,7 +142,7 @@ class FeatureEngine:
             amount_statistics=amount_stats,
             unique_customers=unique_custs,
             unique_devices=unique_devs,
-            data_quality="GOOD",
+            data_quality=data_quality,
         )
 
     def extract_all_merchant_snapshots(
