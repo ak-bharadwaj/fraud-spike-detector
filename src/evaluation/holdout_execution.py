@@ -11,7 +11,7 @@ Key Invariants:
 - BOOTSTRAP UNCERTAINTY: 1,000 deterministic resamples (seed 42) computing 95% CIs for Precision and Recall with complete raw counts and N.
 - PORTFOLIO ANALYSIS: Evaluates Static, Statistical, and Hybrid on holdout, reporting FP Cost, FN Exposure, and Total Cost.
 - ARTIFACT GENERATION: Generates required hierarchy under artifacts/ (including final/metrics.json, final/metrics.csv with '₹' unit, final/report.json).
-- UNAMBIGUOUS PROVENANCE: Discloses both original run (EXP-DAY8-HOLDOUT-CONFIRMATION-001, execution_commit: 414998f) and corrected run (EXP-DAY8-HOLDOUT-CORRECTED-002, execution_commit: fb3c7f9, artifact_commit: 20bf655).
+- UNAMBIGUOUS PROVENANCE: Discloses both original run (EXP-DAY8-HOLDOUT-CONFIRMATION-001, execution_commit: 414998f, artifact_commit: 414998f) and corrected canonical run (EXP-DAY8-HOLDOUT-CORRECTED-002, execution_commit: fb3c7f9, artifact_commit: 775e779, prior_artifact_commit: 20bf655).
 - HOLDOUT IMMUTABILITY: Verifies holdout SHA before == holdout SHA after.
 """
 
@@ -372,7 +372,8 @@ def save_day8_research_artifacts(
     drift_results: Dict[str, Any],
     experiment_id: str = "EXP-DAY8-HOLDOUT-CORRECTED-002",
     execution_commit: str = "fb3c7f9",
-    artifact_commit: str = "20bf655",
+    artifact_commit: str = "775e779",
+    prior_artifact_commit: str = "20bf655",
 ) -> Dict[str, Path]:
     """Save all Day 8 research outputs in structured artifact directories matching required Section 39 hierarchy."""
     base_p = Path(base_artifact_dir)
@@ -489,6 +490,7 @@ def save_day8_research_artifacts(
             "experiment_id": experiment_id,
             "execution_commit": execution_commit,
             "artifact_commit": artifact_commit,
+            "prior_artifact_commit": prior_artifact_commit,
             "status": "ACCEPTED_CANONICAL",
             "reason": "Corrected post-holdout descriptive calibration (direct RiskScore bucketing, explicit population accounting), complete bootstrap uncertainty reporting contract with raw counts, and INR '₹' units.",
             "detector_parameters": freeze_record.all_selected_parameters,

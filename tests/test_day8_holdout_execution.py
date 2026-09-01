@@ -21,9 +21,10 @@ Validates:
    - Populated buckets report empirical mean_predicted_score, observed_positive_rate, and sample count N.
    - Population breakdown accounts for all 115 holdout window samples.
    - Computes Expected Calibration Error (ECE) and reliability diagram data.
-6. Complete Bootstrap Uncertainty Contract:
+6. Complete Bootstrap Uncertainty Contract & 1,000 Resamples Execution Test:
    - 1,000 deterministic bootstrap resamples (seed 42) computing 95% CIs for Precision and Recall.
    - Reports raw_numerator_tp, raw_denominator, n_events, and n_alerts.
+   - Separate test asserting published bootstrap uncertainty artifact contains n_resamples=1000.
 7. Cost Reporting Unit Enforcement (INR '₹'):
    - Explicitly asserts cost unit is '₹' and prevents regression to USD.
 8. Portfolio Cost Analysis:
@@ -31,11 +32,11 @@ Validates:
 9. Required Artifact Hierarchy:
    - Verifies artifacts/ directory hierarchy including final/metrics.json, final/metrics.csv, final/report.json.
    - Every artifact references experiment_id (EXP-DAY8-HOLDOUT-CORRECTED-002), dataset_hash, config_hash, detector_version, and seed.
-10. Unambiguous Provenance Verification (Required Provenance Test):
-    - execution_commit exists (fb3c7f9) and artifact_commit exists (20bf655).
+10. Unambiguous Provenance Verification Test (Blocker):
+    - execution_commit exists (fb3c7f9) and artifact_commit exists (775e779) with prior_artifact_commit (20bf655).
     - Neither is a placeholder or PENDING_COMMIT.
     - Experiment identity is stable (EXP-DAY8-HOLDOUT-CORRECTED-002).
-    - Original run remains disclosed (EXP-DAY8-HOLDOUT-CONFIRMATION-001).
+    - Original run remains disclosed (EXP-DAY8-HOLDOUT-CONFIRMATION-001, 414998f).
     - Corrected run remains canonical.
 11. Holdout Immutability & Replay Determinism:
     - Holdout SHA before == Holdout SHA after.
@@ -253,7 +254,7 @@ def test_descriptive_calibration_direct_bucketing_and_population():
 
 
 # =====================================================================
-# 6. Complete Bootstrap Uncertainty Contract with Raw Counts & N
+# 6. Complete Bootstrap Uncertainty Contract & Published 1000 Resamples
 # =====================================================================
 
 def test_bootstrap_uncertainty_contract_with_raw_counts_and_n():
@@ -300,6 +301,24 @@ def test_bootstrap_uncertainty_contract_with_raw_counts_and_n():
     assert boot["raw_counts"]["fn"] == 0
 
 
+def test_published_bootstrap_uncertainty_artifact_has_1000_resamples():
+    """Verify published artifacts/uncertainty/bootstrap_uncertainty.json strictly adheres to 1,000 resamples."""
+    boot_path = Path("artifacts/uncertainty/bootstrap_uncertainty.json")
+    if not boot_path.exists():
+        pytest.skip("Artifacts not yet generated on clean checkout.")
+
+    data = json.loads(boot_path.read_text(encoding="utf-8"))
+    assert data["n_resamples"] == 1000
+    assert data["seed"] == 42
+    assert data["ci_level"] == 0.95
+    assert data["precision"]["point"] == 1.0
+    assert data["precision"]["raw_numerator_tp"] == 1
+    assert data["precision"]["raw_denominator_alerts"] == 1
+    assert data["recall"]["point"] == 1.0
+    assert data["recall"]["raw_numerator_tp"] == 1
+    assert data["recall"]["raw_denominator_events"] == 1
+
+
 # =====================================================================
 # 7. Cost Reporting Unit Enforcement (INR '₹')
 # =====================================================================
@@ -328,7 +347,8 @@ def test_cost_reporting_unit_is_inr_prevent_usd_regression(tmp_path):
         drift_results={"status": "CONFIRMED"},
         experiment_id="EXP-DAY8-HOLDOUT-CORRECTED-002",
         execution_commit="fb3c7f9",
-        artifact_commit="20bf655",
+        artifact_commit="775e779",
+        prior_artifact_commit="20bf655",
     )
 
     csv_path = saved_paths["final_metrics_csv"]
@@ -396,7 +416,8 @@ def test_required_artifact_hierarchy(tmp_path):
         drift_results={"status": "CONFIRMED"},
         experiment_id="EXP-DAY8-HOLDOUT-CORRECTED-002",
         execution_commit="fb3c7f9",
-        artifact_commit="20bf655",
+        artifact_commit="775e779",
+        prior_artifact_commit="20bf655",
     )
 
     required_keys = [
@@ -422,7 +443,7 @@ def test_unambiguous_provenance_and_dual_run_disclosure(tmp_path):
     m, alerts, scores = execute_single_pass_holdout(txs, gts, freeze_record, True)
     per_ano = compute_per_anomaly_holdout_metrics(alerts, gts)
     calib = compute_descriptive_holdout_calibration(scores, gts)
-    boot = compute_bootstrap_uncertainty(alerts, gts, n_resamples=100, seed=42)
+    boot = compute_bootstrap_uncertainty(alerts, gts, n_resamples=1000, seed=42)
     port = execute_portfolio_comparison(txs, gts, freeze_record)
 
     saved_paths = save_day8_research_artifacts(
@@ -438,7 +459,8 @@ def test_unambiguous_provenance_and_dual_run_disclosure(tmp_path):
         drift_results={"status": "CONFIRMED"},
         experiment_id="EXP-DAY8-HOLDOUT-CORRECTED-002",
         execution_commit="fb3c7f9",
-        artifact_commit="20bf655",
+        artifact_commit="775e779",
+        prior_artifact_commit="20bf655",
     )
 
     report_text = saved_paths["final_report_json"].read_text(encoding="utf-8")
@@ -463,7 +485,8 @@ def test_unambiguous_provenance_and_dual_run_disclosure(tmp_path):
     r2 = dual["run_002_corrected"]
     assert r2["experiment_id"] == "EXP-DAY8-HOLDOUT-CORRECTED-002"
     assert r2["execution_commit"] == "fb3c7f9"
-    assert r2["artifact_commit"] == "20bf655"
+    assert r2["artifact_commit"] == "775e779"
+    assert r2["prior_artifact_commit"] == "20bf655"
     assert r2["status"] == "ACCEPTED_CANONICAL"
     
     # 3. No placeholders
