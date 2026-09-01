@@ -9,7 +9,7 @@ Key Invariants:
 - Enforces global event_id uniqueness across generator instance.
 - GroundTruthEvents are created and emitted ONLY after the complete [start_time, end_time) interval has finished.
 - Supports all 9 merchant archetypes (M1 through M9).
-- Supports all 11 anomaly classes:
+- Supports all 11 canonical anomaly classes:
     1. sudden_volume_spike / volume_spike
     2. velocity_burst / velocity_spike
     3. sustained_spike / sustained_anomaly
@@ -56,6 +56,7 @@ from src.generator.anomalies import (
     create_ground_truth_event,
     compute_standardized_magnitude,
     compute_compound_severity,
+    CANONICAL_ANOMALY_TYPES,
 )
 from src.generator.rng import get_merchant_rng
 from src.stream.clock import VirtualClock
@@ -223,23 +224,27 @@ class SyntheticStreamGenerator:
                         if "payment_method" in params:
                             override_payment = params["payment_method"]
                     elif atype == "threshold_hugging_evasion":
-                        # Hugging static threshold: subtle elevation
-                        rate_multiplier *= params.get("rate_multiplier", 1.85)
+                        # Hugging static threshold: rate multiplier target M ~ 3.2-3.4
+                        rate_multiplier *= params.get("rate_multiplier", 1.65)
                     elif atype == "persistence_evasion":
-                        # Alternating 1-minute bursts (burst on even minutes, quiet on odd minutes)
+                        # Alternating 1-minute bursts (burst on even minutes, normal on odd minutes)
                         if minute_into_anomaly % 2 == 0:
                             rate_multiplier *= params.get("rate_multiplier", max(3.5, tm))
                         else:
                             rate_multiplier *= 1.0
                     elif atype == "staircase_ramp":
-                        # Step-wise ramp over duration
-                        ramp_step = (minute_into_anomaly + 1) / float(total_dur_min)
+                        # Discrete plateau regime steps over duration
+                        step_index = minute_into_anomaly + 1
+                        step_fraction = float(step_index) / float(total_dur_min)
                         max_mult = params.get("rate_multiplier", max(3.5, tm))
-                        rate_multiplier *= (1.0 + (max_mult - 1.0) * ramp_step)
+                        rate_multiplier *= (1.0 + (max_mult - 1.0) * step_fraction)
                     elif atype == "oscillating_sub_threshold":
-                        # Periodic sinusoidal sub-threshold oscillation
-                        osc_cycle = 1.0 + 0.8 * abs(math.sin(math.pi * minute_into_anomaly / 2.0))
-                        rate_multiplier *= params.get("rate_multiplier", osc_cycle)
+                        # Periodic sinusoidal sub-threshold oscillation waveform
+                        amp = float(params.get("amplitude", 0.75))
+                        scale = float(params.get("rate_multiplier", 1.0))
+                        waveform = 1.0 + amp * abs(math.sin(math.pi * minute_into_anomaly / 2.0))
+                        effective_osc_mult = 1.0 + (waveform - 1.0) * scale
+                        rate_multiplier *= effective_osc_mult
 
                 effective_rate = float(legit_rate * rate_multiplier)
                 tx_count = max(0, int(rng.poisson(lam=max(0.0, effective_rate))))

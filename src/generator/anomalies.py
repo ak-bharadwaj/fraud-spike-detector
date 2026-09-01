@@ -1,13 +1,17 @@
 """Anomaly injectors and GroundTruthEvent generation.
 
-Seven required anomaly classes:
-1. velocity_spike: burst of transactions in a short window.
-2. volume_spike: elevated transaction volume over a window.
-3. amount_spike: sudden shift to high transaction amounts.
-4. behavioral_shift: spike in unique device_ids / customer_ids.
-5. attribute_anomaly: shift in payment_method or country.
-6. sustained_anomaly: multi-window sustained volume/velocity elevation.
-7. compound_anomaly: simultaneous multi-signal anomaly (volume + amount + device).
+Eleven canonical anomaly classes:
+1. sudden_volume_spike: sharp volume spike over a window.
+2. velocity_burst: intense short-duration burst of transactions.
+3. sustained_spike: multi-window sustained volume elevation.
+4. amount_distribution_shift: sudden upward shift in transaction amounts.
+5. device_behavior_anomaly: high concentration in compromised devices/customers.
+6. attribute_geographic_shift: sudden surge in high-risk country or prepaid payment methods.
+7. compound_anomaly: concurrent multi-signal anomaly (volume + amount + device + attribute).
+8. threshold_hugging_evasion: crafted anomaly hovering right below or at decision threshold.
+9. persistence_evasion: alternating short bursts intentionally failing the multi-window persistence requirement.
+10. staircase_ramp: multi-window step-wise progressive regime increase in transaction rate.
+11. oscillating_sub_threshold: periodic oscillatory waveform remaining within the sub-threshold envelope.
 
 Ground Truth Realized Magnitude Architecture:
 Target magnitude (spec.target_magnitude) represents the generator injection control intent.
@@ -21,10 +25,25 @@ Compound severity = mean absolute standardized deviation across active signals.
 
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
-from typing import Any, Optional
+from typing import Any, Optional, List
 import numpy as np
 
 from src.contracts.contracts import GroundTruthEvent
+
+# Canonical 11 Anomaly Type Identifiers
+CANONICAL_ANOMALY_TYPES: List[str] = [
+    "sudden_volume_spike",
+    "velocity_burst",
+    "sustained_spike",
+    "amount_distribution_shift",
+    "device_behavior_anomaly",
+    "attribute_geographic_shift",
+    "compound_anomaly",
+    "threshold_hugging_evasion",
+    "persistence_evasion",
+    "staircase_ramp",
+    "oscillating_sub_threshold",
+]
 
 
 @dataclass
