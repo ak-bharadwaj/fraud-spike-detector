@@ -11,7 +11,7 @@ Key Invariants:
 - BOOTSTRAP UNCERTAINTY: 1,000 deterministic resamples (seed 42) computing 95% CIs for Precision and Recall with complete raw counts and N.
 - PORTFOLIO ANALYSIS: Evaluates Static, Statistical, and Hybrid on holdout, reporting FP Cost, FN Exposure, and Total Cost.
 - ARTIFACT GENERATION: Generates required hierarchy under artifacts/ (including final/metrics.json, final/metrics.csv with '₹' unit, final/report.json).
-- UNAMBIGUOUS PROVENANCE: Discloses both original run (EXP-DAY8-HOLDOUT-CONFIRMATION-001, execution_commit: 414998f, artifact_commit: 414998f) and corrected canonical run (EXP-DAY8-HOLDOUT-CORRECTED-002, execution_commit: fb3c7f9, artifact_commit: f21ddeb, prior_artifact_commit: e28d6d3, historical_artifact_chain: [20bf655, 775e779, cc2872b, e28d6d3]).
+- UNAMBIGUOUS PROVENANCE: Discloses both original run (EXP-DAY8-HOLDOUT-CONFIRMATION-001, execution_commit: 414998f, artifact_finalization_commit: 414998f) and corrected canonical run (EXP-DAY8-HOLDOUT-CORRECTED-002, execution_commit: fb3c7f9, artifact_finalization_commit: 26837b7, prior_artifact_commit: f21ddeb, historical_artifact_chain: [20bf655, 775e779, cc2872b, e28d6d3, f21ddeb, 26837b7], artifact_sha256).
 - HOLDOUT IMMUTABILITY: Verifies holdout SHA before == holdout SHA after.
 """
 
@@ -51,6 +51,13 @@ from src.evaluation.holdout import (
     HoldoutAccessError,
     ChecksumMismatchError,
 )
+
+
+def compute_canonical_artifact_hash(data: Dict[str, Any]) -> str:
+    """Compute deterministic canonical SHA-256 hash of artifact content excluding artifact_sha256."""
+    cleaned = {k: v for k, v in data.items() if k != "artifact_sha256"}
+    canonical_bytes = json.dumps(cleaned, sort_keys=True, indent=2).encode("utf-8")
+    return hashlib.sha256(canonical_bytes).hexdigest()
 
 
 def build_frozen_scorer(freeze_record: FreezeRecord) -> AnomalyScorer:
@@ -372,8 +379,8 @@ def save_day8_research_artifacts(
     drift_results: Dict[str, Any],
     experiment_id: str = "EXP-DAY8-HOLDOUT-CORRECTED-002",
     execution_commit: str = "fb3c7f9",
-    artifact_commit: str = "f21ddeb",
-    prior_artifact_commit: str = "e28d6d3",
+    artifact_finalization_commit: str = "26837b7",
+    prior_artifact_commit: str = "f21ddeb",
     historical_artifact_chain: Optional[List[str]] = None,
 ) -> Dict[str, Path]:
     """Save all Day 8 research outputs in structured artifact directories matching required Section 39 hierarchy."""
@@ -466,13 +473,13 @@ def save_day8_research_artifacts(
         writer.writerows(csv_rows)
     saved_paths["final_metrics_csv"] = p_fin_csv
 
-    # 9. Final Report JSON with unambiguous dual run disclosure
+    # 9. Final Report JSON with unambiguous dual run disclosure and deterministic artifact SHA-256
     p_fin_rep = dirs["final"] / "report.json"
     dual_run_disclosure = {
         "run_001_original": {
             "experiment_id": "EXP-DAY8-HOLDOUT-CONFIRMATION-001",
             "execution_commit": "414998f",
-            "artifact_commit": "414998f",
+            "artifact_finalization_commit": "414998f",
             "status": "SUPERSEDED",
             "reason_superseded": "Post-holdout descriptive calibration methodology bug (pseudo-probability division), empty bucket pseudo-values, and missing bootstrap raw-count contract.",
             "detector_parameters": freeze_record.all_selected_parameters,
@@ -490,9 +497,9 @@ def save_day8_research_artifacts(
         "run_002_corrected": {
             "experiment_id": experiment_id,
             "execution_commit": execution_commit,
-            "artifact_commit": artifact_commit,
+            "artifact_finalization_commit": artifact_finalization_commit,
             "prior_artifact_commit": prior_artifact_commit,
-            "historical_artifact_chain": historical_artifact_chain or ["20bf655", "775e779", "cc2872b", "e28d6d3"],
+            "historical_artifact_chain": historical_artifact_chain or ["20bf655", "775e779", "cc2872b", "e28d6d3", "f21ddeb", "26837b7"],
             "status": "ACCEPTED_CANONICAL",
             "reason": "Corrected post-holdout descriptive calibration (direct RiskScore bucketing, explicit population accounting), complete bootstrap uncertainty reporting contract with raw counts, and INR '₹' units.",
             "detector_parameters": freeze_record.all_selected_parameters,
@@ -509,7 +516,7 @@ def save_day8_research_artifacts(
         },
     }
 
-    final_report = {
+    final_report_base = {
         **common_metadata,
         "executive_summary": {
             "status": "LOCKED_HOLDOUT_EVALUATION_COMPLETE",
@@ -531,6 +538,14 @@ def save_day8_research_artifacts(
         "evasion_confirmation": evasion_results,
         "drift_confirmation": drift_results,
     }
+
+    # Compute deterministic canonical artifact SHA-256
+    art_sha = compute_canonical_artifact_hash(final_report_base)
+    final_report = {
+        **final_report_base,
+        "artifact_sha256": art_sha,
+    }
+
     p_fin_rep.write_text(json.dumps(final_report, indent=2), encoding="utf-8")
     saved_paths["final_report_json"] = p_fin_rep
 

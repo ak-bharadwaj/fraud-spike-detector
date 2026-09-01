@@ -21,7 +21,7 @@
     "run_001_original": {
       "experiment_id": "EXP-DAY8-HOLDOUT-CONFIRMATION-001",
       "execution_commit": "414998f",
-      "artifact_commit": "414998f",
+      "artifact_finalization_commit": "414998f",
       "status": "SUPERSEDED",
       "reason_superseded": "Post-holdout descriptive calibration methodology bug (pseudo-probability division), empty bucket pseudo-values, and missing bootstrap raw-count contract.",
       "detector_parameters": {
@@ -53,13 +53,15 @@
     "run_002_corrected": {
       "experiment_id": "EXP-DAY8-HOLDOUT-CORRECTED-002",
       "execution_commit": "fb3c7f9",
-      "artifact_commit": "f21ddeb",
-      "prior_artifact_commit": "e28d6d3",
+      "artifact_finalization_commit": "26837b7",
+      "prior_artifact_commit": "f21ddeb",
       "historical_artifact_chain": [
         "20bf655",
         "775e779",
         "cc2872b",
-        "e28d6d3"
+        "e28d6d3",
+        "f21ddeb",
+        "26837b7"
       ],
       "status": "ACCEPTED_CANONICAL",
       "reason": "Corrected post-holdout descriptive calibration (direct RiskScore bucketing, explicit population accounting), complete bootstrap uncertainty reporting contract with raw counts, and INR '\u20b9' units.",
@@ -382,5 +384,6 @@
     "delta_recall": 0.0,
     "delta_latency": 0.0,
     "adaptation_error": 0.12
-  }
+  },
+  "artifact_sha256": "9dff83fa4121e77e619d0bac40b9e8a3776355362a514f82e6e484a7362005a7"
 }

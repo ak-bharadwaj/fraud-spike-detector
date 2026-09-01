@@ -32,8 +32,9 @@ Validates:
 9. Required Artifact Hierarchy:
    - Verifies artifacts/ directory hierarchy including final/metrics.json, final/metrics.csv, final/report.json.
    - Every artifact references experiment_id (EXP-DAY8-HOLDOUT-CORRECTED-002), dataset_hash, config_hash, detector_version, and seed.
-10. Unambiguous Provenance Verification Test (Blocker):
-    - execution_commit exists (fb3c7f9) and artifact_commit exists (f21ddeb) with prior_artifact_commit (e28d6d3) and historical_artifact_chain.
+10. Unambiguous Provenance Verification & Artifact SHA Reproducibility (Blocker):
+    - execution_commit exists (fb3c7f9) and artifact_finalization_commit exists (26837b7) with prior_artifact_commit (f21ddeb) and historical_artifact_chain.
+    - artifact_sha256 exists and reproduces deterministically from canonical serialization.
     - Neither is a placeholder or PENDING_COMMIT.
     - Experiment identity is stable (EXP-DAY8-HOLDOUT-CORRECTED-002).
     - Original run remains disclosed (EXP-DAY8-HOLDOUT-CONFIRMATION-001, 414998f).
@@ -75,6 +76,7 @@ from src.evaluation.holdout_execution import (
     compute_bootstrap_uncertainty,
     execute_portfolio_comparison,
     save_day8_research_artifacts,
+    compute_canonical_artifact_hash,
 )
 
 
@@ -347,9 +349,9 @@ def test_cost_reporting_unit_is_inr_prevent_usd_regression(tmp_path):
         drift_results={"status": "CONFIRMED"},
         experiment_id="EXP-DAY8-HOLDOUT-CORRECTED-002",
         execution_commit="fb3c7f9",
-        artifact_commit="f21ddeb",
-        prior_artifact_commit="e28d6d3",
-        historical_artifact_chain=["20bf655", "775e779", "cc2872b", "e28d6d3"],
+        artifact_finalization_commit="26837b7",
+        prior_artifact_commit="f21ddeb",
+        historical_artifact_chain=["20bf655", "775e779", "cc2872b", "e28d6d3", "f21ddeb", "26837b7"],
     )
 
     csv_path = saved_paths["final_metrics_csv"]
@@ -417,9 +419,9 @@ def test_required_artifact_hierarchy(tmp_path):
         drift_results={"status": "CONFIRMED"},
         experiment_id="EXP-DAY8-HOLDOUT-CORRECTED-002",
         execution_commit="fb3c7f9",
-        artifact_commit="f21ddeb",
-        prior_artifact_commit="e28d6d3",
-        historical_artifact_chain=["20bf655", "775e779", "cc2872b", "e28d6d3"],
+        artifact_finalization_commit="26837b7",
+        prior_artifact_commit="f21ddeb",
+        historical_artifact_chain=["20bf655", "775e779", "cc2872b", "e28d6d3", "f21ddeb", "26837b7"],
     )
 
     required_keys = [
@@ -434,11 +436,11 @@ def test_required_artifact_hierarchy(tmp_path):
 
 
 # =====================================================================
-# 10. Unambiguous Provenance Verification Test (Blocker)
+# 10. Unambiguous Provenance Verification & Artifact SHA Reproducibility Test
 # =====================================================================
 
-def test_unambiguous_provenance_and_dual_run_disclosure(tmp_path):
-    """Verify execution_commit and artifact_commit exist, neither is a placeholder, and dual runs are disclosed."""
+def test_unambiguous_provenance_and_artifact_sha_reproducibility(tmp_path):
+    """Verify execution_commit, artifact_finalization_commit, artifact_sha256 exist and reproduce deterministically."""
     freeze_record = load_freeze_record("config/freeze_record.json")
     manifest, txs, gts = load_locked_holdout_data("data/holdout")
 
@@ -461,9 +463,9 @@ def test_unambiguous_provenance_and_dual_run_disclosure(tmp_path):
         drift_results={"status": "CONFIRMED"},
         experiment_id="EXP-DAY8-HOLDOUT-CORRECTED-002",
         execution_commit="fb3c7f9",
-        artifact_commit="f21ddeb",
-        prior_artifact_commit="e28d6d3",
-        historical_artifact_chain=["20bf655", "775e779", "cc2872b", "e28d6d3"],
+        artifact_finalization_commit="26837b7",
+        prior_artifact_commit="f21ddeb",
+        historical_artifact_chain=["20bf655", "775e779", "cc2872b", "e28d6d3", "f21ddeb", "26837b7"],
     )
 
     report_text = saved_paths["final_report_json"].read_text(encoding="utf-8")
@@ -471,7 +473,12 @@ def test_unambiguous_provenance_and_dual_run_disclosure(tmp_path):
 
     report_content = json.loads(report_text)
     assert report_content["experiment_id"] == "EXP-DAY8-HOLDOUT-CORRECTED-002"
-    assert "dual_run_disclosure" in report_content
+    assert "artifact_sha256" in report_content
+    assert len(report_content["artifact_sha256"]) == 64
+
+    # Verify deterministic reproducibility of canonical artifact hash
+    recomputed_sha = compute_canonical_artifact_hash(report_content)
+    assert recomputed_sha == report_content["artifact_sha256"]
     
     dual = report_content["dual_run_disclosure"]
     
@@ -480,7 +487,7 @@ def test_unambiguous_provenance_and_dual_run_disclosure(tmp_path):
     r1 = dual["run_001_original"]
     assert r1["experiment_id"] == "EXP-DAY8-HOLDOUT-CONFIRMATION-001"
     assert r1["execution_commit"] == "414998f"
-    assert r1["artifact_commit"] == "414998f"
+    assert r1["artifact_finalization_commit"] == "414998f"
     assert r1["status"] == "SUPERSEDED"
     
     # 2. Run 002 Corrected
@@ -488,14 +495,14 @@ def test_unambiguous_provenance_and_dual_run_disclosure(tmp_path):
     r2 = dual["run_002_corrected"]
     assert r2["experiment_id"] == "EXP-DAY8-HOLDOUT-CORRECTED-002"
     assert r2["execution_commit"] == "fb3c7f9"
-    assert r2["artifact_commit"] == "f21ddeb"
-    assert r2["prior_artifact_commit"] == "e28d6d3"
-    assert r2["historical_artifact_chain"] == ["20bf655", "775e779", "cc2872b", "e28d6d3"]
+    assert r2["artifact_finalization_commit"] == "26837b7"
+    assert r2["prior_artifact_commit"] == "f21ddeb"
+    assert r2["historical_artifact_chain"] == ["20bf655", "775e779", "cc2872b", "e28d6d3", "f21ddeb", "26837b7"]
     assert r2["status"] == "ACCEPTED_CANONICAL"
     
     # 3. No placeholders
     for r in [r1, r2]:
-        for field in ["execution_commit", "artifact_commit", "experiment_id"]:
+        for field in ["execution_commit", "artifact_finalization_commit", "experiment_id"]:
             assert r[field]
             assert "pending" not in r[field].lower()
             assert "placeholder" not in r[field].lower()
