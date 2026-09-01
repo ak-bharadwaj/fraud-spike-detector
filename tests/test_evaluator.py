@@ -285,3 +285,82 @@ def test_evaluation_metrics_pydantic_schema_compliance():
     assert reconstructed.tp == 1
     assert reconstructed.precision == 1.0
     assert reconstructed.f1_score == 1.0
+
+
+# =====================================================================
+# 6. Day 4 Detection Horizons, Cost Model & Sweep Guard Tests
+# =====================================================================
+
+def test_alert_after_horizon_but_within_gt_duration_is_fn():
+    """Verify an alert occurring AFTER the detection horizon (e.g. 150s for 120s volume horizon) but within GT end_time (300s) is counted as FN (and alert is FP)."""
+    st = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
+    # GT volume spike: duration = 300s (5 min), configured horizon = 120s (2 min)
+    gt = GroundTruthEvent(
+        event_id="GT-VOL-1",
+        merchant_id="M1",
+        anomaly_type="volume_spike",
+        start_time=st,
+        end_time=st + timedelta(seconds=300),
+        severity=5.0,
+    )
+
+    # Alert at 150s (past the 120s horizon, but before the 300s end_time)
+    alt_late = make_dummy_alert("M1", st + timedelta(seconds=150), alert_id="ALT-LATE")
+
+    evaluator = AnomalyEvaluator()
+    res = evaluator.evaluate([alt_late], [gt])
+
+    # Must be FN=1, FP=1, TP=0
+    assert res.tp == 0
+    assert res.fn == 1
+    assert res.fp == 1
+    assert res.unmatched_events == ["GT-VOL-1"]
+    assert res.unmatched_alerts == ["ALT-LATE"]
+
+
+def test_unknown_anomaly_type_raises_value_error():
+    """Verify evaluator strictly raises ValueError for unconfigured/unknown anomaly types."""
+    st = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
+    gt = GroundTruthEvent(
+        event_id="GT-UNK",
+        merchant_id="M1",
+        anomaly_type="completely_unknown_quantum_anomaly",
+        start_time=st,
+        end_time=st + timedelta(seconds=300),
+        severity=5.0,
+    )
+    alt = make_dummy_alert("M1", st + timedelta(seconds=10))
+
+    evaluator = AnomalyEvaluator()
+    with pytest.raises(ValueError, match="Unknown or unconfigured anomaly type"):
+        evaluator.evaluate([alt], [gt])
+
+
+def test_cost_model_calculation_accuracy():
+    """Verify FP cost, FN exposure, and Total cost match exact configured cost model formulas."""
+    st = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
+    gt_caught = GroundTruthEvent(event_id="GT-1", merchant_id="M1", anomaly_type="volume_spike", start_time=st, end_time=st + timedelta(minutes=5), severity=4.0, parameters={"exposure": 500.0})
+    gt_missed = GroundTruthEvent(event_id="GT-2", merchant_id="M1", anomaly_type="volume_spike", start_time=st + timedelta(hours=1), end_time=st + timedelta(hours=1, minutes=5), severity=6.0, parameters={"exposure": 1200.0})
+
+    alt_tp = make_dummy_alert("M1", st + timedelta(seconds=30), alert_id="ALT-TP")
+    alt_fp = make_dummy_alert("M1", st + timedelta(hours=2), alert_id="ALT-FP")
+
+    evaluator = AnomalyEvaluator(fp_unit_cost=50.0, fn_exposure_factor=1.0)
+    res = evaluator.evaluate([alt_tp, alt_fp], [gt_caught, gt_missed])
+
+    assert res.tp == 1
+    assert res.fp == 1
+    assert res.fn == 1
+    assert res.fp_cost == 50.0  # 1 FP * 50.0
+    assert res.fn_exposure == 1200.0  # 1 Missed GT * 1200.0
+    assert res.total_cost == 1250.0  # 50.0 + 1200.0
+
+
+def test_development_sweeps_reject_holdout_paths():
+    """Verify sweeps.py strictly raises HoldoutAccessViolationError when holdout data path is passed."""
+    from src.evaluation.sweeps import run_strategy_comparison, HoldoutAccessViolationError
+
+    st = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
+    with pytest.raises(HoldoutAccessViolationError, match="strictly prohibited on holdout"):
+        run_strategy_comparison(transactions=[], ground_truth_events=[], data_path="data/holdout/transactions.csv")
+
