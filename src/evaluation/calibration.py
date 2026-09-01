@@ -2,12 +2,14 @@
 
 Key Invariants:
 - Day-8 Descriptive Holdout Calibration:
-  - Generates empirical statistics across score buckets [0.5-0.6, 0.6-0.7, 0.7-0.8, 0.8-0.9, 0.9-1.0].
-  - For populated buckets: reports empirical mean_score, observed_positive_rate, and sample count N.
-  - For empty buckets: explicitly reports N=0, mean_score=None, observed_positive_rate=None (no pseudo-values!).
-  - Full population accounting: explicitly accounts for all holdout window samples and why each falls into its respective range.
-  - Computes Expected Calibration Error (ECE) strictly over populated samples.
-  - Generates reliability diagram visualization data.
+  - Operates DIRECTLY on emitted RiskScore.score without transformation, scaling, division, or clipping.
+  - Zero threshold parameter dependency.
+  - Score buckets: [0.5-0.6, 0.6-0.7, 0.7-0.8, 0.8-0.9, 0.9-1.0].
+  - For populated buckets: reports empirical mean_predicted_score, observed_positive_rate, and sample count N.
+  - For empty buckets: explicitly reports N=0, mean_predicted_score=None, observed_positive_rate=None.
+  - Full population accounting: explicitly accounts for all holdout window samples (below display, in display, above display).
+  - Computes Expected Calibration Error (ECE) weighted across the evaluated calibration population.
+  - Generates reliability diagram data.
   - NO threshold search, fitting, or optimization on holdout data.
 - Development-only DetectorCalibrator:
   - Calibrates static threshold T on development/validation data only (rejects holdout data with HoldoutAccessError).
@@ -31,16 +33,18 @@ class CalibrationBucket(BaseModel):
     bucket: str
     range: List[float]
     n: int
-    mean_score: Optional[float] = None
+    mean_predicted_score: Optional[float] = None
     observed_positive_rate: Optional[float] = None
 
 
 class DescriptiveCalibrationResult(BaseModel):
-    """Container for descriptive calibration results on holdout or validation data."""
+    """Container for descriptive calibration results on holdout data."""
     buckets: List[CalibrationBucket]
     expected_calibration_error: Optional[float] = None
     total_samples: int
-    populated_samples: int
+    in_display_buckets_count: int
+    below_display_buckets_count: int
+    above_display_buckets_count: int
     population_breakdown: Dict[str, int] = Field(default_factory=dict)
     reliability_diagram_data: Dict[str, Any] = Field(default_factory=dict)
 
@@ -55,14 +59,14 @@ def compute_descriptive_calibration(
         (0.8, 0.9),
         (0.9, 1.0),
     ),
-    threshold: float = 1.0,
 ) -> DescriptiveCalibrationResult:
-    """Compute empirical descriptive calibration statistics across score/confidence buckets.
+    """Compute empirical descriptive calibration statistics across raw RiskScore.score buckets.
 
-    - Populated buckets: empirical mean score, empirical positive rate, sample count N.
-    - Empty buckets: N=0, mean_score=None, observed_positive_rate=None.
+    - Operates directly on RiskScore.score (no transformation, no division by threshold, no clipping).
+    - Populated buckets: empirical mean predicted score, empirical positive rate, sample count N.
+    - Empty buckets: N=0, mean_predicted_score=None, observed_positive_rate=None.
     - Full population breakdown: accounts for all window samples.
-    - ECE: Expected Calibration Error weighted by populated sample proportion.
+    - ECE: Expected Calibration Error weighted across evaluated display samples.
     """
     gt_intervals = [(e.merchant_id, e.start_time, e.end_time) for e in ground_truth_events]
 
@@ -72,18 +76,15 @@ def compute_descriptive_calibration(
             continue
 
         raw_score = float(rs.score)
-        # Normalized score on [0, 1] probability scale
-        prob = float(np.clip(raw_score / max(threshold * 2.0, 1.0), 0.0, 1.0))
         is_gt_positive = 1 if any(m_id == gm and st <= ts <= et for gm, st, et in gt_intervals) else 0
-        valid_samples.append((prob, is_gt_positive))
+        valid_samples.append((raw_score, is_gt_positive))
 
     bucket_results: List[CalibrationBucket] = []
-    populated_samples = 0
+    populated_display_samples = 0
     weighted_error_sum = 0.0
-    rel_x = []
-    rel_y = []
+    rel_scores = []
+    rel_pos_rates = []
 
-    # Focus range min and max
     min_focus = min(b[0] for b in buckets)
     max_focus = max(b[1] for b in buckets)
 
@@ -91,78 +92,74 @@ def compute_descriptive_calibration(
     above_focus_count = sum(1 for s in valid_samples if s[0] > max_focus)
 
     for low, high in buckets:
-        # Match samples falling into bucket [low, high) (or [low, high] for last bucket)
         in_b = [
             s for s in valid_samples
-            if (low <= s[0] < high) or (high >= 1.0 and low <= s[0] <= 1.0)
+            if (low <= s[0] < high) or (high >= max_focus and low <= s[0] <= max_focus)
         ]
         n_b = len(in_b)
 
         if n_b > 0:
             mean_s = float(np.mean([s[0] for s in in_b]))
             obs_pos = float(np.mean([s[1] for s in in_b]))
-            populated_samples += n_b
+            populated_display_samples += n_b
             weighted_error_sum += n_b * abs(obs_pos - mean_s)
-            rel_x.append(round(mean_s, 4))
-            rel_y.append(round(obs_pos, 4))
+            rel_scores.append(round(mean_s, 4))
+            rel_pos_rates.append(round(obs_pos, 4))
 
             bucket_results.append(
                 CalibrationBucket(
                     bucket=f"{low:.1f}–{high:.1f}",
                     range=[float(low), float(high)],
                     n=n_b,
-                    mean_score=round(mean_s, 4),
+                    mean_predicted_score=round(mean_s, 4),
                     observed_positive_rate=round(obs_pos, 4),
                 )
             )
         else:
-            # Empty bucket: Explicitly report N=0, None for mean_score and observed_positive_rate
             bucket_results.append(
                 CalibrationBucket(
                     bucket=f"{low:.1f}–{high:.1f}",
                     range=[float(low), float(high)],
                     n=0,
-                    mean_score=None,
+                    mean_predicted_score=None,
                     observed_positive_rate=None,
                 )
             )
 
-    ece = round(weighted_error_sum / populated_samples, 4) if populated_samples > 0 else 0.0
+    ece = round(weighted_error_sum / populated_display_samples, 4) if populated_display_samples > 0 else 0.0
 
     return DescriptiveCalibrationResult(
         buckets=bucket_results,
         expected_calibration_error=ece,
         total_samples=len(valid_samples),
-        populated_samples=populated_samples,
+        in_display_buckets_count=populated_display_samples,
+        below_display_buckets_count=below_focus_count,
+        above_display_buckets_count=above_focus_count,
         population_breakdown={
             "total_evaluated_samples": len(valid_samples),
-            "below_focus_range_samples": below_focus_count,
-            "in_focus_range_samples": populated_samples,
-            "above_focus_range_samples": above_focus_count,
+            "below_display_buckets_count": below_focus_count,
+            "in_display_buckets_count": populated_display_samples,
+            "above_display_buckets_count": above_focus_count,
         },
         reliability_diagram_data={
-            "mean_predicted_probabilities": rel_x,
-            "fraction_of_positives": rel_y,
+            "mean_predicted_scores": rel_scores,
+            "observed_positive_rates": rel_pos_rates,
         },
     )
 
 
 class DescriptiveHoldoutCalibrator:
-    """Performs descriptive calibration on locked holdout risk-score outputs without parameter search or tuning."""
-
-    def __init__(self, threshold: float = 1.0):
-        self.threshold = float(threshold)
+    """Performs descriptive calibration directly on locked holdout RiskScore outputs."""
 
     def calibrate_holdout(
         self,
         scores_with_timestamps: Sequence[Tuple[str, datetime, RiskScore]],
         ground_truth_events: Sequence[GroundTruthEvent],
     ) -> DescriptiveCalibrationResult:
-        """Run descriptive holdout calibration."""
+        """Run descriptive holdout calibration directly on emitted RiskScore outputs."""
         return compute_descriptive_calibration(
             scores_with_timestamps=scores_with_timestamps,
             ground_truth_events=ground_truth_events,
-            threshold=self.threshold,
         )
 
 
@@ -237,7 +234,6 @@ class DetectorCalibrator:
 
         sample_count = len(scores_with_timestamps)
 
-        # Handle insufficient evidence edge case
         if sample_count < self.min_samples:
             metrics = self._evaluate_threshold(self.default_threshold, scores_with_timestamps, ground_truth_events)
             return CalibrationResult(

@@ -122,9 +122,9 @@
           0.5,
           0.6
         ],
-        "n": 0,
-        "mean_score": null,
-        "observed_positive_rate": null
+        "n": 52,
+        "mean_predicted_score": 0.5538,
+        "observed_positive_rate": 0.0
       },
       {
         "bucket": "0.6\u20130.7",
@@ -132,9 +132,9 @@
           0.6,
           0.7
         ],
-        "n": 1,
-        "mean_score": 0.6,
-        "observed_positive_rate": 1.0
+        "n": 42,
+        "mean_predicted_score": 0.6267,
+        "observed_positive_rate": 0.0238
       },
       {
         "bucket": "0.7\u20130.8",
@@ -142,9 +142,9 @@
           0.7,
           0.8
         ],
-        "n": 2,
-        "mean_score": 0.725,
-        "observed_positive_rate": 1.0
+        "n": 6,
+        "mean_predicted_score": 0.7104,
+        "observed_positive_rate": 0.0
       },
       {
         "bucket": "0.8\u20130.9",
@@ -152,9 +152,9 @@
           0.8,
           0.9
         ],
-        "n": 1,
-        "mean_score": 0.875,
-        "observed_positive_rate": 1.0
+        "n": 2,
+        "mean_predicted_score": 0.825,
+        "observed_positive_rate": 0.0
       },
       {
         "bucket": "0.9\u20131.0",
@@ -163,29 +163,33 @@
           1.0
         ],
         "n": 0,
-        "mean_score": null,
+        "mean_predicted_score": null,
         "observed_positive_rate": null
       }
     ],
-    "expected_calibration_error": 0.2688,
+    "expected_calibration_error": 0.5886,
     "total_samples": 115,
-    "populated_samples": 4,
+    "in_display_buckets_count": 102,
+    "below_display_buckets_count": 9,
+    "above_display_buckets_count": 4,
     "population_breakdown": {
       "total_evaluated_samples": 115,
-      "below_focus_range_samples": 111,
-      "in_focus_range_samples": 4,
-      "above_focus_range_samples": 0
+      "below_display_buckets_count": 9,
+      "in_display_buckets_count": 102,
+      "above_display_buckets_count": 4
     },
     "reliability_diagram_data": {
-      "mean_predicted_probabilities": [
-        0.6,
-        0.725,
-        0.875
+      "mean_predicted_scores": [
+        0.5538,
+        0.6267,
+        0.7104,
+        0.825
       ],
-      "fraction_of_positives": [
-        1.0,
-        1.0,
-        1.0
+      "observed_positive_rates": [
+        0.0,
+        0.0238,
+        0.0,
+        0.0
       ]
     }
   },

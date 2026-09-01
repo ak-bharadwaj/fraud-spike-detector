@@ -7,7 +7,7 @@ Key Invariants:
 - PER-ANOMALY EVALUATION: Correctly reports zero-event classes (N=0/0, precision/recall/f1=None) without false positive claims.
 - HOLDOUT EVASION CONFIRMATION: Confirms evasion patterns on holdout without detector modification.
 - HOLDOUT DRIFT CONFIRMATION: Confirms drift adaptation measurement on holdout without detector modification.
-- DESCRIPTIVE CALIBRATION: Generates reliability buckets (0.5-0.6, 0.6-0.7, 0.7-0.8, 0.8-0.9, 0.9-1.0) with explicit None for empty buckets, ECE, and reliability diagram data.
+- DESCRIPTIVE CALIBRATION: Direct RiskScore.score bucketing (no score transformation, no threshold dependency), reports mean_predicted_score, observed_positive_rate, and sample count N with explicit None for empty buckets, ECE, and reliability diagram data.
 - BOOTSTRAP UNCERTAINTY: 1,000 deterministic resamples (seed 42) computing 95% CIs for Precision and Recall with complete raw counts and N.
 - PORTFOLIO ANALYSIS: Evaluates Static, Statistical, and Hybrid on holdout, reporting FP Cost, FN Exposure, and Total Cost.
 - ARTIFACT GENERATION: Generates required hierarchy under artifacts/ (including final/metrics.json, final/metrics.csv with '₹' unit, final/report.json).
@@ -197,10 +197,9 @@ def compute_per_anomaly_holdout_metrics(
 def compute_descriptive_holdout_calibration(
     scores_with_timestamps: Sequence[Tuple[str, datetime, RiskScore]],
     ground_truth_events: Sequence[GroundTruthEvent],
-    threshold: float = 1.0,
 ) -> Dict[str, Any]:
     """Compute descriptive calibration buckets, observed positive rates, population accounting, and ECE."""
-    calibrator = DescriptiveHoldoutCalibrator(threshold=threshold)
+    calibrator = DescriptiveHoldoutCalibrator()
     res: DescriptiveCalibrationResult = calibrator.calibrate_holdout(
         scores_with_timestamps=scores_with_timestamps,
         ground_truth_events=ground_truth_events,

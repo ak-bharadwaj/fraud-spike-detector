@@ -13,10 +13,13 @@ Validates:
 4. Per-Anomaly Final Table & Zero-Event Class Reporting:
    - Evaluates performance across all required anomaly classes.
    - For zero-event classes (N=0), explicitly reports None for precision/recall/f1 (no false positive claims!).
-5. Descriptive Holdout Calibration & Explicit Population Breakdown:
+5. Descriptive Holdout Calibration & Direct RiskScore Bucketing:
+   - Operates directly on RiskScore.score without transformation, division by threshold, or clipping.
+   - No threshold parameter dependency.
    - Generates reliability buckets (0.5–0.6, 0.6–0.7, 0.7–0.8, 0.8–0.9, 0.9–1.0).
-   - Empty buckets explicitly report n=0, mean_score=None, observed_positive_rate=None (no midpoint pseudo-values!).
-   - Population breakdown accounts for all holdout window samples.
+   - Empty buckets explicitly report n=0, mean_predicted_score=None, observed_positive_rate=None.
+   - Populated buckets report empirical mean_predicted_score, observed_positive_rate, and sample count N.
+   - Population breakdown accounts for all 115 holdout window samples.
    - Computes Expected Calibration Error (ECE) and reliability diagram data.
 6. Complete Bootstrap Uncertainty Contract:
    - 1,000 deterministic bootstrap resamples (seed 42) computing 95% CIs for Precision and Recall.
@@ -154,7 +157,7 @@ def test_historical_only_baseline_and_single_pass_execution():
 
 
 # =====================================================================
-# 4. Per-Anomaly Final Table & Zero-Event Class Reporting (Blocker 4)
+# 4. Per-Anomaly Final Table & Zero-Event Class Reporting
 # =====================================================================
 
 def test_per_anomaly_zero_event_reporting():
@@ -193,11 +196,11 @@ def test_per_anomaly_zero_event_reporting():
 
 
 # =====================================================================
-# 5. Descriptive Holdout Calibration & Explicit Population Breakdown (Blockers 1 & 5)
+# 5. Descriptive Holdout Calibration & Direct RiskScore Bucketing (Blockers 1, 2, 3, 4, 5)
 # =====================================================================
 
-def test_descriptive_calibration_empty_buckets_and_population_breakdown():
-    """Verify descriptive calibration buckets report None for empty buckets and explicitly accounts for population."""
+def test_descriptive_calibration_direct_bucketing_and_population():
+    """Verify descriptive calibration buckets operate directly on RiskScore.score with explicit population breakdown."""
     freeze_record = load_freeze_record("config/freeze_record.json")
     manifest, txs, gts = load_locked_holdout_data("data/holdout")
 
@@ -208,7 +211,7 @@ def test_descriptive_calibration_empty_buckets_and_population_breakdown():
         explicit_evaluation_mode=True,
     )
 
-    calib = compute_descriptive_holdout_calibration(all_scores, gts, threshold=1.0)
+    calib = compute_descriptive_holdout_calibration(all_scores, gts)
     buckets = calib["buckets"]
     assert len(buckets) == 5
 
@@ -221,26 +224,30 @@ def test_descriptive_calibration_empty_buckets_and_population_breakdown():
 
     for b in buckets:
         if b["n"] == 0:
-            # Must be None, NOT midpoint pseudo-values!
-            assert b["mean_score"] is None
+            assert b["mean_predicted_score"] is None
             assert b["observed_positive_rate"] is None
         else:
-            assert b["mean_score"] is not None
+            assert b["mean_predicted_score"] is not None
             assert 0.0 <= b["observed_positive_rate"] <= 1.0
+            assert b["range"][0] <= b["mean_predicted_score"] <= b["range"][1]
 
-    # Verify explicit population breakdown accounting
+    # Verify complete population accounting of all 115 window samples
     breakdown = calib["population_breakdown"]
     assert breakdown["total_evaluated_samples"] == 115
-    assert breakdown["below_focus_range_samples"] == 111
-    assert breakdown["in_focus_range_samples"] == 4
-    assert breakdown["below_focus_range_samples"] + breakdown["in_focus_range_samples"] == breakdown["total_evaluated_samples"]
+    assert breakdown["below_display_buckets_count"] == 9
+    assert breakdown["in_display_buckets_count"] == 102
+    assert breakdown["above_display_buckets_count"] == 4
+    assert breakdown["below_display_buckets_count"] + breakdown["in_display_buckets_count"] + breakdown["above_display_buckets_count"] == breakdown["total_evaluated_samples"]
 
+    # Verify ECE and reliability diagram data
     assert calib["expected_calibration_error"] is not None
     assert calib["expected_calibration_error"] >= 0.0
+    assert "mean_predicted_scores" in calib["reliability_diagram_data"]
+    assert "observed_positive_rates" in calib["reliability_diagram_data"]
 
 
 # =====================================================================
-# 6. Complete Bootstrap Uncertainty Contract with Raw Counts & N (Blocker 2)
+# 6. Complete Bootstrap Uncertainty Contract with Raw Counts & N
 # =====================================================================
 
 def test_bootstrap_uncertainty_contract_with_raw_counts_and_n():
@@ -288,7 +295,7 @@ def test_bootstrap_uncertainty_contract_with_raw_counts_and_n():
 
 
 # =====================================================================
-# 7. Cost Reporting Unit Enforcement (Blocker 3)
+# 7. Cost Reporting Unit Enforcement (INR '₹')
 # =====================================================================
 
 def test_cost_reporting_unit_is_inr_prevent_usd_regression(tmp_path):
@@ -298,7 +305,7 @@ def test_cost_reporting_unit_is_inr_prevent_usd_regression(tmp_path):
 
     m, alerts, scores = execute_single_pass_holdout(txs, gts, freeze_record, True)
     per_ano = compute_per_anomaly_holdout_metrics(alerts, gts)
-    calib = compute_descriptive_holdout_calibration(scores, gts, threshold=1.0)
+    calib = compute_descriptive_holdout_calibration(scores, gts)
     boot = compute_bootstrap_uncertainty(alerts, gts, n_resamples=100, seed=42)
     port = execute_portfolio_comparison(txs, gts, freeze_record)
 
@@ -353,7 +360,7 @@ def test_portfolio_cost_comparison():
 
 
 # =====================================================================
-# 9. Required Artifact Hierarchy & Exact Section-39 Path (Blocker 4)
+# 9. Required Artifact Hierarchy & Exact Section-39 Path
 # =====================================================================
 
 def test_required_artifact_hierarchy_and_final_files(tmp_path):
@@ -363,7 +370,7 @@ def test_required_artifact_hierarchy_and_final_files(tmp_path):
 
     m, alerts, scores = execute_single_pass_holdout(txs, gts, freeze_record, True)
     per_ano = compute_per_anomaly_holdout_metrics(alerts, gts)
-    calib = compute_descriptive_holdout_calibration(scores, gts, threshold=1.0)
+    calib = compute_descriptive_holdout_calibration(scores, gts)
     boot = compute_bootstrap_uncertainty(alerts, gts, n_resamples=100, seed=42)
     port = execute_portfolio_comparison(txs, gts, freeze_record)
 
