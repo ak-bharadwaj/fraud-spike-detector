@@ -39,12 +39,26 @@ def test_virtual_clock_rejection_of_negative_advancement():
         clock.advance(-1.0)
 
 
-def test_virtual_clock_set_time():
-    """Test explicit set_time behavior."""
-    clock = VirtualClock()
+def test_virtual_clock_set_time_forward_and_equal():
+    """Test explicit set_time forward movement and equal timestamp acceptance."""
+    clock = VirtualClock(initial_time=datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc))
+    
+    # Forward set_time
     target = datetime(2026, 12, 31, 23, 59, 59, tzinfo=timezone.utc)
     clock.set_time(target)
     assert clock.current_time() == target
+
+    # Equal set_time (non-decreasing)
+    clock.set_time(target)
+    assert clock.current_time() == target
+
+
+def test_virtual_clock_set_time_rejection_of_backward_movement():
+    """Test that set_time strictly rejects attempting to move clock backward."""
+    clock = VirtualClock(initial_time=datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc))
+    past_target = datetime(2026, 1, 1, 11, 59, 59, tzinfo=timezone.utc)
+    with pytest.raises(ValueError, match="cannot move backward in time"):
+        clock.set_time(past_target)
 
 
 def test_deterministic_subseeding_stability():

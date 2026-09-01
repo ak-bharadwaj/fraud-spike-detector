@@ -9,7 +9,7 @@ from typing import Optional
 
 
 class VirtualClock:
-    """Deterministic virtual clock for streaming execution."""
+    """Deterministic virtual clock for streaming execution enforcing monotonic time progression."""
 
     def __init__(self, initial_time: Optional[datetime] = None):
         if initial_time is None:
@@ -23,8 +23,13 @@ class VirtualClock:
         return self._current_time
 
     def set_time(self, new_time: datetime) -> None:
-        """Explicitly set the current virtual time."""
-        self._current_time = new_time if new_time.tzinfo else new_time.replace(tzinfo=timezone.utc)
+        """Set the current virtual time, strictly rejecting backward time movement."""
+        dt_utc = new_time if new_time.tzinfo else new_time.replace(tzinfo=timezone.utc)
+        if dt_utc < self._current_time:
+            raise ValueError(
+                f"VirtualClock cannot move backward in time: attempted to set {dt_utc} < current {self._current_time}."
+            )
+        self._current_time = dt_utc
 
     def advance(self, seconds: float) -> datetime:
         """Advance the virtual clock by a given number of seconds."""

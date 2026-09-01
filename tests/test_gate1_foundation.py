@@ -2,10 +2,11 @@
 
 Tests:
 1. TimeOrderedEventBus ordering, tie-breaking, VirtualClock integration, replay determinism, compositionality.
-2. EventBus-driven streaming pipeline execution via bus.drain(handler).
-3. SQLiteAuditStore schema creation, nullability, table queries, and database file reload.
-4. Deterministic replay of SQLite audit records (100% identical records across runs).
-5. Scorer-only exception handling (Section 20: Audit-only error, NO Alert, NO ALERT state transition, stream continuation).
+2. Monotonic clock invariant during EventBus drain (increasing timestamps, equal timestamps, out-of-order, backward clock rejection).
+3. EventBus-driven streaming pipeline execution via bus.drain(handler).
+4. SQLiteAuditStore schema creation, nullability, table queries, and database file reload.
+5. Deterministic replay of SQLite audit records (100% identical records across runs).
+6. Scorer-only exception handling (Section 20: Audit-only error, NO Alert, NO ALERT state transition, stream continuation).
 """
 
 from datetime import datetime, timedelta, timezone
@@ -67,6 +68,84 @@ def test_time_ordered_event_bus_virtual_clock_advancement_and_drain():
     assert dispatched[0] == ("t1", st + timedelta(minutes=5))
     assert dispatched[1] == ("t2", st + timedelta(minutes=15))
     assert clock.current_time() == st + timedelta(minutes=15)
+
+
+def test_time_ordered_event_bus_monotonic_clock_increasing_timestamps():
+    """Verify drain with strictly increasing timestamps advances clock monotonically."""
+    clock = VirtualClock(initial_time=datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc))
+    bus = TimeOrderedEventBus(clock=clock)
+
+    st = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
+    txs = [
+        Transaction(transaction_id=f"tx_{i}", timestamp=st + timedelta(minutes=i), merchant_id="M1", customer_id="C1", amount=10.0, payment_method="credit_card", country="US", device_id="D1")
+        for i in range(1, 6)
+    ]
+    bus.publish_batch(txs)
+
+    clock_progression = []
+    bus.drain(handler=lambda tx: clock_progression.append(clock.current_time()))
+
+    assert len(clock_progression) == 5
+    for i in range(len(clock_progression) - 1):
+        assert clock_progression[i] < clock_progression[i + 1]
+
+
+def test_time_ordered_event_bus_monotonic_clock_equal_timestamps():
+    """Verify drain with identical timestamps maintains non-decreasing clock without error."""
+    clock = VirtualClock(initial_time=datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc))
+    bus = TimeOrderedEventBus(clock=clock)
+
+    st = datetime(2026, 1, 1, 12, 5, tzinfo=timezone.utc)
+    tx1 = Transaction(transaction_id="tx_b", timestamp=st, merchant_id="M2", customer_id="C1", amount=10.0, payment_method="credit_card", country="US", device_id="D1")
+    tx2 = Transaction(transaction_id="tx_a", timestamp=st, merchant_id="M1", customer_id="C1", amount=10.0, payment_method="credit_card", country="US", device_id="D1")
+
+    bus.publish_batch([tx1, tx2])
+    dispatched_times = []
+    bus.drain(handler=lambda tx: dispatched_times.append(clock.current_time()))
+
+    assert len(dispatched_times) == 2
+    assert dispatched_times[0] == st
+    assert dispatched_times[1] == st
+    assert clock.current_time() == st
+
+
+def test_time_ordered_event_bus_monotonic_clock_out_of_order_publication():
+    """Verify out-of-order published transactions are dispatched in monotonic chronological order."""
+    clock = VirtualClock(initial_time=datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc))
+    bus = TimeOrderedEventBus(clock=clock)
+
+    st = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
+    tx_t30 = Transaction(transaction_id="tx_30", timestamp=st + timedelta(minutes=30), merchant_id="M1", customer_id="C1", amount=10.0, payment_method="credit_card", country="US", device_id="D1")
+    tx_t10 = Transaction(transaction_id="tx_10", timestamp=st + timedelta(minutes=10), merchant_id="M1", customer_id="C1", amount=10.0, payment_method="credit_card", country="US", device_id="D1")
+    tx_t20 = Transaction(transaction_id="tx_20", timestamp=st + timedelta(minutes=20), merchant_id="M1", customer_id="C1", amount=10.0, payment_method="credit_card", country="US", device_id="D1")
+
+    # Publish in reverse order: 30, 10, 20
+    bus.publish(tx_t30)
+    bus.publish(tx_t10)
+    bus.publish(tx_t20)
+
+    clock_steps = []
+    dispatched_ids = []
+    bus.drain(handler=lambda tx: (dispatched_ids.append(tx.transaction_id), clock_steps.append(clock.current_time())))
+
+    assert dispatched_ids == ["tx_10", "tx_20", "tx_30"]
+    assert clock_steps == [st + timedelta(minutes=10), st + timedelta(minutes=20), st + timedelta(minutes=30)]
+    assert clock.current_time() == st + timedelta(minutes=30)
+
+
+def test_time_ordered_event_bus_monotonic_clock_rejection_of_past_events():
+    """Verify attempting to drain events older than current VirtualClock time raises ValueError."""
+    # Clock is already at 12:30
+    clock = VirtualClock(initial_time=datetime(2026, 1, 1, 12, 30, tzinfo=timezone.utc))
+    bus = TimeOrderedEventBus(clock=clock)
+
+    # Event timestamp is in the past relative to clock (12:10)
+    st_past = datetime(2026, 1, 1, 12, 10, tzinfo=timezone.utc)
+    tx_past = Transaction(transaction_id="tx_past", timestamp=st_past, merchant_id="M1", customer_id="C1", amount=10.0, payment_method="credit_card", country="US", device_id="D1")
+
+    bus.publish(tx_past)
+    with pytest.raises(ValueError, match="cannot move backward in time"):
+        bus.drain()
 
 
 def test_time_ordered_event_bus_replay_determinism_and_merchant_compositionality():
