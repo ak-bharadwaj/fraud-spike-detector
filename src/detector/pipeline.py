@@ -28,6 +28,7 @@ from src.contracts.contracts import (
 )
 from src.features.feature_engine import FeatureEngine
 from src.baseline.baseline_engine import BaselineEngine
+from src.scoring.statistical import StatisticalDeviationScorer
 from src.scoring.hybrid_ewma import HybridEWMAScorer
 from src.state.alert_state_machine import AlertStateMachine
 from src.audit.database import SQLiteAuditStore
@@ -41,10 +42,11 @@ class StreamingDetectorPipeline:
     def __init__(
         self,
         config: Optional[FrozenDetectorConfig] = None,
+        scorer: Optional[Any] = None,
         db_path: Union[str, Path] = ":memory:",
         clock: Optional[VirtualClock] = None,
     ):
-        """Initialize pipeline components with frozen configuration and SQLite audit store."""
+        """Initialize pipeline components with frozen configuration, scorer, and SQLite audit store."""
         self.config = config if config is not None else FrozenDetectorConfig()
         self.clock = clock or VirtualClock()
         self.bus = TimeOrderedEventBus(clock=self.clock)
@@ -55,7 +57,7 @@ class StreamingDetectorPipeline:
             min_history_count=self.config.min_window_count,
             min_window_count=self.config.min_window_count,
         )
-        self.scorer = HybridEWMAScorer(alpha=self.config.ewma_alpha)
+        self.scorer = scorer if scorer is not None else StatisticalDeviationScorer(static_threshold=self.config.static_threshold)
         self.state_machine = AlertStateMachine(
             persistence=self.config.persistence,
             cooldown_windows=self.config.cooldown_windows,
@@ -129,7 +131,7 @@ class StreamingDetectorPipeline:
         # 2. Historical-only baseline extraction (BEFORE updating baseline!)
         base_snap = self.baseline_engine.get_baseline(merchant_id, feat_snap)
 
-        # 3. Scorer calculation SCOPED STRICTLY to scorer invocation (BLOCKER 3)
+        # 3. Scorer calculation SCOPED STRICTLY to scorer invocation
         scorer_exception: Optional[Exception] = None
         risk_score: Optional[RiskScore] = None
 
@@ -180,7 +182,7 @@ class StreamingDetectorPipeline:
             self._emitted_alerts.append(alert)
             self.audit_store.save_alert(alert)
 
-        # Deterministic audit record ID (BLOCKER 2)
+        # Deterministic audit record ID
         score_repr = f"{risk_score.score:.4f}" if risk_score.score is not None else "NONE"
         spec_str = f"{merchant_id}:{w_end.isoformat()}:{score_repr}"
         audit_id = f"AUD-{hashlib.sha256(spec_str.encode('utf-8')).hexdigest()[:16]}"

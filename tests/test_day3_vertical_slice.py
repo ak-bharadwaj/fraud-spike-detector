@@ -1,24 +1,25 @@
-"""Day 3 Vertical Slice Integration and Scorer Exception Test Suite.
+"""Day 3 Vertical Slice Integration and StatisticalDeviationScorer Test Suite.
 
 Verifies:
-1. Complete Day-3 vertical flow: Transaction -> FeatureEngine -> BaselineEngine -> Scorer -> AlertStateMachine -> Alert -> SQLite -> Evaluator.
-2. Feature contract & 4 feature groups (volume, velocity, amount, behavioral/device).
-3. Historical-only baseline with robust median/MAD and evidence state semantics (INSUFFICIENT, DEGRADED, SUFFICIENT).
-4. Statistical scorer computing standardized deviation magnitude and valid RiskScore.
-5. AlertStateMachine state lifecycle and Alert schema compliance.
-6. SQLite persistence and reload across alerts, audit_records, state_transitions without data loss.
-7. Evaluator first-anomaly evaluation (TP, FP, FN, precision, recall, F1).
-8. Mandatory Section 20 Scorer Exception Path:
-   - Exception strictly scoped to scorer invocation.
-   - Saves Error AuditRecord with risk_score=None and data_quality_status='SCORER_ERROR'.
+1. StatisticalDeviationScorer:
+   - Consumes FeatureSnapshot + BaselineSnapshot.
+   - Calculates exact standardized deviation magnitude M_k = |f_k - exp_k| / scale_k.
+   - Computes statistical score S = max_k M_k (pure statistical, NO EWMA smoothing).
+   - Preserves evidence state semantics (INSUFFICIENT -> score=None, DEGRADED -> conf=0.5, SUFFICIENT -> conf=1.0).
+   - Produces valid RiskScore.
+   - Pure determinism and zero ground-truth / holdout dependencies.
+2. Complete Day-3 vertical flow:
+   Transaction -> FeatureEngine -> BaselineEngine -> StatisticalDeviationScorer -> AlertStateMachine -> Alert -> SQLite -> Evaluator.
+3. Mandatory Section 20 Scorer Exception Path:
+   - Scorer exception creates Error AuditRecord with risk_score=None, data_quality_status='SCORER_ERROR'.
    - Emits NO Alert.
    - Triggers NO ALERT state transition.
    - Stream continues processing subsequent windows.
-9. Full deterministic replay and architectural invariants.
 """
 
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+import math
 import pytest
 
 from src.contracts.contracts import (
@@ -33,7 +34,7 @@ from src.contracts.contracts import (
 )
 from src.features.feature_engine import FeatureEngine
 from src.baseline.baseline_engine import BaselineEngine
-from src.scoring.hybrid_ewma import HybridEWMAScorer
+from src.scoring.statistical import StatisticalDeviationScorer
 from src.state.alert_state_machine import AlertStateMachine
 from src.audit.database import SQLiteAuditStore
 from src.evaluation.evaluator import AnomalyEvaluator
@@ -41,7 +42,6 @@ from src.detector.pipeline import StreamingDetectorPipeline
 from src.generator.anomalies import AnomalySpec
 from src.generator.stream_generator import SyntheticStreamGenerator
 from src.stream.clock import VirtualClock
-from src.stream.bus import TimeOrderedEventBus
 
 
 # =====================================================================
@@ -137,54 +137,91 @@ def test_day3_baseline_historical_only_and_evidence_semantics():
 
 
 # =====================================================================
-# 3. Statistical Scorer & AlertStateMachine
+# 3. StatisticalDeviationScorer: Mathematical Correctness & Schema
 # =====================================================================
 
-def test_day3_statistical_scorer_and_state_machine_alert():
-    """Verify statistical scorer standardized deviation and AlertStateMachine alert transition."""
+def test_day3_statistical_deviation_scorer_mathematical_correctness():
+    """Verify StatisticalDeviationScorer computes exact standardized deviation M_k = |f_k - exp_k| / scale_k and S = max M_k."""
     st = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
-    scorer = HybridEWMAScorer(alpha=0.3, static_threshold=3.5)
-    sm = AlertStateMachine(persistence=2, cooldown_windows=3, static_threshold=3.5)
+    scorer = StatisticalDeviationScorer(static_threshold=3.5)
 
     base_snap = BaselineSnapshot(
         merchant_id="M1",
         timestamp=st,
-        expected_values={"volume": 10.0, "velocity": 10.0, "unique_customers": 8.0, "unique_devices": 7.0, "amount_mean_amount": 50.0, "amount_std_amount": 5.0, "amount_median_amount": 50.0, "amount_mad_amount": 3.0, "amount_total_amount": 500.0, "amount_min_amount": 40.0, "amount_max_amount": 60.0},
-        robust_scale={"volume": 2.0, "velocity": 2.0, "unique_customers": 1.5, "unique_devices": 1.5, "amount_mean_amount": 10.0, "amount_std_amount": 2.0, "amount_median_amount": 10.0, "amount_mad_amount": 1.0, "amount_total_amount": 100.0, "amount_min_amount": 10.0, "amount_max_amount": 15.0},
+        expected_values={
+            "volume": 10.0,
+            "velocity": 10.0,
+            "unique_customers": 8.0,
+            "unique_devices": 7.0,
+            "amount_total_amount": 500.0,
+            "amount_mean_amount": 50.0,
+            "amount_std_amount": 5.0,
+            "amount_median_amount": 50.0,
+            "amount_mad_amount": 3.0,
+            "amount_min_amount": 40.0,
+            "amount_max_amount": 60.0,
+        },
+        robust_scale={
+            "volume": 2.0,
+            "velocity": 2.0,
+            "unique_customers": 1.0,
+            "unique_devices": 1.0,
+            "amount_total_amount": 100.0,
+            "amount_mean_amount": 10.0,
+            "amount_std_amount": 2.0,
+            "amount_median_amount": 10.0,
+            "amount_mad_amount": 1.0,
+            "amount_min_amount": 10.0,
+            "amount_max_amount": 15.0,
+        },
         history_count=20,
-        current_window_count=1,
+        current_window_count=10,
         evidence_state="SUFFICIENT",
     )
 
-    # Spike snapshot (volume = 30 -> M = (30 - 10)/2 = 10.0)
-    spike_snap = FeatureSnapshot(
+    # Feature with volume = 22.0 -> M_vol = |22 - 10| / 2 = 6.0
+    feat_snap = FeatureSnapshot(
         merchant_id="M1",
         timestamp=st + timedelta(minutes=1),
-        volume=30.0,
-        velocity=30.0,
-        amount_statistics={"mean_amount": 50.0, "std_amount": 5.0, "median_amount": 50.0, "mad_amount": 3.0, "total_amount": 1500.0, "min_amount": 40.0, "max_amount": 60.0},
-        unique_customers=8,
-        unique_devices=7,
+        volume=22.0,
+        velocity=22.0,
+        amount_statistics={
+            "total_amount": 1100.0,  # M_total = |1100 - 500| / 100 = 6.0
+            "mean_amount": 50.0,     # M_mean = 0.0
+            "std_amount": 5.0,       # M_std = 0.0
+            "median_amount": 50.0,   # M_med = 0.0
+            "mad_amount": 3.0,       # M_mad = 0.0
+            "min_amount": 40.0,      # M_min = 0.0
+            "max_amount": 60.0,      # M_max = 0.0
+        },
+        unique_customers=8,          # M_cust = 0.0
+        unique_devices=7,            # M_dev = 0.0
         data_quality="GOOD",
     )
 
-    risk_score = scorer.calculate_score(spike_snap, base_snap)
-    assert risk_score.score is not None
-    assert risk_score.score >= 3.5
+    risk_score = scorer.calculate_score(feat_snap, base_snap)
+
+    assert isinstance(risk_score, RiskScore)
+    assert risk_score.score == 6.0
+    assert risk_score.confidence == 1.0
     assert "volume" in risk_score.triggered_signals
+    assert "velocity" in risk_score.triggered_signals
+    assert "total_amount" in risk_score.triggered_signals
+    assert risk_score.data_quality == "GOOD"
 
-    # State Machine: 1st above-threshold score -> CANDIDATE (P=2)
-    s1, a1 = sm.process_score("M1", st + timedelta(minutes=1), risk_score)
-    assert s1 == "CANDIDATE"
-    assert a1 is None
+    # Test DEGRADED evidence state
+    base_deg = base_snap.model_copy(update={"evidence_state": "DEGRADED"})
+    risk_deg = scorer.calculate_score(feat_snap, base_deg)
+    assert risk_deg.score == 6.0
+    assert risk_deg.confidence == 0.5
+    assert risk_deg.data_quality == "DEGRADED"
 
-    # State Machine: 2nd above-threshold score -> ALERT
-    s2, a2 = sm.process_score("M1", st + timedelta(minutes=2), risk_score)
-    assert s2 == "ALERT"
-    assert a2 is not None
-    assert isinstance(a2, Alert)
-    assert a2.merchant_id == "M1"
-    assert a2.risk_score >= 3.5
+    # Test INSUFFICIENT evidence state
+    base_ins = base_snap.model_copy(update={"evidence_state": "INSUFFICIENT"})
+    risk_ins = scorer.calculate_score(feat_snap, base_ins)
+    assert risk_ins.score is None
+    assert risk_ins.confidence == 0.0
+    assert risk_ins.triggered_signals == []
 
 
 # =====================================================================
@@ -201,18 +238,19 @@ def test_day3_mandatory_scorer_exception_path_isolated(monkeypatch):
     """
     st = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
     config = FrozenDetectorConfig(static_threshold=3.5, persistence=1, min_window_count=1)
-    pipeline = StreamingDetectorPipeline(config=config, db_path=":memory:")
+    scorer = StatisticalDeviationScorer(static_threshold=config.static_threshold)
+    pipeline = StreamingDetectorPipeline(config=config, scorer=scorer, db_path=":memory:")
 
     call_index = [0]
-    orig_calculate = pipeline.scorer.calculate_score
+    orig_calculate = scorer.calculate_score
 
     def mock_failing_scorer(feat, base):
         call_index[0] += 1
         if call_index[0] == 2:
-            raise ArithmeticError("Forced mathematical exception in scorer")
+            raise ArithmeticError("Forced mathematical exception in statistical scorer")
         return orig_calculate(feat, base)
 
-    monkeypatch.setattr(pipeline.scorer, "calculate_score", mock_failing_scorer)
+    monkeypatch.setattr(scorer, "calculate_score", mock_failing_scorer)
 
     # 3 windows of transactions
     txs = []
@@ -256,18 +294,19 @@ def test_day3_mandatory_scorer_exception_path_isolated(monkeypatch):
 
 
 # =====================================================================
-# 5. Full End-to-End Vertical Slice Test
+# 5. Full End-to-End Vertical Slice Test with Evaluator
 # =====================================================================
 
 def test_day3_end_to_end_vertical_slice_with_evaluator(tmp_path):
     """End-to-end test executing the full Day-3 vertical slice:
-    Transactions -> Features -> Baseline -> Scorer -> State -> Alert -> SQLite -> Evaluator.
+    Transactions -> Features -> Baseline -> StatisticalDeviationScorer -> State -> Alert -> SQLite -> Evaluator.
     """
     st = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
     db_file = tmp_path / "day3_vertical_slice.db"
 
     config = FrozenDetectorConfig(static_threshold=3.5, persistence=2, cooldown_windows=5, min_window_count=1)
-    pipeline = StreamingDetectorPipeline(config=config, db_path=db_file)
+    scorer = StatisticalDeviationScorer(static_threshold=config.static_threshold)
+    pipeline = StreamingDetectorPipeline(config=config, scorer=scorer, db_path=db_file)
 
     # Generate synthetic scenario using SyntheticStreamGenerator
     merchants = [{"id": "M1", "archetype": "stable"}]
@@ -291,7 +330,7 @@ def test_day3_end_to_end_vertical_slice_with_evaluator(tmp_path):
     assert len(events) == 1
     gt_event = events[0]
 
-    # Process through streaming detector pipeline
+    # Process through streaming detector pipeline with StatisticalDeviationScorer
     alerts = pipeline.process_transactions(all_txs)
 
     assert len(alerts) >= 1
