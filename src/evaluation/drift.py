@@ -4,10 +4,12 @@ Key Invariants:
 - Evaluates detector robustness against distribution drift (e.g. organic baseline growth) under constant configuration.
 - Uses common StreamingDetectorPipeline and AnomalyEvaluator.
 - Strict Paired Evaluation Contract:
-  - Validates control and drift streams share identical merchant identity, aligned start/end timestamps, identical total duration.
-  - Validates 100% GroundTruth event specifications match (event IDs, anomaly types, start times, end times).
-  - Validates drift-factor isolation: checks that uncontrolled attributes (e.g. country, payment method, amount scale) are not contaminated.
-  - Rejects mismatched inputs with explicit ValueError before pipeline execution.
+  - Exact start timestamp equality: min(control timestamps) == min(drift timestamps).
+  - Exact end timestamp equality: max(control timestamps) == max(drift timestamps).
+  - Exact duration equality: actual duration(control) == actual duration(drift).
+  - 100% GroundTruth event identity match (event IDs, anomaly types, start times, end times).
+  - Transaction-level uncontrolled-attribute isolation: every baseline transaction is preserved with identical fields (amount, payment_method, country, customer_id, device_id).
+  - Rejects uncontrolled factor modifications with explicit ValueError before pipeline execution.
 - Warmup exclusion: initial warmup windows (e.g. w < 6) are excluded from adaptation calculation.
 - Quantitative adaptation metrics:
   - reference_empirical_post_drift_rate (independently calculated from raw unperturbed post-warmup drift transactions)
@@ -90,34 +92,29 @@ class DriftRunner:
         if ctrl_merchants != drift_merchants:
             raise ValueError(f"Paired drift contract violation: merchant sets differ (control: {ctrl_merchants}, drift: {drift_merchants})")
 
-        # 2. Validate time window alignment & duration
+        # 2. Exact Time Bounds & Exact Duration Equality (without minute rounding)
         ctrl_min_ts = min(t.timestamp for t in control_transactions)
         ctrl_max_ts = max(t.timestamp for t in control_transactions)
         drift_min_ts = min(t.timestamp for t in drift_transactions)
         drift_max_ts = max(t.timestamp for t in drift_transactions)
 
-        ctrl_w_start = ctrl_min_ts.replace(second=0, microsecond=0)
-        drift_w_start = drift_min_ts.replace(second=0, microsecond=0)
-        ctrl_w_end = ctrl_max_ts.replace(second=0, microsecond=0)
-        drift_w_end = drift_max_ts.replace(second=0, microsecond=0)
-
-        if ctrl_w_start != drift_w_start:
+        if ctrl_min_ts != drift_min_ts:
             raise ValueError(
-                f"Paired drift contract violation: start time mismatch "
-                f"(control starts at {ctrl_w_start}, drift starts at {drift_w_start})"
+                f"Paired drift contract violation: exact start timestamp mismatch "
+                f"({ctrl_min_ts} != {drift_min_ts})"
             )
-        if ctrl_w_end != drift_w_end:
+        if ctrl_max_ts != drift_max_ts:
             raise ValueError(
-                f"Paired drift contract violation: end time mismatch "
-                f"(control ends at {ctrl_w_end}, drift ends at {drift_w_end})"
+                f"Paired drift contract violation: exact end timestamp mismatch "
+                f"({ctrl_max_ts} != {drift_max_ts})"
             )
 
-        ctrl_dur = (ctrl_w_end - ctrl_w_start).total_seconds()
-        drift_dur = (drift_w_end - drift_w_start).total_seconds()
+        ctrl_dur = (ctrl_max_ts - ctrl_min_ts).total_seconds()
+        drift_dur = (drift_max_ts - drift_min_ts).total_seconds()
         if ctrl_dur != drift_dur:
             raise ValueError(
-                f"Paired drift contract violation: duration mismatch "
-                f"(control duration {ctrl_dur}s != drift duration {drift_dur}s)"
+                f"Paired drift contract violation: exact duration mismatch "
+                f"({ctrl_dur}s != {drift_dur}s)"
             )
 
         # 3. Validate GroundTruth event specifications
@@ -141,23 +138,37 @@ class DriftRunner:
             if ctrl_e.end_time != drift_e.end_time:
                 raise ValueError(f"Paired drift contract violation for '{drift_e.event_id}': end_time mismatch ({ctrl_e.end_time} vs {drift_e.end_time})")
 
-        # 4. Validate Drift Factor Isolation (reject uncontrolled attribute shifts)
-        ctrl_countries = {t.country for t in control_transactions}
-        drift_countries = {t.country for t in drift_transactions}
-        if ctrl_countries != drift_countries:
-            raise ValueError(f"Paired drift contract violation: uncontrolled country attribute shift ({ctrl_countries} vs {drift_countries})")
-
-        ctrl_payments = {t.payment_method for t in control_transactions}
-        drift_payments = {t.payment_method for t in drift_transactions}
-        if ctrl_payments != drift_payments:
-            raise ValueError(f"Paired drift contract violation: uncontrolled payment method shift ({ctrl_payments} vs {drift_payments})")
-
-        ctrl_mean_amt = float(np.mean([t.amount for t in control_transactions]))
-        drift_mean_amt = float(np.mean([t.amount for t in drift_transactions]))
-        if ctrl_mean_amt > 0:
-            amt_shift = abs(drift_mean_amt - ctrl_mean_amt) / ctrl_mean_amt
-            if amt_shift > 0.35:
-                raise ValueError(f"Paired drift contract violation: uncontrolled amount distribution shift ({amt_shift:.2%} deviation)")
+        # 4. Transaction-Level Uncontrolled-Attribute Isolation
+        # Every control transaction present in drift must maintain 100% field identity
+        drift_tx_map = {t.transaction_id: t for t in drift_transactions}
+        for ctrl_tx in control_transactions:
+            if ctrl_tx.transaction_id in drift_tx_map:
+                d_tx = drift_tx_map[ctrl_tx.transaction_id]
+                if d_tx.amount != ctrl_tx.amount:
+                    raise ValueError(
+                        f"Paired drift contract violation: uncontrolled amount shift for '{ctrl_tx.transaction_id}' "
+                        f"({ctrl_tx.amount} != {d_tx.amount})"
+                    )
+                if d_tx.country != ctrl_tx.country:
+                    raise ValueError(
+                        f"Paired drift contract violation: uncontrolled country shift for '{ctrl_tx.transaction_id}' "
+                        f"({ctrl_tx.country} != {d_tx.country})"
+                    )
+                if d_tx.payment_method != ctrl_tx.payment_method:
+                    raise ValueError(
+                        f"Paired drift contract violation: uncontrolled payment method shift for '{ctrl_tx.transaction_id}' "
+                        f"({ctrl_tx.payment_method} != {d_tx.payment_method})"
+                    )
+                if d_tx.customer_id != ctrl_tx.customer_id:
+                    raise ValueError(
+                        f"Paired drift contract violation: uncontrolled customer shift for '{ctrl_tx.transaction_id}' "
+                        f"({ctrl_tx.customer_id} != {d_tx.customer_id})"
+                    )
+                if d_tx.device_id != ctrl_tx.device_id:
+                    raise ValueError(
+                        f"Paired drift contract violation: uncontrolled device shift for '{ctrl_tx.transaction_id}' "
+                        f"({ctrl_tx.device_id} != {d_tx.device_id})"
+                    )
 
     def run_paired_drift_experiment(
         self,

@@ -231,22 +231,42 @@ def test_reusable_drift_runner_and_artifact_generation():
     st = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
     spike_spec = AnomalySpec("sustained_spike", st + timedelta(minutes=30), 300.0, 4.5, {"rate_multiplier": 4.0})
 
-    # Generate Control (stable)
+    # 1. Generate Control stream (stable baseline, 35 minutes)
     gen_ctrl = SyntheticStreamGenerator(42, [{"id": "M_DRIFT_RUNNER", "archetype": "stable"}], VirtualClock(initial_time=st))
     txs_ctrl_base, _ = gen_ctrl.generate_window(30.0)
     gen_ctrl.schedule_anomaly("M_DRIFT_RUNNER", spike_spec, event_id="EVT-DRIFT-SPIKE")
     txs_ctrl_anom, evs_ctrl = gen_ctrl.generate_window(5.0)
+    txs_ctrl = txs_ctrl_base + txs_ctrl_anom
 
-    # Generate Drift (growing)
-    gen_drift = SyntheticStreamGenerator(42, [{"id": "M_DRIFT_RUNNER", "archetype": "growing"}], VirtualClock(initial_time=st))
-    txs_drift_base, _ = gen_drift.generate_window(30.0)
-    gen_drift.schedule_anomaly("M_DRIFT_RUNNER", spike_spec, event_id="EVT-DRIFT-SPIKE")
-    txs_drift_anom, evs_drift = gen_drift.generate_window(5.0)
+    # 2. Construct Drift stream (organic growth: preserves all base control transactions + adds growth transactions)
+    # Organic growth adds ~20% volume growth over 30 minutes
+    rng = np.random.default_rng(100)
+    growth_txs = []
+    for w in range(35):
+        w_st = st + timedelta(minutes=w)
+        # Growth factor increases across windows
+        growth_count = int(rng.poisson(lam=0.1 * w))
+        for i in range(growth_count):
+            off = float(rng.uniform(0.1, 59.9))
+            growth_txs.append(Transaction(
+                transaction_id=f"tx_drift_growth_{w}_{i}",
+                timestamp=w_st + timedelta(seconds=off),
+                merchant_id="M_DRIFT_RUNNER",
+                customer_id=f"CUST_G_{rng.integers(1, 100)}",
+                amount=float(round(rng.uniform(30.0, 70.0), 2)),
+                payment_method="CREDIT_CARD",
+                country="US",
+                device_id=f"DEV_G_{rng.integers(1, 100)}",
+            ))
+
+    # Drift stream combines control base transactions + growth transactions (sorted chronologically)
+    txs_drift = sorted(txs_ctrl + growth_txs, key=lambda t: t.timestamp)
+    evs_drift = list(evs_ctrl)
 
     runner = DriftRunner()
     result = runner.run_paired_drift_experiment(
-        control_transactions=txs_ctrl_base + txs_ctrl_anom,
-        drift_transactions=txs_drift_base + txs_drift_anom,
+        control_transactions=txs_ctrl,
+        drift_transactions=txs_drift,
         control_ground_truth=evs_ctrl,
         drift_ground_truth=evs_drift,
         merchant_id="M_DRIFT_RUNNER",
@@ -261,7 +281,7 @@ def test_reusable_drift_runner_and_artifact_generation():
 
     # Independent reference rate verification: directly count raw drift transactions in unperturbed post-warmup window [6..30)
     raw_unperturbed_txs = [
-        t for t in (txs_drift_base + txs_drift_anom)
+        t for t in txs_drift
         if t.merchant_id == "M_DRIFT_RUNNER" and (st + timedelta(minutes=6)) <= t.timestamp < (st + timedelta(minutes=30))
     ]
     independent_reference_rate = len(raw_unperturbed_txs) / 24.0
@@ -304,19 +324,14 @@ def test_conflicting_duplicate_transactions_raise_value_error():
 
 
 def test_drift_runner_enforces_paired_contract_and_rejects_mismatched_inputs():
-    """Verify DriftRunner enforces pairing contract and rejects mismatched merchants, start times, durations, uncontrolled attributes, or GroundTruth."""
+    """Verify DriftRunner enforces pairing contract and rejects mismatched merchants, exact start/end times, durations, uncontrolled attributes, or GroundTruth."""
     from src.evaluation.drift import DriftRunner
 
     st = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
-    tx_m1_t0 = Transaction(transaction_id="tx_1", timestamp=st + timedelta(seconds=10), merchant_id="M_CTRL", customer_id="C1", amount=50.0, payment_method="CREDIT_CARD", country="US", device_id="D1")
-    tx_m1_t1 = Transaction(transaction_id="tx_2", timestamp=st + timedelta(minutes=1, seconds=10), merchant_id="M_CTRL", customer_id="C1", amount=50.0, payment_method="CREDIT_CARD", country="US", device_id="D1")
-
-    # Mismatched start time (starts at minute 1)
-    tx_drift_offset_start = Transaction(transaction_id="tx_3", timestamp=st + timedelta(minutes=1, seconds=10), merchant_id="M_CTRL", customer_id="C1", amount=50.0, payment_method="CREDIT_CARD", country="US", device_id="D1")
-    tx_drift_offset_end = Transaction(transaction_id="tx_4", timestamp=st + timedelta(minutes=2, seconds=10), merchant_id="M_CTRL", customer_id="C1", amount=50.0, payment_method="CREDIT_CARD", country="US", device_id="D1")
-
-    # Uncontrolled attribute drift (country altered)
-    tx_uncontrolled_geo = Transaction(transaction_id="tx_5", timestamp=st + timedelta(minutes=1, seconds=10), merchant_id="M_CTRL", customer_id="C1", amount=50.0, payment_method="CREDIT_CARD", country="HIGH_RISK_GEO", device_id="D1")
+    tx_ctrl_1 = Transaction(transaction_id="tx_1", timestamp=st + timedelta(seconds=10), merchant_id="M_CTRL", customer_id="C1", amount=50.0, payment_method="CREDIT_CARD", country="US", device_id="D1")
+    tx_ctrl_2 = Transaction(transaction_id="tx_2", timestamp=st + timedelta(minutes=1, seconds=20), merchant_id="M_CTRL", customer_id="C1", amount=75.0, payment_method="DEBIT_CARD", country="US", device_id="D1")
+    tx_ctrl_3 = Transaction(transaction_id="tx_3", timestamp=st + timedelta(minutes=2, seconds=30), merchant_id="M_CTRL", customer_id="C2", amount=100.0, payment_method="CREDIT_CARD", country="HIGH_RISK_GEO", device_id="D2")
+    ctrl_txs = [tx_ctrl_1, tx_ctrl_2, tx_ctrl_3]
 
     gt_1 = GroundTruthEvent(
         event_id="EVT-01",
@@ -345,28 +360,42 @@ def test_drift_runner_enforces_paired_contract_and_rejects_mismatched_inputs():
 
     # 1. Empty control stream -> ValueError
     with pytest.raises(ValueError, match="control_transactions is empty"):
-        runner.validate_paired_contract([], [tx_m1_t0], [gt_1], [gt_1], merchant_id="M_CTRL")
+        runner.validate_paired_contract([], ctrl_txs, [gt_1], [gt_1], merchant_id="M_CTRL")
 
     # 2. Merchant mismatch -> ValueError
     tx_m2 = Transaction(transaction_id="tx_m2", timestamp=st + timedelta(seconds=10), merchant_id="M_DRIFT", customer_id="C1", amount=50.0, payment_method="CREDIT_CARD", country="US", device_id="D1")
     with pytest.raises(ValueError, match="merchant 'M_CTRL' not found in drift stream"):
-        runner.validate_paired_contract([tx_m1_t0], [tx_m2], [gt_1], [gt_1], merchant_id="M_CTRL")
+        runner.validate_paired_contract(ctrl_txs, [tx_m2], [gt_1], [gt_1], merchant_id="M_CTRL")
 
-    # 3. Start time mismatch (control starts at 12:00, drift starts at 12:01) -> ValueError
-    with pytest.raises(ValueError, match="start time mismatch"):
-        runner.validate_paired_contract([tx_m1_t0, tx_m1_t1], [tx_drift_offset_start, tx_drift_offset_end], [gt_1], [gt_1], merchant_id="M_CTRL")
+    # 3. Exact start time mismatch (starts at 12:00:15 instead of 12:00:10 in the same minute bucket) -> ValueError
+    tx_drift_offset_start = Transaction(transaction_id="tx_1", timestamp=st + timedelta(seconds=15), merchant_id="M_CTRL", customer_id="C1", amount=50.0, payment_method="CREDIT_CARD", country="US", device_id="D1")
+    with pytest.raises(ValueError, match="exact start timestamp mismatch"):
+        runner.validate_paired_contract(ctrl_txs, [tx_drift_offset_start, tx_ctrl_2, tx_ctrl_3], [gt_1], [gt_1], merchant_id="M_CTRL")
 
-    # 4. Duration mismatch -> ValueError
-    with pytest.raises(ValueError, match="end time mismatch"):
-        runner.validate_paired_contract([tx_m1_t0, tx_m1_t1], [tx_m1_t0], [gt_1], [gt_1], merchant_id="M_CTRL")
+    # 4. Exact end time mismatch (ends at 12:02:45 instead of 12:02:30 in the same minute bucket) -> ValueError
+    tx_drift_offset_end = Transaction(transaction_id="tx_3", timestamp=st + timedelta(minutes=2, seconds=45), merchant_id="M_CTRL", customer_id="C2", amount=100.0, payment_method="CREDIT_CARD", country="HIGH_RISK_GEO", device_id="D2")
+    with pytest.raises(ValueError, match="exact end timestamp mismatch"):
+        runner.validate_paired_contract(ctrl_txs, [tx_ctrl_1, tx_ctrl_2, tx_drift_offset_end], [gt_1], [gt_1], merchant_id="M_CTRL")
 
-    # 5. Uncontrolled country attribute drift -> ValueError
-    with pytest.raises(ValueError, match="uncontrolled country attribute shift"):
-        runner.validate_paired_contract([tx_m1_t0, tx_m1_t1], [tx_m1_t0, tx_uncontrolled_geo], [gt_1], [gt_1], merchant_id="M_CTRL")
+    # 5. Swap countries between transactions while country set {"US", "HIGH_RISK_GEO"} is unchanged -> ValueError
+    tx_swap_country_1 = Transaction(transaction_id="tx_1", timestamp=st + timedelta(seconds=10), merchant_id="M_CTRL", customer_id="C1", amount=50.0, payment_method="CREDIT_CARD", country="HIGH_RISK_GEO", device_id="D1")
+    tx_swap_country_3 = Transaction(transaction_id="tx_3", timestamp=st + timedelta(minutes=2, seconds=30), merchant_id="M_CTRL", customer_id="C2", amount=100.0, payment_method="CREDIT_CARD", country="US", device_id="D2")
+    with pytest.raises(ValueError, match="uncontrolled country shift"):
+        runner.validate_paired_contract(ctrl_txs, [tx_swap_country_1, tx_ctrl_2, tx_swap_country_3], [gt_1], [gt_1], merchant_id="M_CTRL")
 
-    # 6. GroundTruth mismatch -> ValueError
+    # 6. Change individual payment method while payment method set is unchanged -> ValueError
+    tx_altered_pay = Transaction(transaction_id="tx_2", timestamp=st + timedelta(minutes=1, seconds=20), merchant_id="M_CTRL", customer_id="C1", amount=75.0, payment_method="CREDIT_CARD", country="US", device_id="D1")
+    with pytest.raises(ValueError, match="uncontrolled payment method shift"):
+        runner.validate_paired_contract(ctrl_txs, [tx_ctrl_1, tx_altered_pay, tx_ctrl_3], [gt_1], [gt_1], merchant_id="M_CTRL")
+
+    # 7. Alter individual transaction amount -> ValueError
+    tx_altered_amt = Transaction(transaction_id="tx_1", timestamp=st + timedelta(seconds=10), merchant_id="M_CTRL", customer_id="C1", amount=500.0, payment_method="CREDIT_CARD", country="US", device_id="D1")
+    with pytest.raises(ValueError, match="uncontrolled amount shift"):
+        runner.validate_paired_contract(ctrl_txs, [tx_altered_amt, tx_ctrl_2, tx_ctrl_3], [gt_1], [gt_1], merchant_id="M_CTRL")
+
+    # 8. GroundTruth mismatch -> ValueError
     with pytest.raises(ValueError, match="GroundTruth event ID 'EVT-02' missing in control GT"):
-        runner.validate_paired_contract([tx_m1_t0, tx_m1_t1], [tx_m1_t0, tx_m1_t1], [gt_1], [gt_2_mismatched], merchant_id="M_CTRL")
+        runner.validate_paired_contract(ctrl_txs, ctrl_txs, [gt_1], [gt_2_mismatched], merchant_id="M_CTRL")
 
 
 
