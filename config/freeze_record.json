@@ -1,24 +1,24 @@
 {
   "detector_version": "1.0.0",
-  "config_hash": "be93478505d4504860f10cd528252ffe737cfa97fec023f0013ec5037ed939d2",
-  "development_dataset_hash": "c99d99eb3478f34aba9e309c87e403632560cee44da57124e2c1b75640120028",
+  "config_hash": "4b70ee788eb888339498669fa65cfb30d59ffd8a59e1a01f493704d0b3c88920",
+  "development_dataset_hash": "54cc76f1d67a41fd14e61349b0636bc6f4f73f75b8ed67064e1cd96193d7e49f",
   "seed": 42,
-  "selected_scorer": "HybridEWMAScorer",
+  "selected_scorer": "StaticThresholdScorer",
   "all_selected_parameters": {
-    "scorer": "HybridEWMAScorer",
-    "alpha": 0.3,
-    "static_threshold": 3.5,
-    "persistence": 2,
+    "scorer": "StaticThresholdScorer",
+    "alpha": null,
+    "static_threshold": 1.0,
+    "persistence": 1,
     "cooldown_windows": 5,
     "min_window_count": 5,
-    "signal_config": [
-      "volume",
-      "velocity",
-      "amount",
-      "behavioral"
-    ],
+    "signal_weights": {
+      "volume": 1.0,
+      "velocity": 1.0,
+      "amount": 1.0,
+      "behavioral": 1.0
+    },
     "detector_version": "1.0.0"
   },
-  "selection_rationale": "Selected optimal operating point minimizing total cost and maximizing F1 on development benchmark data.",
+  "selection_rationale": "Selected optimal detector operating point minimizing total cost and maximizing F1 on development benchmark data.",
   "freeze_timestamp": "2026-01-07T00:00:00Z"
 }

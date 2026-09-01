@@ -2,24 +2,28 @@
 
 Validates:
 1. Scorer Strategy Set:
-   - StaticThresholdScorer: Genuine strategy calculating fixed threshold limits.
-   - StatisticalDeviationScorer: Standardized deviation magnitude M_k = |f_k - exp_k| / scale_k, S_raw = max_k M_k.
+   - StaticThresholdScorer: Genuine strategy calculating fixed threshold limits and weighted ratios.
+   - StatisticalDeviationScorer: Standardized deviation magnitude M_k = (|f_k - exp_k| / scale_k) * weight_k, S_raw = max_k M_k.
    - HybridEWMAScorer: Standardized deviation smoothed via EWMA S_ewma = alpha * S_raw + (1-alpha) * S_ewma_prev.
-2. Common Scorer Contract:
+2. Signal Weights Selection & Mathematical Correctness:
+   - Evaluates and verifies feature-group weighting across all 3 scorers.
+3. Common Scorer Contract:
    - Produces valid RiskScore objects.
    - Evidence state mapping: INSUFFICIENT -> score=None, conf=0.0; DEGRADED -> conf=0.5; SUFFICIENT -> conf=1.0.
    - Merchant isolation: independent state per merchant.
    - Deterministic replay.
-3. Development Parameter Sweeps & Strategy Comparison:
+4. Development Parameter Sweeps & Strategy Comparison:
    - Alpha sweep over {0.2, 0.3, 0.5, 0.7, 0.9}.
    - Persistence sweep over {1, 2, 3}.
-   - Threshold sweep over operating points.
+   - Threshold sweep over complete operating point grid [1.0, 10.0] with step 0.5.
    - Strategy comparison (Static vs Statistical vs Hybrid) with complete metric reporting:
      TP, FP, FN, Precision, Recall, F1, Median Latency, P95 Latency, FP Cost, FN Exposure, Total Cost.
-4. Strict Development-Only Firewall:
+5. Strict Development-Only Firewall:
    - Attempts to pass holdout paths to sweeps raise HoldoutAccessViolationError.
-5. Final Operating-Point Selection & Freeze Record:
-   - Reproducible selection minimizing Total Cost on development benchmark dataset.
+6. Final Operating-Point Selection Procedure:
+   - Tests selection procedure mathematically: verifies selected configuration is the exact argmin(total_cost) from the search space without hardcoded expectations.
+   - Derives winning scorer, alpha, threshold, persistence, cooldown, evidence parameters, and signal weights.
+7. Immutable Freeze Record & Post-Freeze Override Protection:
    - Durable FreezeRecord creation with deterministic config_hash and development_dataset_hash.
    - Post-freeze override protection (mutation rejects verification).
 """
@@ -49,6 +53,7 @@ from src.evaluation.sweeps import (
     run_threshold_operating_point_sweep,
     select_final_development_configuration,
     HoldoutAccessViolationError,
+    CANDIDATE_SIGNAL_WEIGHTS,
 )
 from src.evaluation.freeze import (
     FreezeRecord,
@@ -64,19 +69,24 @@ from src.stream.clock import VirtualClock
 
 
 # =====================================================================
-# 1. Scorer Strategy Set & Mathematical Correctness
+# 1. Scorer Strategy Set, Signal Weights & Mathematical Correctness
 # =====================================================================
 
 def test_static_threshold_scorer_mathematical_correctness():
-    """Verify StaticThresholdScorer computes static threshold ratios against fixed limits."""
+    """Verify StaticThresholdScorer computes static threshold ratios against fixed limits and signal weights."""
     st = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
-    scorer = StaticThresholdScorer(static_threshold=3.5, static_limits={"volume": 20.0, "velocity": 20.0})
+    weights = {"volume": 2.0, "velocity": 1.0, "amount": 1.0, "behavioral": 1.0}
+    scorer = StaticThresholdScorer(
+        static_threshold=3.5,
+        static_limits={"volume": 20.0, "velocity": 20.0},
+        signal_weights=weights,
+    )
 
     feat = FeatureSnapshot(
         merchant_id="M1",
         timestamp=st,
-        volume=30.0,  # 30 / 20 * 3.5 = 5.25
-        velocity=10.0,  # 10 / 20 * 3.5 = 1.75
+        volume=30.0,  # 30 / 20 * 3.5 * 2.0 = 10.5
+        velocity=10.0,  # 10 / 20 * 3.5 * 1.0 = 1.75
         amount_statistics={"mean_amount": 50.0, "std_amount": 5.0, "median_amount": 50.0, "mad_amount": 3.0, "total_amount": 1000.0, "min_amount": 40.0, "max_amount": 60.0},
         unique_customers=10,
         unique_devices=8,
@@ -93,22 +103,23 @@ def test_static_threshold_scorer_mathematical_correctness():
     )
 
     risk = scorer.calculate_score(feat, base, signal_mask=["volume", "velocity"])
-    assert risk.score == pytest.approx(5.25, abs=1e-5)
+    assert risk.score == pytest.approx(10.5, abs=1e-5)
     assert risk.confidence == 1.0
     assert risk.data_quality == "GOOD"
     assert "volume" in risk.triggered_signals
     assert "velocity" not in risk.triggered_signals
 
 
-def test_statistical_deviation_scorer_mathematical_correctness():
-    """Verify StatisticalDeviationScorer computes standardized deviation M_k = |f_k - exp_k| / scale_k."""
+def test_statistical_deviation_scorer_mathematical_correctness_and_weights():
+    """Verify StatisticalDeviationScorer computes weighted standardized deviation M_k = (|f_k - exp_k| / scale_k) * w_k."""
     st = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
-    scorer = StatisticalDeviationScorer(static_threshold=3.5)
+    weights = {"volume": 1.5, "velocity": 1.0, "amount": 1.0, "behavioral": 1.0}
+    scorer = StatisticalDeviationScorer(static_threshold=3.5, signal_weights=weights)
 
     feat = FeatureSnapshot(
         merchant_id="M1",
         timestamp=st,
-        volume=20.0,
+        volume=20.0,  # (|20-10|/2)*1.5 = 7.5
         velocity=10.0,
         amount_statistics={"mean_amount": 50.0, "std_amount": 5.0, "median_amount": 50.0, "mad_amount": 3.0, "total_amount": 500.0, "min_amount": 40.0, "max_amount": 60.0},
         unique_customers=5,
@@ -134,8 +145,7 @@ def test_statistical_deviation_scorer_mathematical_correctness():
     )
 
     risk = scorer.calculate_score(feat, base)
-    # volume: |20 - 10| / 2 = 5.0, max is 5.0
-    assert risk.score == pytest.approx(5.0, abs=1e-5)
+    assert risk.score == pytest.approx(7.5, abs=1e-5)
     assert risk.confidence == 1.0
     assert "volume" in risk.triggered_signals
 
@@ -233,8 +243,8 @@ def test_common_scorer_contract_and_merchant_isolation():
     r_m1 = ewma_scorer.calculate_score(feat_burst, base_suf_m1)
     r_m2 = ewma_scorer.calculate_score(feat_normal, base_suf_m2)
 
-    assert r_m1.score == pytest.approx(10.0, abs=1e-5)  # |30-10|/2 = 10
-    assert r_m2.score == pytest.approx(0.0, abs=1e-5)   # |10-10|/2 = 0
+    assert r_m1.score == pytest.approx(10.0, abs=1e-5)
+    assert r_m2.score == pytest.approx(0.0, abs=1e-5)
 
 
 # =====================================================================
@@ -284,8 +294,8 @@ def test_strategy_comparison_complete_metrics(dev_benchmark_stream):
         assert r["total_cost"] >= 0.0
 
 
-def test_alpha_persistence_threshold_sweeps(dev_benchmark_stream):
-    """Verify alpha, persistence, and threshold sweeps execute cleanly on development data."""
+def test_alpha_persistence_and_complete_threshold_grid_sweeps(dev_benchmark_stream):
+    """Verify alpha, persistence, and complete threshold sweeps execute cleanly on development data."""
     txs, events = dev_benchmark_stream
 
     # 1. Alpha sweep {0.2, 0.3, 0.5, 0.7, 0.9}
@@ -302,11 +312,12 @@ def test_alpha_persistence_threshold_sweeps(dev_benchmark_stream):
         assert res["persistence"] in [1, 2, 3]
         assert res["total_cost"] is not None
 
-    # 3. Threshold sweep
-    th_results = run_threshold_operating_point_sweep(txs, events, thresholds=[2.5, 3.0, 3.5, 4.0])
-    assert len(th_results) == 4
+    # 3. Complete operating point threshold sweep [1.0, 10.0] step 0.5 (19 points)
+    th_grid = [float(t) for t in np.arange(1.0, 10.5, 0.5)]
+    assert len(th_grid) == 19
+    th_results = run_threshold_operating_point_sweep(txs, events, thresholds=th_grid)
+    assert len(th_results) == 19
     for res in th_results:
-        assert res["threshold"] in [2.5, 3.0, 3.5, 4.0]
         assert res["total_cost"] is not None
 
 
@@ -331,91 +342,91 @@ def test_strict_development_only_enforcement(dev_benchmark_stream):
 
 
 # =====================================================================
-# 4. Final Development Selection & Immutable Freeze Record
+# 4. Final Development Selection Procedure & argmin Verification
 # =====================================================================
 
-def test_final_development_selection_and_freeze_record_creation(dev_benchmark_stream, tmp_path):
-    """Verify optimal configuration selection and durable FreezeRecord creation."""
+def test_selection_procedure_derives_argmin_without_hardcoded_answers(dev_benchmark_stream):
+    """Verify selection procedure mathematically derives the optimal operating point from development data."""
     txs, events = dev_benchmark_stream
 
-    # 1. Execute selection procedure
-    selected = select_final_development_configuration(txs, events)
-    assert selected["selected_scorer"] == "HybridEWMAScorer"
-    assert selected["selected_alpha"] in [0.2, 0.3, 0.5, 0.7, 0.9]
-    assert selected["selected_persistence"] in [1, 2, 3]
-    assert selected["selected_threshold"] > 0.0
+    # Evaluate across a representative grid of thresholds
+    selected = select_final_development_configuration(
+        txs,
+        events,
+        thresholds=[2.5, 3.0, 3.5, 4.0, 4.5, 5.0],
+        alphas=[0.2, 0.3, 0.5, 0.7, 0.9],
+        persistences=[1, 2, 3],
+    )
 
-    # 2. Create FreezeRecord
+    all_candidates = selected["all_evaluated_candidates"]
+    assert len(all_candidates) > 0
+
+    # Find the true argmin across all evaluated candidates in the search space
+    min_cost = min(c["score_tuple"][0] for c in all_candidates)
+    qualifying = [c for c in all_candidates if c["score_tuple"][0] == min_cost]
+    max_f1 = max(-c["score_tuple"][1] for c in qualifying)
+    best_qualifying = [c for c in qualifying if -c["score_tuple"][1] == max_f1]
+    min_lat = min(c["score_tuple"][2] for c in best_qualifying)
+    expected_best = next(c for c in best_qualifying if c["score_tuple"][2] == min_lat)
+
+    # Prove selected configuration equals the true argmin of the declared criteria
+    assert selected["score_tuple"] == expected_best["score_tuple"]
+    assert selected["selected_scorer"] in ["StaticThresholdScorer", "StatisticalDeviationScorer", "HybridEWMAScorer"]
+    assert selected["selected_persistence"] in [1, 2, 3]
+    assert selected["selected_threshold"] in [2.5, 3.0, 3.5, 4.0, 4.5, 5.0]
+    assert selected["selected_signal_weights"] in CANDIDATE_SIGNAL_WEIGHTS.values()
+
+
+# =====================================================================
+# 5. Freeze Record Creation, Dataset Hash & Override Protection
+# =====================================================================
+
+def test_freeze_record_integrity_and_override_protection(dev_benchmark_stream, tmp_path):
+    """Verify hash determinism, comprehensive dataset hash, and post-freeze override rejection."""
+    txs, events = dev_benchmark_stream
+
+    selected = select_final_development_configuration(
+        txs,
+        events,
+        thresholds=[2.5, 3.0, 3.5, 4.0],
+        alphas=[0.3, 0.5],
+        persistences=[1, 2],
+    )
+
     record = create_freeze_record(
         selected_scorer=selected["selected_scorer"],
-        selected_parameters={
-            "scorer": selected["selected_scorer"],
-            "alpha": selected["selected_alpha"],
-            "static_threshold": selected["selected_threshold"],
-            "persistence": selected["selected_persistence"],
-            "cooldown_windows": selected["selected_cooldown"],
-            "min_window_count": selected["selected_evidence_params"]["min_window_count"],
-            "signal_config": selected["selected_signal_config"],
-            "detector_version": "1.0.0",
-        },
+        selected_parameters=selected["all_selected_parameters"],
         development_transactions=txs,
         seed=42,
         detector_version="1.0.0",
-        selection_rationale="Optimal development operating point minimizing total cost and maximizing F1.",
+        selection_rationale="Derived optimal configuration minimizing total cost on development benchmark dataset.",
     )
 
-    assert record.detector_version == "1.0.0"
-    assert record.seed == 42
+    # 1. Verify exact hash integrity
+    assert record.verify_config(selected["all_selected_parameters"]) is True
+    assert record.verify_dataset(txs, seed=42) is True
     assert len(record.config_hash) == 64
     assert len(record.development_dataset_hash) == 64
 
-    # 3. Save and reload FreezeRecord
-    freeze_file = tmp_path / "freeze_record.json"
-    save_freeze_record(record, freeze_file)
-    loaded = load_freeze_record(freeze_file)
-
-    assert loaded.config_hash == record.config_hash
-    assert loaded.development_dataset_hash == record.development_dataset_hash
-    assert loaded.all_selected_parameters == record.all_selected_parameters
-
-
-def test_freeze_record_integrity_and_override_protection(dev_benchmark_stream):
-    """Verify hash determinism and post-freeze override rejection."""
-    txs, _ = dev_benchmark_stream
-
-    base_params = {
-        "scorer": "HybridEWMAScorer",
-        "alpha": 0.3,
-        "static_threshold": 3.5,
-        "persistence": 2,
-        "cooldown_windows": 5,
-        "min_window_count": 5,
-        "detector_version": "1.0.0",
-    }
-
-    record = create_freeze_record(
-        selected_scorer="HybridEWMAScorer",
-        selected_parameters=base_params,
-        development_transactions=txs,
-        seed=42,
-    )
-
-    # 1. Same config -> same hash
-    assert record.verify_config(base_params) is True
-    assert record.verify_dataset(txs, seed=42) is True
-
     # 2. Mutated config -> hash mismatch (override rejected!)
-    mutated_params = dict(base_params)
-    mutated_params["static_threshold"] = 4.0
+    mutated_params = dict(selected["all_selected_parameters"])
+    mutated_params["static_threshold"] = 9.9
     assert record.verify_config(mutated_params) is False
 
-    # 3. Mutated alpha -> hash mismatch
-    mutated_alpha = dict(base_params)
-    mutated_alpha["alpha"] = 0.5
-    assert record.verify_config(mutated_alpha) is False
+    # 3. Mutated signal weights -> hash mismatch (override rejected!)
+    mutated_weights_params = dict(selected["all_selected_parameters"])
+    mutated_weights_params["signal_weights"] = {"volume": 99.0}
+    assert record.verify_config(mutated_weights_params) is False
 
     # 4. Mutated dataset / seed -> dataset hash mismatch
     assert record.verify_dataset(txs, seed=999) is False
+
+    # 5. Save and reload
+    freeze_file = tmp_path / "freeze_record.json"
+    save_freeze_record(record, freeze_file)
+    loaded = load_freeze_record(freeze_file)
+    assert loaded.config_hash == record.config_hash
+    assert loaded.development_dataset_hash == record.development_dataset_hash
 
 
 def test_canonical_freeze_record_file_exists_and_valid():
@@ -425,7 +436,7 @@ def test_canonical_freeze_record_file_exists_and_valid():
 
     record = load_freeze_record(freeze_path)
     assert record.detector_version == "1.0.0"
-    assert record.selected_scorer == "HybridEWMAScorer"
+    assert record.selected_scorer in ["StaticThresholdScorer", "StatisticalDeviationScorer", "HybridEWMAScorer"]
     assert record.seed == 42
     assert len(record.config_hash) == 64
     assert len(record.development_dataset_hash) == 64

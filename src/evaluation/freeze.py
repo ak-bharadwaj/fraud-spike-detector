@@ -40,7 +40,7 @@ def compute_dataset_hash(transactions: Sequence[Transaction], seed: Optional[int
     if seed is not None:
         hasher.update(f"seed:{seed}\n".encode("utf-8"))
     for tx in transactions:
-        tx_repr = f"{tx.transaction_id}:{tx.timestamp.isoformat()}:{tx.merchant_id}:{tx.amount:.2f}:{tx.payment_method}:{tx.device_id}\n"
+        tx_repr = f"{tx.transaction_id}:{tx.timestamp.isoformat()}:{tx.merchant_id}:{tx.customer_id}:{tx.amount:.2f}:{tx.payment_method}:{tx.country}:{tx.device_id}\n"
         hasher.update(tx_repr.encode("utf-8"))
     return hasher.hexdigest()
 

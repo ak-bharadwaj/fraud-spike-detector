@@ -46,15 +46,17 @@ class StreamingDetectorPipeline:
         config: Optional[FrozenDetectorConfig] = None,
         scorer: Optional[Any] = None,
         signal_mask: Optional[Sequence[str]] = None,
+        signal_weights: Optional[Dict[str, float]] = None,
         db_path: Union[str, Path] = ":memory:",
         clock: Optional[VirtualClock] = None,
     ):
-        """Initialize pipeline components with frozen configuration, scorer, optional signal_mask, and SQLite audit store."""
+        """Initialize pipeline components with frozen configuration, scorer, optional signal_mask, signal_weights, and SQLite audit store."""
         self.config = config if config is not None else FrozenDetectorConfig()
         self.clock = clock or VirtualClock()
         self.bus = TimeOrderedEventBus(clock=self.clock)
         self.audit_store = SQLiteAuditStore(db_path=db_path)
         self.signal_mask = list(signal_mask) if signal_mask is not None else None
+        self.signal_weights = dict(signal_weights) if signal_weights is not None else None
 
         self.feature_engine = FeatureEngine()
         self.baseline_engine = BaselineEngine(
@@ -148,10 +150,12 @@ class StreamingDetectorPipeline:
             if hasattr(self.scorer, "calculate_score"):
                 import inspect
                 sig = inspect.signature(self.scorer.calculate_score)
+                kwargs = {}
                 if "signal_mask" in sig.parameters:
-                    risk_score = self.scorer.calculate_score(feat_snap, base_snap, signal_mask=self.signal_mask)
-                else:
-                    risk_score = self.scorer.calculate_score(feat_snap, base_snap)
+                    kwargs["signal_mask"] = self.signal_mask
+                if "signal_weights" in sig.parameters:
+                    kwargs["signal_weights"] = self.signal_weights
+                risk_score = self.scorer.calculate_score(feat_snap, base_snap, **kwargs)
             else:
                 risk_score = self.scorer(feat_snap, base_snap)
         except Exception as err:

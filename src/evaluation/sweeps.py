@@ -9,28 +9,44 @@ Key Invariants:
 - Parameter sweeps:
   - alpha: {0.2, 0.3, 0.5, 0.7, 0.9}
   - persistence: {1, 2, 3}
-  - threshold: operating-point sweep over [1.0, 10.0] with step 0.5
+  - threshold: complete operating-point sweep over [1.0, 10.0] with step 0.5
+  - signal weights: candidate feature group weight vectors
 - Complete metric reporting for all candidates:
   - TP, FP, FN, Precision, Recall, F1, Median Latency, P95 Latency, FP Cost, FN Exposure, Total Cost.
 - Selection procedure:
+  - Derives winning scorer, alpha, threshold, persistence, cooldown, and signal weights
   - Minimizes Total Cost (FP Cost + FN Exposure) with tie-breaking on higher F1 and lower latency.
 """
 
 from typing import List, Dict, Any, Optional, Sequence, Tuple
 from pathlib import Path
+from datetime import datetime, timezone, timedelta
 import numpy as np
 
 from src.contracts.contracts import (
     Transaction,
-    GroundTruthEvent,
+    FeatureSnapshot,
+    BaselineSnapshot,
+    RiskScore,
+    Alert,
     FrozenDetectorConfig,
     EvaluationMetrics,
 )
 from src.detector.pipeline import StreamingDetectorPipeline
+from src.features.feature_engine import FeatureEngine
+from src.baseline.baseline_engine import BaselineEngine
+from src.state.alert_state_machine import AlertStateMachine
 from src.scoring.static import StaticThresholdScorer
 from src.scoring.statistical import StatisticalDeviationScorer
 from src.scoring.hybrid_ewma import HybridEWMAScorer
 from src.evaluation.evaluator import AnomalyEvaluator
+
+CANDIDATE_SIGNAL_WEIGHTS = {
+    "EQUAL": {"volume": 1.0, "velocity": 1.0, "amount": 1.0, "behavioral": 1.0},
+    "VOLUME_VELOCITY_HEAVY": {"volume": 1.5, "velocity": 1.5, "amount": 1.0, "behavioral": 1.0},
+    "AMOUNT_HEAVY": {"volume": 1.0, "velocity": 1.0, "amount": 1.5, "behavioral": 1.0},
+    "BEHAVIORAL_HEAVY": {"volume": 1.0, "velocity": 1.0, "amount": 1.0, "behavioral": 1.5},
+}
 
 
 class HoldoutAccessViolationError(PermissionError):
@@ -209,57 +225,238 @@ def run_threshold_operating_point_sweep(
     return results
 
 
+def _extract_stream_snapshots(
+    transactions: Sequence[Transaction],
+    min_window_count: int = 5,
+) -> List[Tuple[FeatureSnapshot, BaselineSnapshot]]:
+    """Helper to extract (FeatureSnapshot, BaselineSnapshot) sequence for fast sweep evaluation."""
+    feature_engine = FeatureEngine()
+    baseline_engine = BaselineEngine(min_history_count=min_window_count, min_window_count=min_window_count)
+
+    sorted_txs = sorted(transactions, key=lambda t: t.timestamp)
+    if not sorted_txs:
+        return []
+
+    merchant_buffers: Dict[str, List[Transaction]] = {}
+    merchant_window_starts: Dict[str, datetime] = {}
+    snapshots: List[Tuple[FeatureSnapshot, BaselineSnapshot]] = []
+
+    for tx in sorted_txs:
+        m_id = tx.merchant_id
+        if m_id not in merchant_window_starts:
+            merchant_window_starts[m_id] = tx.timestamp.replace(second=0, microsecond=0)
+            merchant_buffers[m_id] = []
+
+        w_start = merchant_window_starts[m_id]
+        w_end = w_start + timedelta(minutes=1)
+
+        while tx.timestamp >= w_end:
+            buf = merchant_buffers.get(m_id, [])
+            feat = feature_engine.extract_snapshot(m_id, buf, w_start, w_end)
+            base = baseline_engine.get_baseline(m_id, feat)
+            snapshots.append((feat, base))
+            baseline_engine.update(feat)
+            merchant_buffers[m_id] = []
+            merchant_window_starts[m_id] = w_end
+            w_start = w_end
+            w_end = w_start + timedelta(minutes=1)
+
+        merchant_buffers[m_id].append(tx)
+
+    for m_id in sorted(merchant_buffers.keys()):
+        buf = merchant_buffers[m_id]
+        w_start = merchant_window_starts[m_id]
+        w_end = w_start + timedelta(minutes=1)
+        feat = feature_engine.extract_snapshot(m_id, buf, w_start, w_end)
+        base = baseline_engine.get_baseline(m_id, feat)
+        snapshots.append((feat, base))
+        baseline_engine.update(feat)
+
+    return snapshots
+
+
 def select_final_development_configuration(
     transactions: Sequence[Transaction],
     ground_truth_events: Sequence[GroundTruthEvent],
+    thresholds: Optional[Sequence[float]] = None,
+    alphas: Sequence[float] = (0.2, 0.3, 0.5, 0.7, 0.9),
+    persistences: Sequence[int] = (1, 2, 3),
+    weight_candidates: Optional[Dict[str, Dict[str, float]]] = None,
     data_path: Optional[str] = None,
 ) -> Dict[str, Any]:
-    """Select optimal detector configuration from development grid search minimizing Total Cost.
+    """Select optimal detector configuration from development grid search across ALL strategies minimizing Total Cost.
 
-    Grid:
-    - Scorer: HybridEWMAScorer (robust statistical deviation with exponential smoothing)
-    - Alpha: {0.2, 0.3, 0.5, 0.7, 0.9}
+    Full Search Space:
+    - Scorers:
+      1. StaticThresholdScorer
+      2. StatisticalDeviationScorer
+      3. HybridEWMAScorer
+    - Alphas: {0.2, 0.3, 0.5, 0.7, 0.9} (for Hybrid)
     - Persistence: {1, 2, 3}
-    - Threshold: {2.5, 3.0, 3.5, 4.0, 4.5, 5.0}
+    - Thresholds: [1.0, 10.0] step 0.5
+    - Signal Weights: Equal, Volume/Velocity Heavy, Amount Heavy, Behavioral Heavy
+    - Cooldown: 5
+    - Evidence min_window_count: 5
     """
     _verify_development_only_data(data_path)
     evaluator = AnomalyEvaluator()
 
+    if thresholds is None:
+        threshold_grid = [float(t) for t in np.arange(1.0, 10.5, 0.5)]
+    else:
+        threshold_grid = [float(t) for t in thresholds]
+
+    weights_dict = weight_candidates or CANDIDATE_SIGNAL_WEIGHTS
+    snapshots = _extract_stream_snapshots(transactions, min_window_count=5)
+
     best_candidate: Optional[Dict[str, Any]] = None
     best_score_tuple = (float("inf"), -1.0, float("inf"))  # (total_cost, -f1_score, median_latency)
+    all_evaluated: List[Dict[str, Any]] = []
 
-    for alpha in [0.2, 0.3, 0.5, 0.7, 0.9]:
-        for p in [1, 2, 3]:
-            for th in [2.5, 3.0, 3.5, 4.0, 4.5, 5.0]:
-                cfg = FrozenDetectorConfig(
-                    static_threshold=th,
-                    ewma_alpha=alpha,
-                    persistence=p,
-                    cooldown_windows=5,
-                    min_window_count=5,
-                    detector_version="1.0.0",
-                )
-                scorer = HybridEWMAScorer(alpha=alpha, static_threshold=th)
-                pipeline = StreamingDetectorPipeline(config=cfg, scorer=scorer, db_path=":memory:")
-                alerts = pipeline.process_transactions(transactions)
+    # 1. Search StaticThresholdScorer
+    for w_name, weights in weights_dict.items():
+        for th in threshold_grid:
+            scorer = StaticThresholdScorer(static_threshold=th, signal_weights=weights)
+            # Precompute risk scores for stream
+            risk_scores = [
+                (feat.merchant_id, feat.timestamp, scorer.calculate_score(feat, base, signal_weights=weights))
+                for feat, base in snapshots
+            ]
+            for p in persistences:
+                sm = AlertStateMachine(persistence=p, cooldown_windows=5, static_threshold=th)
+                alerts = []
+                for m_id, ts, rs in risk_scores:
+                    _, alt = sm.process_score(m_id, ts, rs)
+                    if alt is not None:
+                        alerts.append(alt)
                 m = evaluator.evaluate(alerts=alerts, ground_truth_events=list(ground_truth_events))
 
                 tot_cost = m.total_cost if m.total_cost is not None else float("inf")
                 lat = m.median_latency_seconds if m.median_latency_seconds is not None else float("inf")
                 score_tuple = (tot_cost, -m.f1_score, lat)
 
+                cand = {
+                    "selected_scorer": "StaticThresholdScorer",
+                    "selected_alpha": None,
+                    "selected_threshold": th,
+                    "selected_persistence": p,
+                    "selected_cooldown": 5,
+                    "selected_evidence_params": {"min_window_count": 5},
+                    "selected_signal_weights": weights,
+                    "all_selected_parameters": {
+                        "scorer": "StaticThresholdScorer",
+                        "alpha": None,
+                        "static_threshold": th,
+                        "persistence": p,
+                        "cooldown_windows": 5,
+                        "min_window_count": 5,
+                        "signal_weights": weights,
+                        "detector_version": "1.0.0",
+                    },
+                    "metrics": m,
+                    "score_tuple": score_tuple,
+                }
+                all_evaluated.append(cand)
                 if score_tuple < best_score_tuple or best_candidate is None:
                     best_score_tuple = score_tuple
-                    best_candidate = {
+                    best_candidate = cand
+
+    # 2. Search StatisticalDeviationScorer
+    for w_name, weights in weights_dict.items():
+        for th in threshold_grid:
+            scorer = StatisticalDeviationScorer(static_threshold=th, signal_weights=weights)
+            risk_scores = [
+                (feat.merchant_id, feat.timestamp, scorer.calculate_score(feat, base, signal_weights=weights))
+                for feat, base in snapshots
+            ]
+            for p in persistences:
+                sm = AlertStateMachine(persistence=p, cooldown_windows=5, static_threshold=th)
+                alerts = []
+                for m_id, ts, rs in risk_scores:
+                    _, alt = sm.process_score(m_id, ts, rs)
+                    if alt is not None:
+                        alerts.append(alt)
+                m = evaluator.evaluate(alerts=alerts, ground_truth_events=list(ground_truth_events))
+
+                tot_cost = m.total_cost if m.total_cost is not None else float("inf")
+                lat = m.median_latency_seconds if m.median_latency_seconds is not None else float("inf")
+                score_tuple = (tot_cost, -m.f1_score, lat)
+
+                cand = {
+                    "selected_scorer": "StatisticalDeviationScorer",
+                    "selected_alpha": None,
+                    "selected_threshold": th,
+                    "selected_persistence": p,
+                    "selected_cooldown": 5,
+                    "selected_evidence_params": {"min_window_count": 5},
+                    "selected_signal_weights": weights,
+                    "all_selected_parameters": {
+                        "scorer": "StatisticalDeviationScorer",
+                        "alpha": None,
+                        "static_threshold": th,
+                        "persistence": p,
+                        "cooldown_windows": 5,
+                        "min_window_count": 5,
+                        "signal_weights": weights,
+                        "detector_version": "1.0.0",
+                    },
+                    "metrics": m,
+                    "score_tuple": score_tuple,
+                }
+                all_evaluated.append(cand)
+                if score_tuple < best_score_tuple or best_candidate is None:
+                    best_score_tuple = score_tuple
+                    best_candidate = cand
+
+    # 3. Search HybridEWMAScorer
+    for w_name, weights in weights_dict.items():
+        for alpha in alphas:
+            for th in threshold_grid:
+                scorer = HybridEWMAScorer(alpha=alpha, static_threshold=th, signal_weights=weights)
+                risk_scores = [
+                    (feat.merchant_id, feat.timestamp, scorer.calculate_score(feat, base, signal_weights=weights))
+                    for feat, base in snapshots
+                ]
+                for p in persistences:
+                    sm = AlertStateMachine(persistence=p, cooldown_windows=5, static_threshold=th)
+                    alerts = []
+                    for m_id, ts, rs in risk_scores:
+                        _, alt = sm.process_score(m_id, ts, rs)
+                        if alt is not None:
+                            alerts.append(alt)
+                    m = evaluator.evaluate(alerts=alerts, ground_truth_events=list(ground_truth_events))
+
+                    tot_cost = m.total_cost if m.total_cost is not None else float("inf")
+                    lat = m.median_latency_seconds if m.median_latency_seconds is not None else float("inf")
+                    score_tuple = (tot_cost, -m.f1_score, lat)
+
+                    cand = {
                         "selected_scorer": "HybridEWMAScorer",
                         "selected_alpha": alpha,
                         "selected_threshold": th,
                         "selected_persistence": p,
                         "selected_cooldown": 5,
                         "selected_evidence_params": {"min_window_count": 5},
-                        "selected_signal_config": ["volume", "velocity", "amount", "behavioral"],
-                        "config": cfg,
+                        "selected_signal_weights": weights,
+                        "all_selected_parameters": {
+                            "scorer": "HybridEWMAScorer",
+                            "alpha": alpha,
+                            "static_threshold": th,
+                            "persistence": p,
+                            "cooldown_windows": 5,
+                            "min_window_count": 5,
+                            "signal_weights": weights,
+                            "detector_version": "1.0.0",
+                        },
                         "metrics": m,
+                        "score_tuple": score_tuple,
                     }
+                    all_evaluated.append(cand)
+                    if score_tuple < best_score_tuple or best_candidate is None:
+                        best_score_tuple = score_tuple
+                        best_candidate = cand
+
+    if best_candidate is not None:
+        best_candidate["all_evaluated_candidates"] = all_evaluated
 
     return best_candidate or {}

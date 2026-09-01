@@ -2,8 +2,8 @@
 
 Key Invariants:
 - Fixed static threshold limits without adaptive robust scaling or EWMA smoothing.
-- Input mapping: (FeatureSnapshot, BaselineSnapshot, Optional[signal_mask]) -> RiskScore.
-- Scorer-level signal masking: allows evaluating FULL, -VOLUME, -VELOCITY, -AMOUNT, -BEHAVIORAL.
+- Input mapping: (FeatureSnapshot, BaselineSnapshot, Optional[signal_mask], Optional[signal_weights]) -> RiskScore.
+- Scorer-level signal masking and weighting: allows evaluating feature subsets and weight vectors.
 - Produces valid RiskScore with explicit confidence and data quality mapping:
   - INSUFFICIENT: score = None, confidence = 0.0, triggered_signals = [].
   - DEGRADED: score = float(S_static), confidence = 0.5, data_quality = "DEGRADED".
@@ -51,17 +51,20 @@ class StaticThresholdScorer:
         self,
         static_threshold: float = 3.5,
         static_limits: Optional[Dict[str, float]] = None,
+        signal_weights: Optional[Dict[str, float]] = None,
     ):
         if static_threshold <= 0.0:
             raise ValueError(f"static_threshold must be positive, got {static_threshold}")
         self.static_threshold = float(static_threshold)
         self.static_limits = dict(static_limits if static_limits is not None else DEFAULT_STATIC_LIMITS)
+        self.signal_weights = dict(signal_weights) if signal_weights is not None else None
 
     def calculate_score(
         self,
         feature_snapshot: FeatureSnapshot,
         baseline_snapshot: BaselineSnapshot,
         signal_mask: Optional[Sequence[str]] = None,
+        signal_weights: Optional[Dict[str, float]] = None,
     ) -> RiskScore:
         """Calculate RiskScore from feature_snapshot against fixed static limits."""
         # 1. Handle INSUFFICIENT evidence state
@@ -74,13 +77,16 @@ class StaticThresholdScorer:
                 data_quality=dq,
             )
 
+        active_weights = signal_weights if signal_weights is not None else self.signal_weights
+
         # 2. Compute static ratio magnitudes for all active features
         m_magnitudes: Dict[str, float] = {}
 
         for feat_name, limit_val in self.static_limits.items():
+            grp = FEATURE_GROUP_MAP.get(feat_name, feat_name)
+
             # Apply scorer-level signal mask if specified
             if signal_mask is not None:
-                grp = FEATURE_GROUP_MAP.get(feat_name, feat_name)
                 if feat_name not in signal_mask and grp not in signal_mask:
                     continue
 
@@ -98,6 +104,12 @@ class StaticThresholdScorer:
 
             # Static magnitude normalized to static_threshold scale
             m_k = (f_val / limit_val) * self.static_threshold
+
+            # Apply signal weight if configured
+            if active_weights is not None:
+                w = float(active_weights.get(feat_name, active_weights.get(grp, 1.0)))
+                m_k *= w
+
             m_magnitudes[feat_name] = m_k
 
         # 3. Maximum deviation aggregation: S = max_k M_k

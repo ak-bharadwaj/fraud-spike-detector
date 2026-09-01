@@ -2,8 +2,8 @@
 
 Key Invariants:
 - Monitored feature mapping: maps all required features from FeatureSnapshot to BaselineSnapshot expected values and scales.
-- Scorer-level signal masking: filters candidate deviations inside the scorer interface without modifying baseline calculations.
-- Standardized deviation: M_k = |observed_k - expected_k| / robust_scale_k.
+- Scorer-level signal masking and weighting: filters and weights candidate deviations inside the scorer interface.
+- Standardized deviation: M_k = (|observed_k - expected_k| / robust_scale_k) * weight_k.
 - Score aggregation: raw score S_raw = max_k M_k over active features.
 - Dynamic EWMA update: S_ewma(t) = alpha * S_raw + (1 - alpha) * S_ewma(t - 1) per merchant.
 - Reset on INSUFFICIENT evidence state to avoid carrying stale score across data gaps.
@@ -19,7 +19,6 @@ from typing import Dict, Optional, Sequence
 from src.contracts.contracts import FeatureSnapshot, BaselineSnapshot, RiskScore
 from src.contracts.config_schemas import DetectorConfig, ScorerConfig
 
-# Explicit feature contract mapping: (FeatureSnapshot field/attribute) -> (BaselineSnapshot expected/scale key)
 FEATURE_BASELINE_MAP: Dict[str, str] = {
     "volume": "volume",
     "velocity": "velocity",
@@ -56,6 +55,7 @@ class HybridEWMAScorer:
         self,
         alpha: float = 0.3,
         static_threshold: float = 3.5,
+        signal_weights: Optional[Dict[str, float]] = None,
     ):
         if not (0.0 < alpha <= 1.0):
             raise ValueError(f"alpha must be in (0.0, 1.0], got {alpha}")
@@ -64,6 +64,7 @@ class HybridEWMAScorer:
 
         self.alpha = float(alpha)
         self.static_threshold = float(static_threshold)
+        self.signal_weights = dict(signal_weights) if signal_weights is not None else None
 
         # Per-merchant EWMA state: merchant_id -> last_ewma_score (float)
         self._ewma_states: Dict[str, float] = {}
@@ -82,8 +83,9 @@ class HybridEWMAScorer:
         feature_snapshot: FeatureSnapshot,
         baseline_snapshot: BaselineSnapshot,
         signal_mask: Optional[Sequence[str]] = None,
+        signal_weights: Optional[Dict[str, float]] = None,
     ) -> RiskScore:
-        """Calculate RiskScore from feature_snapshot and baseline_snapshot, applying optional signal_mask."""
+        """Calculate RiskScore from feature_snapshot and baseline_snapshot, applying optional signal_mask and weights."""
         m_id = feature_snapshot.merchant_id
 
         # 1. Handle INSUFFICIENT evidence state
@@ -99,13 +101,16 @@ class HybridEWMAScorer:
                 data_quality=dq,
             )
 
+        active_weights = signal_weights if signal_weights is not None else self.signal_weights
+
         # 2. Compute standardized magnitudes M_k for features
         m_magnitudes: Dict[str, float] = {}
 
         for feat_name, base_key in FEATURE_BASELINE_MAP.items():
+            grp = FEATURE_GROUP_MAP.get(feat_name, feat_name)
+
             # Apply scorer-level signal mask if specified
             if signal_mask is not None:
-                grp = FEATURE_GROUP_MAP.get(feat_name, feat_name)
                 if feat_name not in signal_mask and grp not in signal_mask and base_key not in signal_mask:
                     continue
 
@@ -126,7 +131,14 @@ class HybridEWMAScorer:
             if scale_val <= 0.0:
                 raise ValueError(f"Invalid non-positive robust scale for feature '{base_key}': {scale_val}")
 
-            m_magnitudes[base_key] = abs(f_val - exp_val) / scale_val
+            m_k = abs(f_val - exp_val) / scale_val
+
+            # Apply signal weight if configured
+            if active_weights is not None:
+                w = float(active_weights.get(feat_name, active_weights.get(grp, 1.0)))
+                m_k *= w
+
+            m_magnitudes[base_key] = m_k
 
         # Maximum standardized magnitude
         s_raw = float(max(m_magnitudes.values())) if m_magnitudes else 0.0

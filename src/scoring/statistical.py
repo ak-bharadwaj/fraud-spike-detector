@@ -1,9 +1,9 @@
-"""StatisticalDeviationScorer module for Day 3-6 vertical slice and ablation scoring.
+"""StatisticalDeviationScorer module for Day 3-7 vertical slice, ablation, and tuning.
 
 Key Invariants:
-- Input mapping: (FeatureSnapshot, BaselineSnapshot, Optional[signal_mask]) -> RiskScore.
-- Scorer-level signal masking: allows evaluating FULL, -VOLUME, -VELOCITY, -AMOUNT, -BEHAVIORAL without perturbing baseline history.
-- Standardized deviation magnitude M_k = |f_k - expected_k| / robust_scale_k.
+- Input mapping: (FeatureSnapshot, BaselineSnapshot, Optional[signal_mask], Optional[signal_weights]) -> RiskScore.
+- Scorer-level signal masking and weighting: allows evaluating feature subsets and weight vectors.
+- Standardized deviation magnitude M_k = (|f_k - expected_k| / robust_scale_k) * weight_k.
 - Zero-scale protection: raises ValueError if robust_scale <= 0.0.
 - Statistical raw score S = max_k M_k (pure statistical standardized deviation).
 - Evidence state mapping:
@@ -51,18 +51,24 @@ FEATURE_GROUP_MAP: Dict[str, str] = {
 class StatisticalDeviationScorer:
     """Computes standardized statistical deviation magnitude without EWMA smoothing."""
 
-    def __init__(self, static_threshold: float = 3.5):
+    def __init__(
+        self,
+        static_threshold: float = 3.5,
+        signal_weights: Optional[Dict[str, float]] = None,
+    ):
         if static_threshold <= 0.0:
             raise ValueError(f"static_threshold must be positive, got {static_threshold}")
         self.static_threshold = float(static_threshold)
+        self.signal_weights = dict(signal_weights) if signal_weights is not None else None
 
     def calculate_score(
         self,
         feature_snapshot: FeatureSnapshot,
         baseline_snapshot: BaselineSnapshot,
         signal_mask: Optional[Sequence[str]] = None,
+        signal_weights: Optional[Dict[str, float]] = None,
     ) -> RiskScore:
-        """Calculate RiskScore from feature_snapshot and baseline_snapshot, applying optional signal_mask."""
+        """Calculate RiskScore from feature_snapshot and baseline_snapshot, applying optional signal_mask and weights."""
         # 1. Handle INSUFFICIENT evidence state
         if baseline_snapshot.evidence_state == "INSUFFICIENT":
             dq = "EMPTY" if feature_snapshot.data_quality == "EMPTY" else "INSUFFICIENT"
@@ -73,14 +79,16 @@ class StatisticalDeviationScorer:
                 data_quality=dq,
             )
 
-        # 2. Compute standardized magnitudes M_k for all features (respecting signal_mask)
+        active_weights = signal_weights if signal_weights is not None else self.signal_weights
+
+        # 2. Compute standardized magnitudes M_k for all features (respecting signal_mask and weights)
         m_magnitudes: Dict[str, float] = {}
 
         for feat_name, base_key in FEATURE_BASELINE_MAP.items():
+            grp = FEATURE_GROUP_MAP.get(feat_name, feat_name)
+
             # Apply scorer-level signal mask if specified
             if signal_mask is not None:
-                grp = FEATURE_GROUP_MAP.get(feat_name, feat_name)
-                # If neither the feature name nor its group is in signal_mask, skip feature
                 if feat_name not in signal_mask and grp not in signal_mask and base_key not in signal_mask:
                     continue
 
@@ -103,6 +111,12 @@ class StatisticalDeviationScorer:
                 raise ValueError(f"Robust scale for '{base_key}' must be strictly positive, got {r_scale}")
 
             m_k = abs(f_val - exp_val) / r_scale
+
+            # Apply signal weight if configured
+            if active_weights is not None:
+                w = float(active_weights.get(feat_name, active_weights.get(grp, 1.0)))
+                m_k *= w
+
             m_magnitudes[feat_name] = m_k
 
         # 3. Maximum deviation aggregation: S = max_k M_k
