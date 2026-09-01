@@ -11,6 +11,7 @@ Key Invariants:
 - BOOTSTRAP UNCERTAINTY: 1,000 deterministic resamples (seed 42) computing 95% CIs for Precision and Recall with complete raw counts and N.
 - PORTFOLIO ANALYSIS: Evaluates Static, Statistical, and Hybrid on holdout, reporting FP Cost, FN Exposure, and Total Cost.
 - ARTIFACT GENERATION: Generates required hierarchy under artifacts/ (including final/metrics.json, final/metrics.csv with '₹' unit, final/report.json).
+- POST-HOLDOUT PROVENANCE: Discloses both original run (EXP-DAY8-HOLDOUT-CONFIRMATION-001) and corrected run (EXP-DAY8-HOLDOUT-CORRECTED-002).
 - HOLDOUT IMMUTABILITY: Verifies holdout SHA before == holdout SHA after.
 """
 
@@ -369,7 +370,7 @@ def save_day8_research_artifacts(
     portfolio_results: List[Dict[str, Any]],
     evasion_results: Dict[str, Any],
     drift_results: Dict[str, Any],
-    experiment_id: str = "EXP-DAY8-HOLDOUT-CONFIRMATION-001",
+    experiment_id: str = "EXP-DAY8-HOLDOUT-CORRECTED-002",
 ) -> Dict[str, Path]:
     """Save all Day 8 research outputs in structured artifact directories matching required Section 39 hierarchy."""
     base_p = Path(base_artifact_dir)
@@ -461,8 +462,45 @@ def save_day8_research_artifacts(
         writer.writerows(csv_rows)
     saved_paths["final_metrics_csv"] = p_fin_csv
 
-    # 9. Final Report JSON
+    # 9. Final Report JSON with dual run disclosure
     p_fin_rep = dirs["final"] / "report.json"
+    dual_run_disclosure = {
+        "run_001_original": {
+            "experiment_id": "EXP-DAY8-HOLDOUT-CONFIRMATION-001",
+            "commit": "414998f",
+            "status": "SUPERSEDED",
+            "reason_superseded": "Post-holdout descriptive calibration methodology bug (pseudo-probability division), empty bucket pseudo-values, and missing bootstrap raw-count contract.",
+            "detector_parameters": freeze_record.all_selected_parameters,
+            "holdout_dataset_hash": holdout_manifest.dataset_hash,
+            "core_metrics": {
+                "tp": 1,
+                "fp": 0,
+                "fn": 0,
+                "precision": 1.0,
+                "recall": 1.0,
+                "f1_score": 1.0,
+                "total_cost": 0.0,
+            },
+        },
+        "run_002_corrected": {
+            "experiment_id": experiment_id,
+            "commit": "PENDING_COMMIT",
+            "status": "ACCEPTED_CANONICAL",
+            "reason": "Corrected post-holdout descriptive calibration (direct RiskScore bucketing, explicit population accounting), complete bootstrap uncertainty reporting contract with raw counts, and INR '₹' units.",
+            "detector_parameters": freeze_record.all_selected_parameters,
+            "holdout_dataset_hash": holdout_manifest.dataset_hash,
+            "core_metrics": {
+                "tp": holdout_metrics.tp,
+                "fp": holdout_metrics.fp,
+                "fn": holdout_metrics.fn,
+                "precision": holdout_metrics.precision,
+                "recall": holdout_metrics.recall,
+                "f1_score": holdout_metrics.f1_score,
+                "total_cost": holdout_metrics.total_cost,
+            },
+        },
+    }
+
     final_report = {
         **common_metadata,
         "executive_summary": {
@@ -476,6 +514,7 @@ def save_day8_research_artifacts(
             "total_cost": holdout_metrics.total_cost,
             "cost_unit": "₹",
         },
+        "dual_run_disclosure": dual_run_disclosure,
         "frozen_detector": freeze_record.all_selected_parameters,
         "per_anomaly_performance": per_anomaly_metrics,
         "descriptive_calibration": calibration_results,
