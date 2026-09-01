@@ -11,7 +11,7 @@ Key Invariants:
 - BOOTSTRAP UNCERTAINTY: 1,000 deterministic resamples (seed 42) computing 95% CIs for Precision and Recall with complete raw counts and N.
 - PORTFOLIO ANALYSIS: Evaluates Static, Statistical, and Hybrid on holdout, reporting FP Cost, FN Exposure, and Total Cost.
 - ARTIFACT GENERATION: Generates required hierarchy under artifacts/ (including final/metrics.json, final/metrics.csv with '₹' unit, final/report.json).
-- POST-HOLDOUT PROVENANCE: Discloses both original run (EXP-DAY8-HOLDOUT-CONFIRMATION-001) and corrected run (EXP-DAY8-HOLDOUT-CORRECTED-002).
+- POST-HOLDOUT PROVENANCE: Discloses both original run (EXP-DAY8-HOLDOUT-CONFIRMATION-001, commit 414998f) and corrected run (EXP-DAY8-HOLDOUT-CORRECTED-002, commit fb3c7f9) with exact commit SHAs.
 - HOLDOUT IMMUTABILITY: Verifies holdout SHA before == holdout SHA after.
 """
 
@@ -371,6 +371,7 @@ def save_day8_research_artifacts(
     evasion_results: Dict[str, Any],
     drift_results: Dict[str, Any],
     experiment_id: str = "EXP-DAY8-HOLDOUT-CORRECTED-002",
+    corrected_commit: str = "fb3c7f9",
 ) -> Dict[str, Path]:
     """Save all Day 8 research outputs in structured artifact directories matching required Section 39 hierarchy."""
     base_p = Path(base_artifact_dir)
@@ -484,7 +485,7 @@ def save_day8_research_artifacts(
         },
         "run_002_corrected": {
             "experiment_id": experiment_id,
-            "commit": "PENDING_COMMIT",
+            "commit": corrected_commit,
             "status": "ACCEPTED_CANONICAL",
             "reason": "Corrected post-holdout descriptive calibration (direct RiskScore bucketing, explicit population accounting), complete bootstrap uncertainty reporting contract with raw counts, and INR '₹' units.",
             "detector_parameters": freeze_record.all_selected_parameters,

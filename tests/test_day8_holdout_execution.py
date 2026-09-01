@@ -28,10 +28,11 @@ Validates:
    - Explicitly asserts cost unit is '₹' and prevents regression to USD.
 8. Portfolio Cost Analysis:
    - Evaluates Static, Statistical, and Hybrid on holdout as descriptive portfolio analysis.
-9. Required Artifact Hierarchy & Dual-Run Disclosure:
+9. Required Artifact Hierarchy & Exact Provenance:
    - Verifies artifacts/ directory hierarchy including final/metrics.json, final/metrics.csv, final/report.json.
    - Every artifact references experiment_id (EXP-DAY8-HOLDOUT-CORRECTED-002), dataset_hash, config_hash, detector_version, and seed.
-   - final/report.json preserves both RUN 001 (EXP-DAY8-HOLDOUT-CONFIRMATION-001) and RUN 002 (EXP-DAY8-HOLDOUT-CORRECTED-002).
+   - final/report.json preserves both RUN 001 (EXP-DAY8-HOLDOUT-CONFIRMATION-001, commit 414998f) and RUN 002 (EXP-DAY8-HOLDOUT-CORRECTED-002, commit fb3c7f9).
+   - Zero occurrences of PENDING_COMMIT anywhere in artifacts.
 10. Holdout Immutability & Replay Determinism:
     - Holdout SHA before == Holdout SHA after.
     - Replay reproduces 100% bitwise-identical results.
@@ -322,6 +323,7 @@ def test_cost_reporting_unit_is_inr_prevent_usd_regression(tmp_path):
         evasion_results={"status": "CONFIRMED"},
         drift_results={"status": "CONFIRMED"},
         experiment_id="EXP-DAY8-HOLDOUT-CORRECTED-002",
+        corrected_commit="fb3c7f9",
     )
 
     csv_path = saved_paths["final_metrics_csv"]
@@ -362,11 +364,11 @@ def test_portfolio_cost_comparison():
 
 
 # =====================================================================
-# 9. Required Artifact Hierarchy & Dual-Run Disclosure
+# 9. Required Artifact Hierarchy & Dual-Run Exact Provenance (Blocker)
 # =====================================================================
 
 def test_required_artifact_hierarchy_and_dual_run_disclosure(tmp_path):
-    """Verify artifacts/ directory hierarchy, new experiment_id, and dual-run disclosure in report.json."""
+    """Verify artifacts/ directory hierarchy, new experiment_id, and exact commit SHAs in report.json."""
     freeze_record = load_freeze_record("config/freeze_record.json")
     manifest, txs, gts = load_locked_holdout_data("data/holdout")
 
@@ -388,6 +390,7 @@ def test_required_artifact_hierarchy_and_dual_run_disclosure(tmp_path):
         evasion_results={"status": "CONFIRMED"},
         drift_results={"status": "CONFIRMED"},
         experiment_id="EXP-DAY8-HOLDOUT-CORRECTED-002",
+        corrected_commit="fb3c7f9",
     )
 
     required_keys = [
@@ -401,7 +404,10 @@ def test_required_artifact_hierarchy_and_dual_run_disclosure(tmp_path):
         assert p.stat().st_size > 0
 
     # Verify final/report.json content & dual run disclosure
-    report_content = json.loads(saved_paths["final_report_json"].read_text(encoding="utf-8"))
+    report_text = saved_paths["final_report_json"].read_text(encoding="utf-8")
+    assert "PENDING_COMMIT" not in report_text
+
+    report_content = json.loads(report_text)
     assert report_content["experiment_id"] == "EXP-DAY8-HOLDOUT-CORRECTED-002"
     assert report_content["detector_version"] == "1.0.0"
     assert report_content["config_hash"] == freeze_record.config_hash
@@ -412,10 +418,12 @@ def test_required_artifact_hierarchy_and_dual_run_disclosure(tmp_path):
     dual = report_content["dual_run_disclosure"]
     assert "run_001_original" in dual
     assert dual["run_001_original"]["experiment_id"] == "EXP-DAY8-HOLDOUT-CONFIRMATION-001"
+    assert dual["run_001_original"]["commit"] == "414998f"
     assert dual["run_001_original"]["status"] == "SUPERSEDED"
     
     assert "run_002_corrected" in dual
     assert dual["run_002_corrected"]["experiment_id"] == "EXP-DAY8-HOLDOUT-CORRECTED-002"
+    assert dual["run_002_corrected"]["commit"] == "fb3c7f9"
     assert dual["run_002_corrected"]["status"] == "ACCEPTED_CANONICAL"
 
 
