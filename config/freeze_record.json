@@ -1,0 +1,24 @@
+{
+  "detector_version": "1.0.0",
+  "config_hash": "be93478505d4504860f10cd528252ffe737cfa97fec023f0013ec5037ed939d2",
+  "development_dataset_hash": "c99d99eb3478f34aba9e309c87e403632560cee44da57124e2c1b75640120028",
+  "seed": 42,
+  "selected_scorer": "HybridEWMAScorer",
+  "all_selected_parameters": {
+    "scorer": "HybridEWMAScorer",
+    "alpha": 0.3,
+    "static_threshold": 3.5,
+    "persistence": 2,
+    "cooldown_windows": 5,
+    "min_window_count": 5,
+    "signal_config": [
+      "volume",
+      "velocity",
+      "amount",
+      "behavioral"
+    ],
+    "detector_version": "1.0.0"
+  },
+  "selection_rationale": "Selected optimal operating point minimizing total cost and maximizing F1 on development benchmark data.",
+  "freeze_timestamp": "2026-01-07T00:00:00Z"
+}
