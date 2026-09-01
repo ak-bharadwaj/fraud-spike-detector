@@ -39,14 +39,18 @@ def create_merchant_profile(global_seed: int, merchant_id: str, archetype: str) 
     rng = get_merchant_rng(global_seed, f"{merchant_id}_profile")
 
     arch = archetype.lower()
-    if arch == "sparse":
+    if arch in ("sparse", "low_volume", "small"):
         rate = float(rng.uniform(0.2, 0.8))
         mean_amt = float(rng.uniform(15.0, 40.0))
         std_amt = float(mean_amt * 0.2)
-    elif arch == "stable":
+    elif arch in ("stable", "medium"):
         rate = float(rng.uniform(8.0, 15.0))
         mean_amt = float(rng.uniform(40.0, 80.0))
         std_amt = float(mean_amt * 0.15)
+    elif arch in ("high_volume", "high", "large"):
+        rate = float(rng.uniform(30.0, 60.0))
+        mean_amt = float(rng.uniform(50.0, 100.0))
+        std_amt = float(mean_amt * 0.2)
     elif arch == "seasonal":
         rate = float(rng.uniform(10.0, 20.0))
         mean_amt = float(rng.uniform(50.0, 100.0))
@@ -154,6 +158,8 @@ def compute_legitimate_rate(
         effective_rate = rate
     elif arch == "mixed":
         effective_rate = rate * diurnal_mult * growth_mult
+    elif arch in ("high_volume", "high", "large"):
+        effective_rate = rate
     else:
         effective_rate = rate
 
