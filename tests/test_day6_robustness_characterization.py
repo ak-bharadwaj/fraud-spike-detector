@@ -287,6 +287,11 @@ def test_reusable_drift_runner_and_artifact_generation():
     )
 
     assert isinstance(result, DriftResult)
+    assert result.declared_drift_factor == "baseline_volume_growth"
+    assert result.merchant_profile_id == "M_DRIFT_RUNNER"
+    assert result.merchant_archetype == "stable"
+    assert len(result.merchant_profile_hash) == 16
+    assert result.merchant_profile_params["legit_customer_pool_size"] == prof.legit_customer_pool_size
     assert result.control_metrics.tp == 1
     assert result.drift_metrics.tp == 1
     assert result.convergence_window_count >= 8
@@ -395,7 +400,9 @@ def test_drift_runner_enforces_paired_contract_and_rejects_mismatched_inputs():
     with pytest.raises(ValueError, match="does not match merchant_id"):
         runner.validate_paired_contract(ctrl_txs, ctrl_txs, [gt_1], [gt_1], merchant_id="M_CTRL", merchant_profile=prof_other)
 
-    # 3. Unsupported declared drift factor -> ValueError
+    # 3. Unsupported declared drift factor (including organic_rate_drift and arbitrary labels) -> ValueError
+    with pytest.raises(ValueError, match="unsupported declared_drift_factor"):
+        runner.validate_paired_contract(ctrl_txs, ctrl_txs, [gt_1], [gt_1], merchant_id="M_CTRL", merchant_profile=prof, declared_drift_factor="organic_rate_drift")
     with pytest.raises(ValueError, match="unsupported declared_drift_factor"):
         runner.validate_paired_contract(ctrl_txs, ctrl_txs, [gt_1], [gt_1], merchant_id="M_CTRL", merchant_profile=prof, declared_drift_factor="uncontrolled_drift")
 

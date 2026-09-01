@@ -1,18 +1,19 @@
 """Drift characterization module for paired control-vs-drift evaluation and baseline adaptation measurement.
 
 Key Invariants:
-- Evaluates detector robustness against distribution drift (e.g. organic baseline volume growth) under constant configuration.
+- Evaluates detector robustness against distribution drift (organic baseline volume growth) under constant configuration.
 - Uses common StreamingDetectorPipeline and AnomalyEvaluator.
 - Strict Paired Evaluation Contract & Causal Factor Isolation:
-  - Validates declared drift factor against frozen supported set (baseline_volume_growth, organic_rate_drift).
+  - Validates declared drift factor against frozen implemented set (baseline_volume_growth only).
   - Exact start timestamp equality: min(control timestamps) == min(drift timestamps).
   - Exact end timestamp equality: max(control timestamps) == max(drift timestamps).
   - Exact duration equality: actual duration(control) == actual duration(drift).
   - 100% GroundTruth event identity match (event IDs, anomaly types, start times, end times).
   - Transaction-level uncontrolled-attribute isolation for common transactions: 100% field identity.
-  - Mandatory Merchant Profile / Provenance:
-    - merchant_profile is mandatory (no silent profile synthesis fallback).
-    - merchant_profile.merchant_id must strictly match target merchant_id.
+  - Mandatory Merchant Profile & Explicit Experiment Provenance:
+    - merchant_profile is strictly mandatory (no silent profile synthesis).
+    - merchant_profile.merchant_id must match target merchant_id.
+    - DriftResult records profile identity, archetype, parameter dictionary, and cryptographic hash.
   - Rigorous distribution-level isolation for newly added growth transactions:
     - Customer IDs must belong strictly to canonical merchant customer pool (1..legit_customer_pool_size) with unskewed distribution.
     - Device IDs must belong strictly to canonical merchant device pool (1..legit_device_pool_size) with unskewed distribution.
@@ -33,6 +34,8 @@ from typing import List, Dict, Any, Optional, Sequence, Tuple, Set
 from pathlib import Path
 from collections import Counter
 from datetime import datetime, timedelta, timezone
+import hashlib
+import json
 import numpy as np
 from pydantic import BaseModel, Field
 
@@ -46,13 +49,37 @@ from src.generator.archetypes import MerchantProfile
 from src.detector.pipeline import StreamingDetectorPipeline
 from src.evaluation.evaluator import AnomalyEvaluator
 
-ALLOWED_DRIFT_FACTORS: Set[str] = {"baseline_volume_growth", "organic_rate_drift"}
+# Narrowed strictly to the single implemented causal drift factor
+ALLOWED_DRIFT_FACTORS: Set[str] = {"baseline_volume_growth"}
+
+
+def compute_profile_provenance(profile: MerchantProfile) -> Tuple[Dict[str, Any], str]:
+    """Compute explicit parameter dictionary and SHA-256 provenance hash for merchant profile."""
+    params = {
+        "merchant_id": str(profile.merchant_id),
+        "archetype": str(profile.archetype),
+        "base_rate_per_min": float(profile.base_rate_per_min),
+        "base_mean_amount": float(profile.base_mean_amount),
+        "base_std_amount": float(profile.base_std_amount),
+        "p_high_risk_country": float(profile.p_high_risk_country),
+        "p_prepaid_payment": float(profile.p_prepaid_payment),
+        "p_debit_payment": float(profile.p_debit_payment),
+        "legit_device_pool_size": int(profile.legit_device_pool_size),
+        "legit_customer_pool_size": int(profile.legit_customer_pool_size),
+    }
+    raw_json = json.dumps(params, sort_keys=True)
+    prof_hash = hashlib.sha256(raw_json.encode("utf-8")).hexdigest()[:16]
+    return params, prof_hash
 
 
 class DriftResult(BaseModel):
     """Result contract for paired control vs drift characterization experiment."""
     paired_dataset_id: str
     declared_drift_factor: str
+    merchant_profile_id: str
+    merchant_archetype: str
+    merchant_profile_params: Dict[str, Any]
+    merchant_profile_hash: str
     control_metrics: EvaluationMetrics
     drift_metrics: EvaluationMetrics
     metric_deltas: Dict[str, float]
@@ -102,7 +129,7 @@ class DriftRunner:
                 f"does not match merchant_id '{merchant_id}'"
             )
 
-        # 2. Validate Declared Drift Factor
+        # 2. Validate Declared Drift Factor against strictly implemented set
         if declared_drift_factor not in ALLOWED_DRIFT_FACTORS:
             raise ValueError(
                 f"Paired drift contract violation: unsupported declared_drift_factor '{declared_drift_factor}'. "
@@ -391,10 +418,15 @@ class DriftRunner:
         overall_rel_error = abs(mean_exp_rate - reference_emp_rate) / max(1.0, reference_emp_rate) if reference_emp_rate > 0 else 0.0
 
         passed_criterion = converged_count >= min_converged_windows
+        prof_params, prof_hash = compute_profile_provenance(merchant_profile)
 
         return DriftResult(
             paired_dataset_id=paired_dataset_id,
             declared_drift_factor=declared_drift_factor,
+            merchant_profile_id=merchant_profile.merchant_id,
+            merchant_archetype=merchant_profile.archetype,
+            merchant_profile_params=prof_params,
+            merchant_profile_hash=prof_hash,
             control_metrics=metrics_ctrl,
             drift_metrics=metrics_drift,
             metric_deltas=deltas,
