@@ -61,7 +61,13 @@ def make_dummy_gt_event(
     end_time: datetime,
     event_id: str = "GT-001",
     severity: float = 5.0,
+    parameters: dict = None,
 ) -> GroundTruthEvent:
+    params = dict(parameters) if parameters is not None else {
+        "excess_transaction_count": 10,
+        "mean_transaction_amount": 50.0,
+        "exposure_factor": 1.0,
+    }
     return GroundTruthEvent(
         event_id=event_id,
         merchant_id=merchant_id,
@@ -69,7 +75,9 @@ def make_dummy_gt_event(
         start_time=start_time,
         end_time=end_time,
         severity=severity,
+        parameters=params,
     )
+
 
 
 # =====================================================================
@@ -146,7 +154,7 @@ def test_temporal_boundary_exact_start_and_end():
 
 
 def test_temporal_out_of_bounds_and_tolerance():
-    """Verify pre-onset alerts are ALWAYS false positives (no pre-onset tolerance) and after-horizon alerts fail unless covered by end-boundary tolerance."""
+    """Verify pre-onset alerts are ALWAYS false positives (no pre-onset tolerance) and after-horizon alerts fail even with positive tolerance."""
     st = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
     et = st + timedelta(minutes=5)
     gt = make_dummy_gt_event("M1", st, et)
@@ -161,10 +169,10 @@ def test_temporal_out_of_bounds_and_tolerance():
 
     # 2. 30s before start_time with 60s tolerance -> STILL FP=1, FN=1 (pre-onset alerts are ALWAYS FP, zero tolerance before onset)
     eval_tol = AnomalyEvaluator(temporal_tolerance_seconds=60.0)
-    res_tol = eval_tol.evaluate([alt_early], [gt])
-    assert res_tol.tp == 0
-    assert res_tol.fp == 1
-    assert res_tol.fn == 1
+    res_tol_pre = eval_tol.evaluate([alt_early], [gt])
+    assert res_tol_pre.tp == 0
+    assert res_tol_pre.fp == 1
+    assert res_tol_pre.fn == 1
 
     # 3. Exact onset (alert at start_time) -> TP=1, FP=0, FN=0 (latency = 0.0s)
     alt_onset = make_dummy_alert("M1", st, alert_id="ALT-ONSET")
@@ -182,12 +190,13 @@ def test_temporal_out_of_bounds_and_tolerance():
     assert res_horizon.fn == 0
     assert res_horizon.mean_latency_seconds == 120.0
 
-    # 5. After horizon (150s with 0s tolerance) -> FP=1, FN=1
-    alt_after = make_dummy_alert("M1", st + timedelta(seconds=150), alert_id="ALT-AFTER")
-    res_after = eval_no_tol.evaluate([alt_after], [gt])
-    assert res_after.tp == 0
-    assert res_after.fp == 1
-    assert res_after.fn == 1
+    # 5. Alert horizon + 1s with positive tolerance (e.g. 60s tolerance) -> FP=1, FN=1 (tolerance does NOT extend horizon!)
+    alt_after_tol = make_dummy_alert("M1", st + timedelta(seconds=121), alert_id="ALT-AFTER-TOL")
+    res_after_tol = eval_tol.evaluate([alt_after_tol], [gt])
+    assert res_after_tol.tp == 0
+    assert res_after_tol.fp == 1
+    assert res_after_tol.fn == 1
+
 
 
 
@@ -323,6 +332,7 @@ def test_alert_after_horizon_but_within_gt_duration_is_fn():
         start_time=st,
         end_time=st + timedelta(seconds=300),
         severity=5.0,
+        parameters={"excess_transaction_count": 10, "mean_transaction_amount": 50.0, "exposure_factor": 1.0},
     )
 
     # Alert at 150s (past the 120s horizon, but before the 300s end_time)
@@ -349,6 +359,7 @@ def test_unknown_anomaly_type_raises_value_error():
         start_time=st,
         end_time=st + timedelta(seconds=300),
         severity=5.0,
+        parameters={"excess_transaction_count": 10, "mean_transaction_amount": 50.0, "exposure_factor": 1.0},
     )
     alt = make_dummy_alert("M1", st + timedelta(seconds=10))
 
@@ -360,14 +371,15 @@ def test_unknown_anomaly_type_raises_value_error():
 def test_cost_model_calculation_accuracy():
     """Verify FP cost, FN exposure, and Total cost match exact configured cost model formulas."""
     st = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
-    gt_caught = GroundTruthEvent(event_id="GT-1", merchant_id="M1", anomaly_type="volume_spike", start_time=st, end_time=st + timedelta(minutes=5), severity=4.0, parameters={"exposure": 500.0})
-    gt_missed = GroundTruthEvent(event_id="GT-2", merchant_id="M1", anomaly_type="volume_spike", start_time=st + timedelta(hours=1), end_time=st + timedelta(hours=1, minutes=5), severity=6.0, parameters={"exposure": 1200.0})
+    gt_caught = GroundTruthEvent(event_id="GT-1", merchant_id="M1", anomaly_type="volume_spike", start_time=st, end_time=st + timedelta(minutes=5), severity=4.0, parameters={"excess_transaction_count": 10, "mean_transaction_amount": 50.0, "exposure_factor": 1.0})
+    gt_missed = GroundTruthEvent(event_id="GT-2", merchant_id="M1", anomaly_type="volume_spike", start_time=st + timedelta(hours=1), end_time=st + timedelta(hours=1, minutes=5), severity=6.0, parameters={"excess_transaction_count": 24, "mean_transaction_amount": 50.0, "exposure_factor": 1.0})
 
     alt_tp = make_dummy_alert("M1", st + timedelta(seconds=30), alert_id="ALT-TP")
     alt_fp = make_dummy_alert("M1", st + timedelta(hours=2), alert_id="ALT-FP")
 
     evaluator = AnomalyEvaluator(fp_unit_cost=50.0, fn_exposure_factor=1.0)
     res = evaluator.evaluate([alt_tp, alt_fp], [gt_caught, gt_missed])
+
 
     assert res.tp == 1
     assert res.fp == 1
@@ -378,10 +390,24 @@ def test_cost_model_calculation_accuracy():
 
 
 def test_fn_exposure_calculated_from_excess_count_and_mean_amount():
-    """Verify exact Section 24 FN exposure formula: FN_exposure = excess_transaction_count * mean_transaction_amount * exposure_factor."""
+    """Verify exact Section 24 FN exposure formula: FN_exposure = excess_transaction_count * mean_transaction_amount * exposure_factor, and explicit failure when missing."""
     st = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
     
-    # Ground truth event with excess_transaction_count=20, mean_transaction_amount=100.0, exposure_factor=0.5
+    # 1. Missing cost inputs on unmatched GT -> strictly raises ValueError
+    gt_incomplete = GroundTruthEvent(
+        event_id="GT-INCOMPLETE",
+        merchant_id="M1",
+        anomaly_type="volume_spike",
+        start_time=st,
+        end_time=st + timedelta(minutes=5),
+        severity=4.0,
+        parameters={},  # Missing excess_transaction_count and mean_transaction_amount
+    )
+    evaluator_incomplete = AnomalyEvaluator()
+    with pytest.raises(ValueError, match="Missing required cost inputs for unmatched GroundTruthEvent"):
+        evaluator_incomplete.evaluate([], [gt_incomplete])
+
+    # 2. Known inputs: excess_transaction_count=20, mean_transaction_amount=100.0, exposure_factor=0.5
     gt_missed = GroundTruthEvent(
         event_id="GT-MISSED-1",
         merchant_id="M1",
@@ -414,6 +440,7 @@ def test_fn_exposure_calculated_from_excess_count_and_mean_amount():
     assert res.fp_cost == 100.0
     assert res.fn_exposure == 1000.0
     assert res.total_cost == 1100.0
+
 
 
 

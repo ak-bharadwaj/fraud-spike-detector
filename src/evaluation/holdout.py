@@ -255,8 +255,14 @@ def load_locked_holdout_data(data_dir: Union[str, Path]) -> Tuple[HoldoutManifes
             start_time=datetime.fromisoformat(e["st"]),
             end_time=datetime.fromisoformat(e["et"]),
             severity=e["sev"],
+            parameters=e.get("params", {
+                "excess_transaction_count": max(1.0, float(round(10.0 * e["sev"]))),
+                "mean_transaction_amount": 50.0,
+                "exposure_factor": 1.0,
+            }),
         )
         for e in gt_raw
     ]
 
     return manifest, transactions, ground_truth_events
+

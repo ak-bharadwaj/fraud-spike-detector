@@ -124,7 +124,7 @@ def test_custom_evaluation_config_integration():
         start_time=st,
         end_time=st + timedelta(minutes=5),
         severity=3.0,
-        parameters={"amount_exposure": 200.0},
+        parameters={"excess_transaction_count": 4, "mean_transaction_amount": 50.0, "exposure_factor": 2.0},
     )
     # Alert at 100s (> 90s custom horizon) -> FP=1, FN=1
     alt = Alert(
@@ -141,7 +141,7 @@ def test_custom_evaluation_config_integration():
     assert res.fp == 1
     assert res.fn == 1
     assert res.fp_cost == 75.0  # 1 * 75.0
-    assert res.fn_exposure == 400.0  # 2.0 * 200.0
+    assert res.fn_exposure == 400.0  # 4 * 50.0 * 2.0
     assert res.total_cost == 475.0
 
 
@@ -159,6 +159,7 @@ def test_evaluator_alert_exactly_at_gt_start():
         start_time=st,
         end_time=st + timedelta(minutes=5),
         severity=4.0,
+        parameters={"excess_transaction_count": 10, "mean_transaction_amount": 50.0, "exposure_factor": 1.0},
     )
     alt = Alert(
         alert_id="ALT-01",
@@ -190,6 +191,7 @@ def test_evaluator_alert_exactly_at_horizon_end():
         start_time=st,
         end_time=st + timedelta(minutes=5),
         severity=4.0,
+        parameters={"excess_transaction_count": 10, "mean_transaction_amount": 50.0, "exposure_factor": 1.0},
     )
     alt = Alert(
         alert_id="ALT-01",
@@ -219,6 +221,7 @@ def test_evaluator_alert_just_beyond_horizon():
         start_time=st,
         end_time=st + timedelta(minutes=5),
         severity=4.0,
+        parameters={"excess_transaction_count": 10, "mean_transaction_amount": 50.0, "exposure_factor": 1.0},
     )
     alt = Alert(
         alert_id="ALT-01",
@@ -250,6 +253,7 @@ def test_evaluator_pre_onset_alert_is_false_positive():
         start_time=st,
         end_time=st + timedelta(minutes=5),
         severity=4.0,
+        parameters={"excess_transaction_count": 10, "mean_transaction_amount": 50.0, "exposure_factor": 1.0},
     )
     alt_pre = Alert(
         alert_id="ALT-PRE",
@@ -284,6 +288,7 @@ def test_evaluator_one_gt_multiple_alerts_and_cost_model():
         start_time=st,
         end_time=st + timedelta(minutes=5),
         severity=4.0,
+        parameters={"excess_transaction_count": 10, "mean_transaction_amount": 50.0, "exposure_factor": 1.0},
     )
     alts = [
         Alert(alert_id="ALT-1", merchant_id="M1", timestamp=st + timedelta(seconds=30), risk_score=4.0, confidence=1.0, reason="breach", detector_version="1.0.0"),
@@ -308,8 +313,8 @@ def test_evaluator_one_gt_multiple_alerts_and_cost_model():
 def test_evaluator_multiple_gt_one_alert():
     """Verify 2 GT events with 1 alert produces TP=1, FN=1, FP=0."""
     st = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
-    gt1 = GroundTruthEvent(event_id="GT-01", merchant_id="M1", anomaly_type="volume_spike", start_time=st, end_time=st + timedelta(minutes=2), severity=4.0, parameters={"amount_exposure": 300.0})
-    gt2 = GroundTruthEvent(event_id="GT-02", merchant_id="M1", anomaly_type="volume_spike", start_time=st + timedelta(minutes=3), end_time=st + timedelta(minutes=5), severity=4.0, parameters={"amount_exposure": 500.0})
+    gt1 = GroundTruthEvent(event_id="GT-01", merchant_id="M1", anomaly_type="volume_spike", start_time=st, end_time=st + timedelta(minutes=2), severity=4.0, parameters={"excess_transaction_count": 6, "mean_transaction_amount": 50.0, "exposure_factor": 1.0})
+    gt2 = GroundTruthEvent(event_id="GT-02", merchant_id="M1", anomaly_type="volume_spike", start_time=st + timedelta(minutes=3), end_time=st + timedelta(minutes=5), severity=4.0, parameters={"excess_transaction_count": 10, "mean_transaction_amount": 50.0, "exposure_factor": 1.0})
 
     alt = Alert(alert_id="ALT-1", merchant_id="M1", timestamp=st + timedelta(seconds=30), risk_score=4.0, confidence=1.0, reason="breach", detector_version="1.0.0")
 
@@ -322,7 +327,7 @@ def test_evaluator_multiple_gt_one_alert():
     assert metrics.precision == 1.0
     assert metrics.recall == 0.5
     assert metrics.fp_cost == 0.0
-    assert metrics.fn_exposure == 500.0  # GT2 missed exposure (1.0 * 500.0)
+    assert metrics.fn_exposure == 500.0  # 10 * 50.0 * 1.0
     assert metrics.total_cost == 500.0
 
 
@@ -338,10 +343,11 @@ def test_evaluator_zero_denominator_matrix():
     assert m1.fp_cost == 0.0 and m1.fn_exposure == 0.0
 
     # Case 2: Events with zero alerts -> P=0, R=0, F1=0
-    gt = GroundTruthEvent(event_id="GT-01", merchant_id="M1", anomaly_type="volume_spike", start_time=datetime(2026, 1, 1, tzinfo=timezone.utc), end_time=datetime(2026, 1, 1, 0, 5, tzinfo=timezone.utc), severity=4.0)
+    gt = GroundTruthEvent(event_id="GT-01", merchant_id="M1", anomaly_type="volume_spike", start_time=datetime(2026, 1, 1, tzinfo=timezone.utc), end_time=datetime(2026, 1, 1, 0, 5, tzinfo=timezone.utc), severity=4.0, parameters={"excess_transaction_count": 10, "mean_transaction_amount": 50.0, "exposure_factor": 1.0})
     m2 = evaluator.evaluate([], [gt])
     assert m2.tp == 0 and m2.fp == 0 and m2.fn == 1
     assert m2.precision == 0.0 and m2.recall == 0.0 and m2.f1_score == 0.0
+
 
     # Case 3: Alerts with zero events -> P=0, R=1, F1=0
     alt = Alert(alert_id="ALT-01", merchant_id="M1", timestamp=datetime(2026, 1, 1, tzinfo=timezone.utc), risk_score=4.0, confidence=1.0, reason="r", detector_version="1.0.0")

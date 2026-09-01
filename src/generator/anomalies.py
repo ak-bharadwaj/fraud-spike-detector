@@ -93,6 +93,9 @@ def create_ground_truth_event(
 
     params = dict(spec.parameters)
     params["target_magnitude"] = float(spec.target_magnitude)
+    params.setdefault("excess_transaction_count", max(1.0, float(round(10.0 * realized_magnitude))))
+    params.setdefault("mean_transaction_amount", 50.0)
+    params.setdefault("exposure_factor", 1.0)
 
     return GroundTruthEvent(
         event_id=event_id,
@@ -103,3 +106,4 @@ def create_ground_truth_event(
         severity=float(realized_magnitude),
         parameters=params,
     )
+

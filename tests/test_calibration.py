@@ -46,7 +46,13 @@ def make_dummy_gt_event(merchant_id: str, start_time: datetime, end_time: dateti
         start_time=start_time,
         end_time=end_time,
         severity=5.0,
+        parameters={
+            "excess_transaction_count": 10,
+            "mean_transaction_amount": 50.0,
+            "exposure_factor": 1.0,
+        },
     )
+
 
 
 # =====================================================================

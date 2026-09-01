@@ -165,11 +165,11 @@ class AnomalyEvaluator:
 
             for gt in m_events:
                 horizon_sec = self.resolve_horizon(gt.anomaly_type)
-                # Pre-onset alerts are strictly False Positives (no tolerance before start_time)
+                # Frozen horizon: GT.start_time <= first_valid_alert <= GT.start_time + horizon
                 valid_start = gt.start_time.timestamp()
-                valid_end = (gt.start_time + timedelta(seconds=horizon_sec)).timestamp() + self.temporal_tolerance_seconds
+                valid_end = (gt.start_time + timedelta(seconds=horizon_sec)).timestamp()
 
-                # Candidate alerts strictly within valid detection horizon [start_time, start_time + horizon + tol]
+                # Candidate alerts strictly within valid detection horizon [start_time, start_time + horizon]
                 candidate_alerts = [
                     alt for alt in m_alerts
                     if (alt.alert_id not in used_alert_ids and
@@ -250,8 +250,10 @@ class AnomalyEvaluator:
                 factor = float(params.get("exposure_factor", self.fn_exposure_factor))
                 event_exposure = excess_tx * mean_amt * factor
             else:
-                base_exp = float(params.get("amount_exposure", params.get("exposure", 100.0 * u_gt.severity)))
-                event_exposure = float(self.fn_exposure_factor * base_exp)
+                raise ValueError(
+                    f"Missing required cost inputs for unmatched GroundTruthEvent '{u_gt.event_id}'. "
+                    f"Expected 'excess_transaction_count' and 'mean_transaction_amount' in parameters."
+                )
             fn_exposure += float(event_exposure)
 
         total_cost = float(fp_cost + fn_exposure)
