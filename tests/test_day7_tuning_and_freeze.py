@@ -54,6 +54,9 @@ from src.evaluation.sweeps import (
     run_alpha_sweep,
     run_persistence_sweep,
     run_threshold_operating_point_sweep,
+    run_cooldown_sweep,
+    run_evidence_parameter_sweep,
+    run_signal_weight_sweep,
     select_final_development_configuration,
     HoldoutAccessViolationError,
     CANDIDATE_SIGNAL_WEIGHTS,
@@ -227,9 +230,25 @@ def test_alpha_persistence_and_complete_threshold_grid_sweeps(dev_benchmark_stre
     # 3. Complete operating point threshold sweep [1.0, 10.0] step 0.5 (19 points)
     th_grid = [float(t) for t in np.arange(1.0, 10.5, 0.5)]
     assert len(th_grid) == 19
-    th_results = run_threshold_operating_point_sweep(txs, events, thresholds=th_grid)
-    assert len(th_results) == 19
-    for res in th_results:
+    # 4. Cooldown sweep {1, 3, 5, 10}
+    cd_results = run_cooldown_sweep(txs, events, cooldowns=[1, 3, 5, 10])
+    assert len(cd_results) == 4
+    for res in cd_results:
+        assert res["cooldown_windows"] in [1, 3, 5, 10]
+        assert res["total_cost"] is not None
+
+    # 5. Evidence parameter sweep {1, 3, 5, 10}
+    ev_results = run_evidence_parameter_sweep(txs, events, min_window_counts=[1, 3, 5, 10])
+    assert len(ev_results) == 4
+    for res in ev_results:
+        assert res["min_window_count"] in [1, 3, 5, 10]
+        assert res["total_cost"] is not None
+
+    # 6. Signal weight sweep
+    sw_results = run_signal_weight_sweep(txs, events, weight_candidates=CANDIDATE_SIGNAL_WEIGHTS)
+    assert len(sw_results) == 4
+    for res in sw_results:
+        assert res["weight_name"] in CANDIDATE_SIGNAL_WEIGHTS
         assert res["total_cost"] is not None
 
 
@@ -248,6 +267,15 @@ def test_strict_development_only_enforcement(dev_benchmark_stream):
 
     with pytest.raises(HoldoutAccessViolationError):
         run_threshold_operating_point_sweep(txs, events, data_path="data/holdout/stream.json")
+
+    with pytest.raises(HoldoutAccessViolationError):
+        run_cooldown_sweep(txs, events, data_path="data/holdout/stream.json")
+
+    with pytest.raises(HoldoutAccessViolationError):
+        run_evidence_parameter_sweep(txs, events, data_path="data/holdout/stream.json")
+
+    with pytest.raises(HoldoutAccessViolationError):
+        run_signal_weight_sweep(txs, events, data_path="data/holdout/stream.json")
 
     with pytest.raises(HoldoutAccessViolationError):
         select_final_development_configuration(txs, events, data_path="data/holdout/stream.json")
@@ -355,3 +383,33 @@ def test_canonical_freeze_record_file_exists_and_valid():
 
     # Verify config hash matches the internal parameters
     assert compute_config_hash(record.all_selected_parameters) == record.config_hash
+
+
+def test_selection_procedure_reproducibility(dev_benchmark_stream):
+    """Verify that running the complete selection procedure twice on identical data produces identical candidates, winner, and config hash."""
+    txs, events = dev_benchmark_stream
+
+    run1 = select_final_development_configuration(
+        txs,
+        events,
+        thresholds=[2.5, 3.5, 4.5],
+        alphas=[0.3, 0.5],
+        persistences=[1, 2],
+    )
+    run2 = select_final_development_configuration(
+        txs,
+        events,
+        thresholds=[2.5, 3.5, 4.5],
+        alphas=[0.3, 0.5],
+        persistences=[1, 2],
+    )
+
+    assert run1["selected_scorer"] == run2["selected_scorer"]
+    assert run1["all_selected_parameters"] == run2["all_selected_parameters"]
+    assert run1["score_tuple"] == run2["score_tuple"]
+    assert len(run1["all_evaluated_candidates"]) == len(run2["all_evaluated_candidates"])
+
+    hash1 = compute_config_hash(run1["all_selected_parameters"])
+    hash2 = compute_config_hash(run2["all_selected_parameters"])
+    assert hash1 == hash2
+

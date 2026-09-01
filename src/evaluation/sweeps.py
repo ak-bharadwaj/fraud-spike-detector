@@ -10,11 +10,13 @@ Key Invariants:
   - alpha: {0.2, 0.3, 0.5, 0.7, 0.9}
   - persistence: {1, 2, 3}
   - threshold: complete operating-point sweep over [1.0, 10.0] with step 0.5
-  - signal weights: candidate feature group weight vectors
+  - signal weights: candidate feature group weight vectors (EQUAL, VOLUME_VELOCITY_HEAVY, AMOUNT_HEAVY, BEHAVIORAL_HEAVY)
+  - cooldown: candidate cooldown windows {1, 3, 5, 10}
+  - evidence parameters: candidate min_window_count {1, 3, 5, 10}
 - Complete metric reporting for all candidates:
   - TP, FP, FN, Precision, Recall, F1, Median Latency, P95 Latency, FP Cost, FN Exposure, Total Cost.
 - Selection procedure:
-  - Derives winning scorer, alpha, threshold, persistence, cooldown, and signal weights
+  - Derives winning scorer, alpha, threshold, persistence, cooldown, signal weights, and evidence parameters.
   - Minimizes Total Cost (FP Cost + FN Exposure) with tie-breaking on higher F1 and lower latency.
 """
 
@@ -29,6 +31,7 @@ from src.contracts.contracts import (
     BaselineSnapshot,
     RiskScore,
     Alert,
+    GroundTruthEvent,
     FrozenDetectorConfig,
     EvaluationMetrics,
 )
@@ -225,6 +228,127 @@ def run_threshold_operating_point_sweep(
     return results
 
 
+def run_cooldown_sweep(
+    transactions: Sequence[Transaction],
+    ground_truth_events: Sequence[GroundTruthEvent],
+    cooldowns: Sequence[int] = (1, 3, 5, 10),
+    base_config: Optional[FrozenDetectorConfig] = None,
+    evaluator: Optional[AnomalyEvaluator] = None,
+    data_path: Optional[str] = None,
+) -> List[Dict[str, Any]]:
+    """Execute parameter sweep over candidate cooldown windows on development data."""
+    _verify_development_only_data(data_path)
+    base_cfg = base_config or FrozenDetectorConfig()
+    eval_engine = evaluator or AnomalyEvaluator()
+    results = []
+
+    for cd in cooldowns:
+        cfg = base_cfg.model_copy(update={"cooldown_windows": int(cd)})
+        scorer = HybridEWMAScorer(alpha=cfg.ewma_alpha, static_threshold=cfg.static_threshold)
+        pipeline = StreamingDetectorPipeline(config=cfg, scorer=scorer, db_path=":memory:")
+        alerts = pipeline.process_transactions(transactions)
+        metrics: EvaluationMetrics = eval_engine.evaluate(alerts=alerts, ground_truth_events=list(ground_truth_events))
+
+        results.append({
+            "cooldown_windows": int(cd),
+            "tp": metrics.tp,
+            "fp": metrics.fp,
+            "fn": metrics.fn,
+            "precision": metrics.precision,
+            "recall": metrics.recall,
+            "f1_score": metrics.f1_score,
+            "median_latency_seconds": metrics.median_latency_seconds,
+            "p95_latency_seconds": metrics.p95_latency_seconds,
+            "fp_cost": metrics.fp_cost,
+            "fn_exposure": metrics.fn_exposure,
+            "total_cost": metrics.total_cost,
+            "metrics": metrics,
+        })
+
+    return results
+
+
+def run_evidence_parameter_sweep(
+    transactions: Sequence[Transaction],
+    ground_truth_events: Sequence[GroundTruthEvent],
+    min_window_counts: Sequence[int] = (1, 3, 5, 10),
+    base_config: Optional[FrozenDetectorConfig] = None,
+    evaluator: Optional[AnomalyEvaluator] = None,
+    data_path: Optional[str] = None,
+) -> List[Dict[str, Any]]:
+    """Execute parameter sweep over candidate baseline min_window_count on development data."""
+    _verify_development_only_data(data_path)
+    base_cfg = base_config or FrozenDetectorConfig()
+    eval_engine = evaluator or AnomalyEvaluator()
+    results = []
+
+    for mwc in min_window_counts:
+        cfg = base_cfg.model_copy(update={"min_window_count": int(mwc), "min_history_count": int(mwc)})
+        scorer = HybridEWMAScorer(alpha=cfg.ewma_alpha, static_threshold=cfg.static_threshold)
+        pipeline = StreamingDetectorPipeline(config=cfg, scorer=scorer, db_path=":memory:")
+        alerts = pipeline.process_transactions(transactions)
+        metrics: EvaluationMetrics = eval_engine.evaluate(alerts=alerts, ground_truth_events=list(ground_truth_events))
+
+        results.append({
+            "min_window_count": int(mwc),
+            "tp": metrics.tp,
+            "fp": metrics.fp,
+            "fn": metrics.fn,
+            "precision": metrics.precision,
+            "recall": metrics.recall,
+            "f1_score": metrics.f1_score,
+            "median_latency_seconds": metrics.median_latency_seconds,
+            "p95_latency_seconds": metrics.p95_latency_seconds,
+            "fp_cost": metrics.fp_cost,
+            "fn_exposure": metrics.fn_exposure,
+            "total_cost": metrics.total_cost,
+            "metrics": metrics,
+        })
+
+    return results
+
+
+def run_signal_weight_sweep(
+    transactions: Sequence[Transaction],
+    ground_truth_events: Sequence[GroundTruthEvent],
+    weight_candidates: Optional[Dict[str, Dict[str, float]]] = None,
+    base_config: Optional[FrozenDetectorConfig] = None,
+    evaluator: Optional[AnomalyEvaluator] = None,
+    data_path: Optional[str] = None,
+) -> List[Dict[str, Any]]:
+    """Execute parameter sweep over candidate signal weight configurations on development data."""
+    _verify_development_only_data(data_path)
+    base_cfg = base_config or FrozenDetectorConfig()
+    eval_engine = evaluator or AnomalyEvaluator()
+    candidates = weight_candidates or CANDIDATE_SIGNAL_WEIGHTS
+    results = []
+
+    for name, weights in candidates.items():
+        scorer = HybridEWMAScorer(alpha=base_cfg.ewma_alpha, static_threshold=base_cfg.static_threshold, signal_weights=weights)
+        pipeline = StreamingDetectorPipeline(config=base_cfg, scorer=scorer, db_path=":memory:")
+        alerts = pipeline.process_transactions(transactions)
+        metrics: EvaluationMetrics = eval_engine.evaluate(alerts=alerts, ground_truth_events=list(ground_truth_events))
+
+        results.append({
+            "weight_name": name,
+            "signal_weights": weights,
+            "tp": metrics.tp,
+            "fp": metrics.fp,
+            "fn": metrics.fn,
+            "precision": metrics.precision,
+            "recall": metrics.recall,
+            "f1_score": metrics.f1_score,
+            "median_latency_seconds": metrics.median_latency_seconds,
+            "p95_latency_seconds": metrics.p95_latency_seconds,
+            "fp_cost": metrics.fp_cost,
+            "fn_exposure": metrics.fn_exposure,
+            "total_cost": metrics.total_cost,
+            "metrics": metrics,
+        })
+
+    return results
+
+
 def _extract_stream_snapshots(
     transactions: Sequence[Transaction],
     min_window_count: int = 5,
@@ -281,6 +405,8 @@ def select_final_development_configuration(
     thresholds: Optional[Sequence[float]] = None,
     alphas: Sequence[float] = (0.2, 0.3, 0.5, 0.7, 0.9),
     persistences: Sequence[int] = (1, 2, 3),
+    cooldowns: Sequence[int] = (5,),
+    min_window_counts: Sequence[int] = (5,),
     weight_candidates: Optional[Dict[str, Dict[str, float]]] = None,
     data_path: Optional[str] = None,
 ) -> Dict[str, Any]:
@@ -295,8 +421,8 @@ def select_final_development_configuration(
     - Persistence: {1, 2, 3}
     - Thresholds: [1.0, 10.0] step 0.5
     - Signal Weights: Equal, Volume/Velocity Heavy, Amount Heavy, Behavioral Heavy
-    - Cooldown: 5
-    - Evidence min_window_count: 5
+    - Cooldown: candidate cooldowns
+    - Evidence min_window_count: candidate min_window_counts
     """
     _verify_development_only_data(data_path)
     evaluator = AnomalyEvaluator()
@@ -307,154 +433,158 @@ def select_final_development_configuration(
         threshold_grid = [float(t) for t in thresholds]
 
     weights_dict = weight_candidates or CANDIDATE_SIGNAL_WEIGHTS
-    snapshots = _extract_stream_snapshots(transactions, min_window_count=5)
 
     best_candidate: Optional[Dict[str, Any]] = None
     best_score_tuple = (float("inf"), -1.0, float("inf"))  # (total_cost, -f1_score, median_latency)
     all_evaluated: List[Dict[str, Any]] = []
 
-    # 1. Search StaticThresholdScorer
-    for w_name, weights in weights_dict.items():
-        for th in threshold_grid:
-            scorer = StaticThresholdScorer(static_threshold=th, signal_weights=weights)
-            # Precompute risk scores for stream
-            risk_scores = [
-                (feat.merchant_id, feat.timestamp, scorer.calculate_score(feat, base, signal_weights=weights))
-                for feat, base in snapshots
-            ]
-            for p in persistences:
-                sm = AlertStateMachine(persistence=p, cooldown_windows=5, static_threshold=th)
-                alerts = []
-                for m_id, ts, rs in risk_scores:
-                    _, alt = sm.process_score(m_id, ts, rs)
-                    if alt is not None:
-                        alerts.append(alt)
-                m = evaluator.evaluate(alerts=alerts, ground_truth_events=list(ground_truth_events))
+    for mwc in min_window_counts:
+        snapshots = _extract_stream_snapshots(transactions, min_window_count=mwc)
 
-                tot_cost = m.total_cost if m.total_cost is not None else float("inf")
-                lat = m.median_latency_seconds if m.median_latency_seconds is not None else float("inf")
-                score_tuple = (tot_cost, -m.f1_score, lat)
-
-                cand = {
-                    "selected_scorer": "StaticThresholdScorer",
-                    "selected_alpha": None,
-                    "selected_threshold": th,
-                    "selected_persistence": p,
-                    "selected_cooldown": 5,
-                    "selected_evidence_params": {"min_window_count": 5},
-                    "selected_signal_weights": weights,
-                    "all_selected_parameters": {
-                        "scorer": "StaticThresholdScorer",
-                        "alpha": None,
-                        "static_threshold": th,
-                        "persistence": p,
-                        "cooldown_windows": 5,
-                        "min_window_count": 5,
-                        "signal_weights": weights,
-                        "detector_version": "1.0.0",
-                    },
-                    "metrics": m,
-                    "score_tuple": score_tuple,
-                }
-                all_evaluated.append(cand)
-                if score_tuple < best_score_tuple or best_candidate is None:
-                    best_score_tuple = score_tuple
-                    best_candidate = cand
-
-    # 2. Search StatisticalDeviationScorer
-    for w_name, weights in weights_dict.items():
-        for th in threshold_grid:
-            scorer = StatisticalDeviationScorer(static_threshold=th, signal_weights=weights)
-            risk_scores = [
-                (feat.merchant_id, feat.timestamp, scorer.calculate_score(feat, base, signal_weights=weights))
-                for feat, base in snapshots
-            ]
-            for p in persistences:
-                sm = AlertStateMachine(persistence=p, cooldown_windows=5, static_threshold=th)
-                alerts = []
-                for m_id, ts, rs in risk_scores:
-                    _, alt = sm.process_score(m_id, ts, rs)
-                    if alt is not None:
-                        alerts.append(alt)
-                m = evaluator.evaluate(alerts=alerts, ground_truth_events=list(ground_truth_events))
-
-                tot_cost = m.total_cost if m.total_cost is not None else float("inf")
-                lat = m.median_latency_seconds if m.median_latency_seconds is not None else float("inf")
-                score_tuple = (tot_cost, -m.f1_score, lat)
-
-                cand = {
-                    "selected_scorer": "StatisticalDeviationScorer",
-                    "selected_alpha": None,
-                    "selected_threshold": th,
-                    "selected_persistence": p,
-                    "selected_cooldown": 5,
-                    "selected_evidence_params": {"min_window_count": 5},
-                    "selected_signal_weights": weights,
-                    "all_selected_parameters": {
-                        "scorer": "StatisticalDeviationScorer",
-                        "alpha": None,
-                        "static_threshold": th,
-                        "persistence": p,
-                        "cooldown_windows": 5,
-                        "min_window_count": 5,
-                        "signal_weights": weights,
-                        "detector_version": "1.0.0",
-                    },
-                    "metrics": m,
-                    "score_tuple": score_tuple,
-                }
-                all_evaluated.append(cand)
-                if score_tuple < best_score_tuple or best_candidate is None:
-                    best_score_tuple = score_tuple
-                    best_candidate = cand
-
-    # 3. Search HybridEWMAScorer
-    for w_name, weights in weights_dict.items():
-        for alpha in alphas:
+        # 1. Search StaticThresholdScorer
+        for w_name, weights in weights_dict.items():
             for th in threshold_grid:
-                scorer = HybridEWMAScorer(alpha=alpha, static_threshold=th, signal_weights=weights)
+                scorer = StaticThresholdScorer(static_threshold=th, signal_weights=weights)
                 risk_scores = [
                     (feat.merchant_id, feat.timestamp, scorer.calculate_score(feat, base, signal_weights=weights))
                     for feat, base in snapshots
                 ]
-                for p in persistences:
-                    sm = AlertStateMachine(persistence=p, cooldown_windows=5, static_threshold=th)
-                    alerts = []
-                    for m_id, ts, rs in risk_scores:
-                        _, alt = sm.process_score(m_id, ts, rs)
-                        if alt is not None:
-                            alerts.append(alt)
-                    m = evaluator.evaluate(alerts=alerts, ground_truth_events=list(ground_truth_events))
+                for cd in cooldowns:
+                    for p in persistences:
+                        sm = AlertStateMachine(persistence=p, cooldown_windows=cd, static_threshold=th)
+                        alerts = []
+                        for m_id, ts, rs in risk_scores:
+                            _, alt = sm.process_score(m_id, ts, rs)
+                            if alt is not None:
+                                alerts.append(alt)
+                        m = evaluator.evaluate(alerts=alerts, ground_truth_events=list(ground_truth_events))
 
-                    tot_cost = m.total_cost if m.total_cost is not None else float("inf")
-                    lat = m.median_latency_seconds if m.median_latency_seconds is not None else float("inf")
-                    score_tuple = (tot_cost, -m.f1_score, lat)
+                        tot_cost = m.total_cost if m.total_cost is not None else float("inf")
+                        lat = m.median_latency_seconds if m.median_latency_seconds is not None else float("inf")
+                        score_tuple = (tot_cost, -m.f1_score, lat)
 
-                    cand = {
-                        "selected_scorer": "HybridEWMAScorer",
-                        "selected_alpha": alpha,
-                        "selected_threshold": th,
-                        "selected_persistence": p,
-                        "selected_cooldown": 5,
-                        "selected_evidence_params": {"min_window_count": 5},
-                        "selected_signal_weights": weights,
-                        "all_selected_parameters": {
-                            "scorer": "HybridEWMAScorer",
-                            "alpha": alpha,
-                            "static_threshold": th,
-                            "persistence": p,
-                            "cooldown_windows": 5,
-                            "min_window_count": 5,
-                            "signal_weights": weights,
-                            "detector_version": "1.0.0",
-                        },
-                        "metrics": m,
-                        "score_tuple": score_tuple,
-                    }
-                    all_evaluated.append(cand)
-                    if score_tuple < best_score_tuple or best_candidate is None:
-                        best_score_tuple = score_tuple
-                        best_candidate = cand
+                        cand = {
+                            "selected_scorer": "StaticThresholdScorer",
+                            "selected_alpha": None,
+                            "selected_threshold": th,
+                            "selected_persistence": p,
+                            "selected_cooldown": cd,
+                            "selected_evidence_params": {"min_window_count": mwc},
+                            "selected_signal_weights": weights,
+                            "all_selected_parameters": {
+                                "scorer": "StaticThresholdScorer",
+                                "alpha": None,
+                                "static_threshold": th,
+                                "persistence": p,
+                                "cooldown_windows": cd,
+                                "min_window_count": mwc,
+                                "signal_weights": weights,
+                                "detector_version": "1.0.0",
+                            },
+                            "metrics": m,
+                            "score_tuple": score_tuple,
+                        }
+                        all_evaluated.append(cand)
+                        if score_tuple < best_score_tuple or best_candidate is None:
+                            best_score_tuple = score_tuple
+                            best_candidate = cand
+
+        # 2. Search StatisticalDeviationScorer
+        for w_name, weights in weights_dict.items():
+            for th in threshold_grid:
+                scorer = StatisticalDeviationScorer(static_threshold=th, signal_weights=weights)
+                risk_scores = [
+                    (feat.merchant_id, feat.timestamp, scorer.calculate_score(feat, base, signal_weights=weights))
+                    for feat, base in snapshots
+                ]
+                for cd in cooldowns:
+                    for p in persistences:
+                        sm = AlertStateMachine(persistence=p, cooldown_windows=cd, static_threshold=th)
+                        alerts = []
+                        for m_id, ts, rs in risk_scores:
+                            _, alt = sm.process_score(m_id, ts, rs)
+                            if alt is not None:
+                                alerts.append(alt)
+                        m = evaluator.evaluate(alerts=alerts, ground_truth_events=list(ground_truth_events))
+
+                        tot_cost = m.total_cost if m.total_cost is not None else float("inf")
+                        lat = m.median_latency_seconds if m.median_latency_seconds is not None else float("inf")
+                        score_tuple = (tot_cost, -m.f1_score, lat)
+
+                        cand = {
+                            "selected_scorer": "StatisticalDeviationScorer",
+                            "selected_alpha": None,
+                            "selected_threshold": th,
+                            "selected_persistence": p,
+                            "selected_cooldown": cd,
+                            "selected_evidence_params": {"min_window_count": mwc},
+                            "selected_signal_weights": weights,
+                            "all_selected_parameters": {
+                                "scorer": "StatisticalDeviationScorer",
+                                "alpha": None,
+                                "static_threshold": th,
+                                "persistence": p,
+                                "cooldown_windows": cd,
+                                "min_window_count": mwc,
+                                "signal_weights": weights,
+                                "detector_version": "1.0.0",
+                            },
+                            "metrics": m,
+                            "score_tuple": score_tuple,
+                        }
+                        all_evaluated.append(cand)
+                        if score_tuple < best_score_tuple or best_candidate is None:
+                            best_score_tuple = score_tuple
+                            best_candidate = cand
+
+        # 3. Search HybridEWMAScorer
+        for w_name, weights in weights_dict.items():
+            for alpha in alphas:
+                for th in threshold_grid:
+                    scorer = HybridEWMAScorer(alpha=alpha, static_threshold=th, signal_weights=weights)
+                    risk_scores = [
+                        (feat.merchant_id, feat.timestamp, scorer.calculate_score(feat, base, signal_weights=weights))
+                        for feat, base in snapshots
+                    ]
+                    for cd in cooldowns:
+                        for p in persistences:
+                            sm = AlertStateMachine(persistence=p, cooldown_windows=cd, static_threshold=th)
+                            alerts = []
+                            for m_id, ts, rs in risk_scores:
+                                _, alt = sm.process_score(m_id, ts, rs)
+                                if alt is not None:
+                                    alerts.append(alt)
+                            m = evaluator.evaluate(alerts=alerts, ground_truth_events=list(ground_truth_events))
+
+                            tot_cost = m.total_cost if m.total_cost is not None else float("inf")
+                            lat = m.median_latency_seconds if m.median_latency_seconds is not None else float("inf")
+                            score_tuple = (tot_cost, -m.f1_score, lat)
+
+                            cand = {
+                                "selected_scorer": "HybridEWMAScorer",
+                                "selected_alpha": alpha,
+                                "selected_threshold": th,
+                                "selected_persistence": p,
+                                "selected_cooldown": cd,
+                                "selected_evidence_params": {"min_window_count": mwc},
+                                "selected_signal_weights": weights,
+                                "all_selected_parameters": {
+                                    "scorer": "HybridEWMAScorer",
+                                    "alpha": alpha,
+                                    "static_threshold": th,
+                                    "persistence": p,
+                                    "cooldown_windows": cd,
+                                    "min_window_count": mwc,
+                                    "signal_weights": weights,
+                                    "detector_version": "1.0.0",
+                                },
+                                "metrics": m,
+                                "score_tuple": score_tuple,
+                            }
+                            all_evaluated.append(cand)
+                            if score_tuple < best_score_tuple or best_candidate is None:
+                                best_score_tuple = score_tuple
+                                best_candidate = cand
 
     if best_candidate is not None:
         best_candidate["all_evaluated_candidates"] = all_evaluated
