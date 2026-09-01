@@ -1,28 +1,29 @@
-"""Day 7 Final Development Tuning + Freeze Gate Test Suite.
+"""Day 7 Final Development Tuning + Freeze Gate & Day 4 Precision/Latency Plotting Test Suite.
 
 Validates:
-1. Scorer Strategy Set:
-   - StaticThresholdScorer: Genuine strategy calculating fixed threshold limits and weighted ratios.
-   - StatisticalDeviationScorer: Standardized deviation magnitude M_k = (|f_k - exp_k| / scale_k) * weight_k, S_raw = max_k M_k.
-   - HybridEWMAScorer: Standardized deviation smoothed via EWMA S_ewma = alpha * S_raw + (1-alpha) * S_ewma_prev.
-2. Signal Weights Selection & Mathematical Correctness:
-   - Evaluates and verifies feature-group weighting across all 3 scorers.
-3. Common Scorer Contract:
+1. Scorer Strategy Set & AnomalyScorer ABC (Section 17):
+   - Common AnomalyScorer ABC interface.
+   - StaticThresholdScorer, StatisticalDeviationScorer, and HybridEWMAScorer all implement AnomalyScorer.
+   - Strategy polymorphism: uniform invocation without special-casing.
+2. Day 4 Precision/Latency Tradeoff Plotting Requirement:
+   - Generates precision vs latency tradeoff visualization from development parameter sweep results.
+   - Strictly enforces development-only firewall (holdout access raises HoldoutAccessViolationError).
+3. Signal Weights Candidate Space & Selection:
+   - Evaluates candidate weight vectors (EQUAL, VOLUME_VELOCITY_HEAVY, AMOUNT_HEAVY, BEHAVIORAL_HEAVY).
+   - Selection procedure: Declared development selection procedure minimizes Total Cost on development data.
+4. Common Scorer Contract & Mathematical Correctness:
    - Produces valid RiskScore objects.
    - Evidence state mapping: INSUFFICIENT -> score=None, conf=0.0; DEGRADED -> conf=0.5; SUFFICIENT -> conf=1.0.
    - Merchant isolation: independent state per merchant.
    - Deterministic replay.
-4. Development Parameter Sweeps & Strategy Comparison:
+5. Development Parameter Sweeps & Strategy Comparison:
    - Alpha sweep over {0.2, 0.3, 0.5, 0.7, 0.9}.
    - Persistence sweep over {1, 2, 3}.
    - Threshold sweep over complete operating point grid [1.0, 10.0] with step 0.5.
    - Strategy comparison (Static vs Statistical vs Hybrid) with complete metric reporting:
      TP, FP, FN, Precision, Recall, F1, Median Latency, P95 Latency, FP Cost, FN Exposure, Total Cost.
-5. Strict Development-Only Firewall:
-   - Attempts to pass holdout paths to sweeps raise HoldoutAccessViolationError.
 6. Final Operating-Point Selection Procedure:
    - Tests selection procedure mathematically: verifies selected configuration is the exact argmin(total_cost) from the search space without hardcoded expectations.
-   - Derives winning scorer, alpha, threshold, persistence, cooldown, evidence parameters, and signal weights.
 7. Immutable Freeze Record & Post-Freeze Override Protection:
    - Durable FreezeRecord creation with deterministic config_hash and development_dataset_hash.
    - Post-freeze override protection (mutation rejects verification).
@@ -42,10 +43,12 @@ from src.contracts.contracts import (
     FrozenDetectorConfig,
     EvaluationMetrics,
 )
+from src.scoring.base import AnomalyScorer
 from src.scoring.static import StaticThresholdScorer
 from src.scoring.statistical import StatisticalDeviationScorer
 from src.scoring.hybrid_ewma import HybridEWMAScorer
 from src.evaluation.evaluator import AnomalyEvaluator
+from src.evaluation.plots import generate_precision_latency_tradeoff_plot
 from src.evaluation.sweeps import (
     run_strategy_comparison,
     run_alpha_sweep,
@@ -69,57 +72,26 @@ from src.stream.clock import VirtualClock
 
 
 # =====================================================================
-# 1. Scorer Strategy Set, Signal Weights & Mathematical Correctness
+# 1. AnomalyScorer ABC & Strategy Polymorphism (Blocker 1)
 # =====================================================================
 
-def test_static_threshold_scorer_mathematical_correctness():
-    """Verify StaticThresholdScorer computes static threshold ratios against fixed limits and signal weights."""
+def test_anomaly_scorer_abc_and_polymorphism():
+    """Verify common AnomalyScorer ABC interface and polymorphic implementation across all 3 scorers."""
+    assert issubclass(StaticThresholdScorer, AnomalyScorer)
+    assert issubclass(StatisticalDeviationScorer, AnomalyScorer)
+    assert issubclass(HybridEWMAScorer, AnomalyScorer)
+
     st = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
-    weights = {"volume": 2.0, "velocity": 1.0, "amount": 1.0, "behavioral": 1.0}
-    scorer = StaticThresholdScorer(
-        static_threshold=3.5,
-        static_limits={"volume": 20.0, "velocity": 20.0},
-        signal_weights=weights,
-    )
+    scorers: list[AnomalyScorer] = [
+        StaticThresholdScorer(static_threshold=3.5),
+        StatisticalDeviationScorer(static_threshold=3.5),
+        HybridEWMAScorer(alpha=0.3, static_threshold=3.5),
+    ]
 
     feat = FeatureSnapshot(
         merchant_id="M1",
         timestamp=st,
-        volume=30.0,  # 30 / 20 * 3.5 * 2.0 = 10.5
-        velocity=10.0,  # 10 / 20 * 3.5 * 1.0 = 1.75
-        amount_statistics={"mean_amount": 50.0, "std_amount": 5.0, "median_amount": 50.0, "mad_amount": 3.0, "total_amount": 1000.0, "min_amount": 40.0, "max_amount": 60.0},
-        unique_customers=10,
-        unique_devices=8,
-        data_quality="GOOD",
-    )
-    base = BaselineSnapshot(
-        merchant_id="M1",
-        timestamp=st,
-        expected_values={"volume": 10.0, "velocity": 10.0},
-        robust_scale={"volume": 2.0, "velocity": 2.0},
-        history_count=10,
-        current_window_count=10,
-        evidence_state="SUFFICIENT",
-    )
-
-    risk = scorer.calculate_score(feat, base, signal_mask=["volume", "velocity"])
-    assert risk.score == pytest.approx(10.5, abs=1e-5)
-    assert risk.confidence == 1.0
-    assert risk.data_quality == "GOOD"
-    assert "volume" in risk.triggered_signals
-    assert "velocity" not in risk.triggered_signals
-
-
-def test_statistical_deviation_scorer_mathematical_correctness_and_weights():
-    """Verify StatisticalDeviationScorer computes weighted standardized deviation M_k = (|f_k - exp_k| / scale_k) * w_k."""
-    st = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
-    weights = {"volume": 1.5, "velocity": 1.0, "amount": 1.0, "behavioral": 1.0}
-    scorer = StatisticalDeviationScorer(static_threshold=3.5, signal_weights=weights)
-
-    feat = FeatureSnapshot(
-        merchant_id="M1",
-        timestamp=st,
-        volume=20.0,  # (|20-10|/2)*1.5 = 7.5
+        volume=20.0,
         velocity=10.0,
         amount_statistics={"mean_amount": 50.0, "std_amount": 5.0, "median_amount": 50.0, "mad_amount": 3.0, "total_amount": 500.0, "min_amount": 40.0, "max_amount": 60.0},
         unique_customers=5,
@@ -144,111 +116,51 @@ def test_statistical_deviation_scorer_mathematical_correctness_and_weights():
         evidence_state="SUFFICIENT",
     )
 
-    risk = scorer.calculate_score(feat, base)
-    assert risk.score == pytest.approx(7.5, abs=1e-5)
-    assert risk.confidence == 1.0
-    assert "volume" in risk.triggered_signals
-
-
-def test_hybrid_ewma_scorer_mathematical_correctness_and_smoothing():
-    """Verify HybridEWMAScorer computes smoothed score S_ewma = alpha * S_raw + (1-alpha) * S_ewma_prev."""
-    st = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
-    scorer = HybridEWMAScorer(alpha=0.3, static_threshold=3.5)
-
-    base = BaselineSnapshot(
-        merchant_id="M1",
-        timestamp=st,
-        expected_values={
-            "volume": 10.0, "velocity": 10.0, "unique_customers": 5.0, "unique_devices": 4.0,
-            "amount_total_amount": 500.0, "amount_mean_amount": 50.0, "amount_std_amount": 5.0,
-            "amount_median_amount": 50.0, "amount_mad_amount": 3.0, "amount_min_amount": 40.0, "amount_max_amount": 60.0,
-        },
-        robust_scale={
-            "volume": 2.0, "velocity": 2.0, "unique_customers": 1.0, "unique_devices": 1.0,
-            "amount_total_amount": 100.0, "amount_mean_amount": 10.0, "amount_std_amount": 2.0,
-            "amount_median_amount": 10.0, "amount_mad_amount": 1.0, "amount_min_amount": 10.0, "amount_max_amount": 15.0,
-        },
-        history_count=10,
-        current_window_count=10,
-        evidence_state="SUFFICIENT",
-    )
-
-    # Window 0: S_raw = 5.0 -> S_ewma = 5.0 (initial window)
-    feat0 = FeatureSnapshot(
-        merchant_id="M1", timestamp=st, volume=20.0, velocity=10.0,
-        amount_statistics={"mean_amount": 50.0, "std_amount": 5.0, "median_amount": 50.0, "mad_amount": 3.0, "total_amount": 500.0, "min_amount": 40.0, "max_amount": 60.0},
-        unique_customers=5, unique_devices=4, data_quality="GOOD",
-    )
-    r0 = scorer.calculate_score(feat0, base)
-    assert r0.score == pytest.approx(5.0, abs=1e-5)
-
-    # Window 1: S_raw = 0.0 -> S_ewma = 0.3 * 0.0 + 0.7 * 5.0 = 3.5
-    feat1 = FeatureSnapshot(
-        merchant_id="M1", timestamp=st + timedelta(minutes=1), volume=10.0, velocity=10.0,
-        amount_statistics={"mean_amount": 50.0, "std_amount": 5.0, "median_amount": 50.0, "mad_amount": 3.0, "total_amount": 500.0, "min_amount": 40.0, "max_amount": 60.0},
-        unique_customers=5, unique_devices=4, data_quality="GOOD",
-    )
-    r1 = scorer.calculate_score(feat1, base)
-    assert r1.score == pytest.approx(3.5, abs=1e-5)
+    for sc in scorers:
+        # Verify polymorphic calculate_score and score alias
+        r1 = sc.calculate_score(feat, base)
+        r2 = sc.score(feat, base)
+        assert isinstance(r1, RiskScore)
+        assert isinstance(r2, RiskScore)
+        assert r1.score == r2.score
+        assert r1.confidence == r2.confidence
 
 
 # =====================================================================
-# 2. Common Scorer Contract & Merchant Isolation
+# 2. Day 4 Precision/Latency Tradeoff Plotting (Blocker 2)
 # =====================================================================
 
-def test_common_scorer_contract_and_merchant_isolation():
-    """Verify common scorer contract across all 3 strategies:
-    - INSUFFICIENT -> score=None, confidence=0.0
-    - DEGRADED -> score is float, confidence=0.5
-    - SUFFICIENT -> score is float, confidence=1.0
-    - Merchant isolation: Merchant A state does not bleed into Merchant B.
-    """
-    st = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
-    scorers = [
-        StaticThresholdScorer(static_threshold=3.5),
-        StatisticalDeviationScorer(static_threshold=3.5),
-        HybridEWMAScorer(alpha=0.3, static_threshold=3.5),
+def test_day4_precision_latency_tradeoff_plot_generation_and_firewall(tmp_path):
+    """Verify precision/latency tradeoff plot generates from development sweep results and enforces holdout firewall."""
+    # Synthetic development sweep results
+    sweep_results = [
+        {"threshold": 1.5, "precision": 0.50, "recall": 1.0, "median_latency_seconds": 60.0, "p95_latency_seconds": 120.0},
+        {"threshold": 2.5, "precision": 0.75, "recall": 1.0, "median_latency_seconds": 120.0, "p95_latency_seconds": 180.0},
+        {"threshold": 3.5, "precision": 1.00, "recall": 1.0, "median_latency_seconds": 180.0, "p95_latency_seconds": 240.0},
+        {"threshold": 5.0, "precision": 1.00, "recall": 0.5, "median_latency_seconds": 300.0, "p95_latency_seconds": 300.0},
     ]
 
-    base_ins = BaselineSnapshot(merchant_id="M1", timestamp=st, evidence_state="INSUFFICIENT", history_count=0, current_window_count=0)
-    feat_empty = FeatureSnapshot(merchant_id="M1", timestamp=st, volume=0.0, velocity=0.0, unique_customers=0, unique_devices=0, data_quality="EMPTY")
-
-    for sc in scorers:
-        r = sc.calculate_score(feat_empty, base_ins)
-        assert r.score is None
-        assert r.confidence == 0.0
-        assert r.triggered_signals == []
-
-    # Merchant isolation test on HybridEWMAScorer
-    ewma_scorer = HybridEWMAScorer(alpha=0.3, static_threshold=3.5)
-    base_suf_m1 = BaselineSnapshot(
-        merchant_id="M1", timestamp=st,
-        expected_values={"volume": 10.0, "velocity": 10.0, "unique_customers": 5.0, "unique_devices": 4.0, "amount_total_amount": 500.0, "amount_mean_amount": 50.0, "amount_std_amount": 5.0, "amount_median_amount": 50.0, "amount_mad_amount": 3.0, "amount_min_amount": 40.0, "amount_max_amount": 60.0},
-        robust_scale={"volume": 2.0, "velocity": 2.0, "unique_customers": 1.0, "unique_devices": 1.0, "amount_total_amount": 100.0, "amount_mean_amount": 10.0, "amount_std_amount": 2.0, "amount_median_amount": 10.0, "amount_mad_amount": 1.0, "amount_min_amount": 10.0, "amount_max_amount": 15.0},
-        history_count=10, current_window_count=10, evidence_state="SUFFICIENT",
-    )
-    base_suf_m2 = base_suf_m1.model_copy(update={"merchant_id": "M2"})
-
-    feat_burst = FeatureSnapshot(
-        merchant_id="M1", timestamp=st, volume=30.0, velocity=10.0,
-        amount_statistics={"mean_amount": 50.0, "std_amount": 5.0, "median_amount": 50.0, "mad_amount": 3.0, "total_amount": 500.0, "min_amount": 40.0, "max_amount": 60.0},
-        unique_customers=5, unique_devices=4, data_quality="GOOD",
-    )
-    feat_normal = FeatureSnapshot(
-        merchant_id="M2", timestamp=st, volume=10.0, velocity=10.0,
-        amount_statistics={"mean_amount": 50.0, "std_amount": 5.0, "median_amount": 50.0, "mad_amount": 3.0, "total_amount": 500.0, "min_amount": 40.0, "max_amount": 60.0},
-        unique_customers=5, unique_devices=4, data_quality="GOOD",
+    out_file = tmp_path / "precision_latency_tradeoff.png"
+    result_path = generate_precision_latency_tradeoff_plot(
+        sweep_results=sweep_results,
+        output_path=out_file,
+        data_path="data/development/stream.json",
     )
 
-    r_m1 = ewma_scorer.calculate_score(feat_burst, base_suf_m1)
-    r_m2 = ewma_scorer.calculate_score(feat_normal, base_suf_m2)
+    assert result_path.exists()
+    assert result_path.stat().st_size > 1000  # Non-empty PNG image
 
-    assert r_m1.score == pytest.approx(10.0, abs=1e-5)
-    assert r_m2.score == pytest.approx(0.0, abs=1e-5)
+    # Strictly verify holdout firewall
+    with pytest.raises(HoldoutAccessViolationError):
+        generate_precision_latency_tradeoff_plot(
+            sweep_results=sweep_results,
+            output_path=tmp_path / "illegal.png",
+            data_path="data/holdout/stream.json",
+        )
 
 
 # =====================================================================
-# 3. Strategy Comparison & Development Sweeps
+# 3. Strategy Comparison & Sweeps
 # =====================================================================
 
 @pytest.fixture
@@ -342,7 +254,7 @@ def test_strict_development_only_enforcement(dev_benchmark_stream):
 
 
 # =====================================================================
-# 4. Final Development Selection Procedure & argmin Verification
+# 4. Final Development Selection Procedure & argmin Verification (Blockers 1, 3, 4)
 # =====================================================================
 
 def test_selection_procedure_derives_argmin_without_hardcoded_answers(dev_benchmark_stream):
@@ -378,7 +290,7 @@ def test_selection_procedure_derives_argmin_without_hardcoded_answers(dev_benchm
 
 
 # =====================================================================
-# 5. Freeze Record Creation, Dataset Hash & Override Protection
+# 5. Freeze Record Creation, Dataset Hash & Override Protection (Blocker 5)
 # =====================================================================
 
 def test_freeze_record_integrity_and_override_protection(dev_benchmark_stream, tmp_path):

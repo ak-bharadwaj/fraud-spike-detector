@@ -1,6 +1,7 @@
-"""StatisticalDeviationScorer module for Day 3-7 vertical slice, ablation, and tuning.
+"""StatisticalDeviationScorer module conforming to AnomalyScorer ABC (Section 17).
 
 Key Invariants:
+- Implements AnomalyScorer ABC interface.
 - Input mapping: (FeatureSnapshot, BaselineSnapshot, Optional[signal_mask], Optional[signal_weights]) -> RiskScore.
 - Scorer-level signal masking and weighting: allows evaluating feature subsets and weight vectors.
 - Standardized deviation magnitude M_k = (|f_k - expected_k| / robust_scale_k) * weight_k.
@@ -18,6 +19,7 @@ Key Invariants:
 from typing import Dict, Optional, Sequence
 
 from src.contracts.contracts import FeatureSnapshot, BaselineSnapshot, RiskScore
+from src.scoring.base import AnomalyScorer
 
 FEATURE_BASELINE_MAP: Dict[str, str] = {
     "volume": "volume",
@@ -48,8 +50,8 @@ FEATURE_GROUP_MAP: Dict[str, str] = {
 }
 
 
-class StatisticalDeviationScorer:
-    """Computes standardized statistical deviation magnitude without EWMA smoothing."""
+class StatisticalDeviationScorer(AnomalyScorer):
+    """Computes standardized statistical deviation magnitude without EWMA smoothing conforming to AnomalyScorer ABC."""
 
     def __init__(
         self,

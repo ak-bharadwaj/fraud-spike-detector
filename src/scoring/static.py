@@ -1,7 +1,8 @@
-"""StaticThresholdScorer module implementing fixed threshold-based scoring.
+"""StaticThresholdScorer module implementing fixed threshold-based scoring conforming to AnomalyScorer ABC.
 
 Key Invariants:
 - Fixed static threshold limits without adaptive robust scaling or EWMA smoothing.
+- Implements AnomalyScorer ABC interface.
 - Input mapping: (FeatureSnapshot, BaselineSnapshot, Optional[signal_mask], Optional[signal_weights]) -> RiskScore.
 - Scorer-level signal masking and weighting: allows evaluating feature subsets and weight vectors.
 - Produces valid RiskScore with explicit confidence and data quality mapping:
@@ -14,6 +15,7 @@ Key Invariants:
 from typing import Dict, Optional, Sequence
 
 from src.contracts.contracts import FeatureSnapshot, BaselineSnapshot, RiskScore
+from src.scoring.base import AnomalyScorer
 
 DEFAULT_STATIC_LIMITS: Dict[str, float] = {
     "volume": 30.0,
@@ -44,7 +46,7 @@ FEATURE_GROUP_MAP: Dict[str, str] = {
 }
 
 
-class StaticThresholdScorer:
+class StaticThresholdScorer(AnomalyScorer):
     """Computes static threshold risk scores using fixed limits rather than adaptive statistical deviations."""
 
     def __init__(

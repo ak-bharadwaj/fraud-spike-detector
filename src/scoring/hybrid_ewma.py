@@ -1,6 +1,7 @@
-"""Hybrid EWMA scorer implementation combining robust standardized deviations with exponential smoothing.
+"""Hybrid EWMA scorer implementation conforming to AnomalyScorer ABC (Section 17).
 
 Key Invariants:
+- Implements AnomalyScorer ABC interface.
 - Monitored feature mapping: maps all required features from FeatureSnapshot to BaselineSnapshot expected values and scales.
 - Scorer-level signal masking and weighting: filters and weights candidate deviations inside the scorer interface.
 - Standardized deviation: M_k = (|observed_k - expected_k| / robust_scale_k) * weight_k.
@@ -18,6 +19,7 @@ from typing import Dict, Optional, Sequence
 
 from src.contracts.contracts import FeatureSnapshot, BaselineSnapshot, RiskScore
 from src.contracts.config_schemas import DetectorConfig, ScorerConfig
+from src.scoring.base import AnomalyScorer
 
 FEATURE_BASELINE_MAP: Dict[str, str] = {
     "volume": "volume",
@@ -48,8 +50,8 @@ FEATURE_GROUP_MAP: Dict[str, str] = {
 }
 
 
-class HybridEWMAScorer:
-    """Computes robust standardized deviation scores smoothed via Exponential Weighted Moving Average (EWMA)."""
+class HybridEWMAScorer(AnomalyScorer):
+    """Computes robust standardized deviation scores smoothed via Exponential Weighted Moving Average (EWMA) conforming to AnomalyScorer ABC."""
 
     def __init__(
         self,
