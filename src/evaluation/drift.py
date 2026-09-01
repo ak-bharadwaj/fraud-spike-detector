@@ -4,15 +4,17 @@ Key Invariants:
 - Evaluates detector robustness against distribution drift (e.g. organic baseline volume growth) under constant configuration.
 - Uses common StreamingDetectorPipeline and AnomalyEvaluator.
 - Strict Paired Evaluation Contract & Causal Factor Isolation:
+  - Validates declared drift factor against frozen supported set (baseline_volume_growth, organic_rate_drift).
   - Exact start timestamp equality: min(control timestamps) == min(drift timestamps).
   - Exact end timestamp equality: max(control timestamps) == max(drift timestamps).
   - Exact duration equality: actual duration(control) == actual duration(drift).
   - 100% GroundTruth event identity match (event IDs, anomaly types, start times, end times).
   - Transaction-level uncontrolled-attribute isolation for common transactions: 100% field identity.
-  - Distribution-level isolation for newly added growth transactions:
-    - Amount distribution must match underlying control amount distribution.
-    - Customer pool and device pool must follow canonical merchant pool distributions.
-    - Country and payment method ratios must match canonical legitimate distributions.
+  - Rigorous distribution-level isolation for newly added growth transactions:
+    - Customer IDs must belong strictly to canonical merchant customer pool (1..legit_customer_pool_size) with unskewed distribution.
+    - Device IDs must belong strictly to canonical merchant device pool (1..legit_device_pool_size) with unskewed distribution.
+    - Country and payment distributions must conform to canonical merchant profile within statistical tolerance (TVD <= 0.20).
+    - Amount distribution must preserve moments (mean, std, median) within statistical tolerance.
   - Rejects uncontrolled factor modifications with explicit ValueError before pipeline execution.
 - Warmup exclusion: initial warmup windows (e.g. w < 6) are excluded from adaptation calculation.
 - Quantitative adaptation metrics:
@@ -24,8 +26,9 @@ Key Invariants:
 - Prohibits access to locked holdout data (development-only).
 """
 
-from typing import List, Dict, Any, Optional, Sequence, Tuple
+from typing import List, Dict, Any, Optional, Sequence, Tuple, Set
 from pathlib import Path
+from collections import Counter
 from datetime import datetime, timedelta, timezone
 import numpy as np
 from pydantic import BaseModel, Field
@@ -36,8 +39,11 @@ from src.contracts.contracts import (
     FrozenDetectorConfig,
     EvaluationMetrics,
 )
+from src.generator.archetypes import MerchantProfile, create_merchant_profile
 from src.detector.pipeline import StreamingDetectorPipeline
 from src.evaluation.evaluator import AnomalyEvaluator
+
+ALLOWED_DRIFT_FACTORS: Set[str] = {"baseline_volume_growth", "organic_rate_drift"}
 
 
 class DriftResult(BaseModel):
@@ -81,14 +87,22 @@ class DriftRunner:
         drift_ground_truth: Sequence[GroundTruthEvent],
         merchant_id: str,
         declared_drift_factor: str = "baseline_volume_growth",
+        merchant_profile: Optional[MerchantProfile] = None,
     ) -> None:
         """Enforce strict pairing contract between control and drift inputs."""
+        # 1. Validate Declared Drift Factor
+        if declared_drift_factor not in ALLOWED_DRIFT_FACTORS:
+            raise ValueError(
+                f"Paired drift contract violation: unsupported declared_drift_factor '{declared_drift_factor}'. "
+                f"Allowed factors: {sorted(ALLOWED_DRIFT_FACTORS)}"
+            )
+
         if not control_transactions:
             raise ValueError("Paired drift contract violation: control_transactions is empty")
         if not drift_transactions:
             raise ValueError("Paired drift contract violation: drift_transactions is empty")
 
-        # 1. Validate merchant identity
+        # 2. Validate merchant identity
         ctrl_merchants = {t.merchant_id for t in control_transactions}
         drift_merchants = {t.merchant_id for t in drift_transactions}
         if merchant_id not in ctrl_merchants:
@@ -98,7 +112,7 @@ class DriftRunner:
         if ctrl_merchants != drift_merchants:
             raise ValueError(f"Paired drift contract violation: merchant sets differ (control: {ctrl_merchants}, drift: {drift_merchants})")
 
-        # 2. Exact Time Bounds & Exact Duration Equality (without minute rounding)
+        # 3. Exact Time Bounds & Exact Duration Equality (without minute rounding)
         ctrl_min_ts = min(t.timestamp for t in control_transactions)
         ctrl_max_ts = max(t.timestamp for t in control_transactions)
         drift_min_ts = min(t.timestamp for t in drift_transactions)
@@ -123,7 +137,7 @@ class DriftRunner:
                 f"({ctrl_dur}s != {drift_dur}s)"
             )
 
-        # 3. Validate GroundTruth event specifications
+        # 4. Validate GroundTruth event specifications
         if len(control_ground_truth) != len(drift_ground_truth):
             raise ValueError(
                 f"Paired drift contract violation: GroundTruth event count mismatch "
@@ -144,7 +158,7 @@ class DriftRunner:
             if ctrl_e.end_time != drift_e.end_time:
                 raise ValueError(f"Paired drift contract violation for '{drift_e.event_id}': end_time mismatch ({ctrl_e.end_time} vs {drift_e.end_time})")
 
-        # 4. Transaction-Level Uncontrolled-Attribute Isolation for Common Transactions
+        # 5. Transaction-Level Uncontrolled-Attribute Isolation for Common Transactions
         ctrl_tx_map = {t.transaction_id: t for t in control_transactions}
         drift_tx_map = {t.transaction_id: t for t in drift_transactions}
 
@@ -177,49 +191,105 @@ class DriftRunner:
                         f"({ctrl_tx.device_id} != {d_tx.device_id})"
                     )
 
-        # 5. Distribution-Level Validation for Newly Added Growth Transactions
+        # 6. Rigorous Distribution-Level Validation for Growth Transactions
         growth_txs = [t for t in drift_transactions if t.transaction_id not in ctrl_tx_map]
         if growth_txs:
-            # A. Amount distribution check
-            ctrl_amts = [t.amount for t in control_transactions]
-            growth_amts = [t.amount for t in growth_txs]
-            ctrl_mean_amt = float(np.mean(ctrl_amts))
-            growth_mean_amt = float(np.mean(growth_amts))
-            if ctrl_mean_amt > 0:
-                amt_shift = abs(growth_mean_amt - ctrl_mean_amt) / ctrl_mean_amt
-                if amt_shift > 0.15:
-                    raise ValueError(
-                        f"Paired drift contract violation: newly added growth transactions exhibit uncontrolled amount distribution shift "
-                        f"({amt_shift:.2%} deviation: control mean ₹{ctrl_mean_amt:.2f} vs growth mean ₹{growth_mean_amt:.2f})"
-                    )
+            # Resolve canonical merchant profile
+            prof = merchant_profile or create_merchant_profile(42, merchant_id, "stable")
 
-            # B. Customer and Device ID space validation
+            # A. Canonical Customer Pool & Distribution Validation
+            valid_cust_ids = {f"CUST-{i}" for i in range(1, prof.legit_customer_pool_size + 1)}
             for gt in growth_txs:
-                if not (gt.customer_id.startswith("CUST-") and gt.customer_id[5:].isdigit()):
+                if gt.customer_id not in valid_cust_ids:
                     raise ValueError(
-                        f"Paired drift contract violation: newly added growth transaction '{gt.transaction_id}' "
-                        f"has uncontrolled customer ID format '{gt.customer_id}'"
-                    )
-                if not (gt.device_id.startswith("DEV-") and gt.device_id[4:].isdigit()):
-                    raise ValueError(
-                        f"Paired drift contract violation: newly added growth transaction '{gt.transaction_id}' "
-                        f"has uncontrolled device ID format '{gt.device_id}'"
+                        f"Paired drift contract violation: customer_id '{gt.customer_id}' is outside canonical pool "
+                        f"for merchant '{merchant_id}' (expected CUST-1..CUST-{prof.legit_customer_pool_size})"
                     )
 
-            # C. Country distribution validation
-            high_risk_growth_ratio = len([t for t in growth_txs if t.country == "HIGH_RISK_GEO"]) / float(len(growth_txs))
-            if high_risk_growth_ratio > 0.08:
+            if len(growth_txs) >= 10 and prof.legit_customer_pool_size > 1:
+                cust_counts = Counter(t.customer_id for t in growth_txs)
+                max_cust_share = max(cust_counts.values()) / float(len(growth_txs))
+                if max_cust_share > 0.60:
+                    raise ValueError(
+                        f"Paired drift contract violation: customer distribution is strongly skewed "
+                        f"(max customer share {max_cust_share:.2%} > 60%)"
+                    )
+
+            # B. Canonical Device Pool & Distribution Validation
+            valid_dev_ids = {f"DEV-{i}" for i in range(1, prof.legit_device_pool_size + 1)}
+            for gt in growth_txs:
+                if gt.device_id not in valid_dev_ids:
+                    raise ValueError(
+                        f"Paired drift contract violation: device_id '{gt.device_id}' is outside canonical pool "
+                        f"for merchant '{merchant_id}' (expected DEV-1..DEV-{prof.legit_device_pool_size})"
+                    )
+
+            if len(growth_txs) >= 10 and prof.legit_device_pool_size > 1:
+                dev_counts = Counter(t.device_id for t in growth_txs)
+                max_dev_share = max(dev_counts.values()) / float(len(growth_txs))
+                if max_dev_share > 0.60:
+                    raise ValueError(
+                        f"Paired drift contract violation: device distribution is strongly skewed "
+                        f"(max device share {max_dev_share:.2%} > 60%)"
+                    )
+
+            # C. Canonical Country Distribution Validation
+            ctrl_countries = {t.country for t in control_transactions}
+            for gt in growth_txs:
+                if gt.country not in ctrl_countries:
+                    raise ValueError(
+                        f"Paired drift contract violation: uncontrolled country '{gt.country}' in growth stream "
+                        f"(not present in canonical country set {ctrl_countries})"
+                    )
+
+            high_risk_ratio = len([t for t in growth_txs if t.country == "HIGH_RISK_GEO"]) / float(len(growth_txs))
+            if abs(high_risk_ratio - prof.p_high_risk_country) > 0.10:
                 raise ValueError(
-                    f"Paired drift contract violation: newly added growth transactions exhibit uncontrolled country distribution shift "
-                    f"({high_risk_growth_ratio:.2%} high-risk ratio)"
+                    f"Paired drift contract violation: country distribution deviates from canonical profile "
+                    f"({high_risk_ratio:.2%} vs expected {prof.p_high_risk_country:.2%})"
                 )
 
-            # D. Payment distribution validation
-            prepaid_growth_ratio = len([t for t in growth_txs if t.payment_method == "PREPAID_CARD"]) / float(len(growth_txs))
-            if prepaid_growth_ratio > 0.15:
+            # D. Canonical Payment Distribution Validation (Total Variation Distance)
+            ctrl_payments = {t.payment_method for t in control_transactions}
+            for gt in growth_txs:
+                if gt.payment_method not in ctrl_payments:
+                    raise ValueError(
+                        f"Paired drift contract violation: uncontrolled payment method '{gt.payment_method}' "
+                        f"(not present in canonical payment set {ctrl_payments})"
+                    )
+
+            pay_counts = Counter(t.payment_method for t in growth_txs)
+            p_prep = pay_counts.get("PREPAID_CARD", 0) / float(len(growth_txs))
+            p_deb = pay_counts.get("DEBIT_CARD", 0) / float(len(growth_txs))
+            p_cred = pay_counts.get("CREDIT_CARD", 0) / float(len(growth_txs))
+
+            q_prep = prof.p_prepaid_payment
+            q_deb = prof.p_debit_payment
+            q_cred = max(0.0, 1.0 - q_prep - q_deb)
+
+            tvd_payment = 0.5 * (abs(p_prep - q_prep) + abs(p_deb - q_deb) + abs(p_cred - q_cred))
+            if tvd_payment > 0.20:
                 raise ValueError(
-                    f"Paired drift contract violation: newly added growth transactions exhibit uncontrolled payment method distribution shift "
-                    f"({prepaid_growth_ratio:.2%} prepaid ratio)"
+                    f"Paired drift contract violation: payment distribution deviates from canonical profile "
+                    f"(Total Variation Distance {tvd_payment:.3f} > 0.20)"
+                )
+
+            # E. Moment-Based Amount Distribution Validation (Mean, Std, Median)
+            ctrl_amts = [t.amount for t in control_transactions]
+            growth_amts = [t.amount for t in growth_txs]
+
+            mean_ctrl, mean_growth = float(np.mean(ctrl_amts)), float(np.mean(growth_amts))
+            std_ctrl, std_growth = float(np.std(ctrl_amts)), float(np.std(growth_amts))
+            med_ctrl, med_growth = float(np.median(ctrl_amts)), float(np.median(growth_amts))
+
+            mean_shift = abs(mean_growth - mean_ctrl) / max(1.0, mean_ctrl)
+            std_shift = abs(std_growth - std_ctrl) / max(1.0, std_ctrl)
+            med_shift = abs(med_growth - med_ctrl) / max(1.0, med_ctrl)
+
+            if mean_shift > 0.15 or std_shift > 0.30 or med_shift > 0.20:
+                raise ValueError(
+                    f"Paired drift contract violation: newly added growth transactions exhibit uncontrolled amount distribution shift "
+                    f"(mean shift {mean_shift:.2%}, std shift {std_shift:.2%}, median shift {med_shift:.2%})"
                 )
 
     def run_paired_drift_experiment(
@@ -235,6 +305,7 @@ class DriftRunner:
         unperturbed_end_window: int = 30,
         paired_dataset_id: str = "DEV-DRIFT-PAIR-01",
         declared_drift_factor: str = "baseline_volume_growth",
+        merchant_profile: Optional[MerchantProfile] = None,
         data_path: Optional[str] = None,
     ) -> DriftResult:
         """Run paired control vs drift experiment through the common detector pipeline and measure adaptation."""
@@ -246,6 +317,7 @@ class DriftRunner:
             drift_ground_truth=drift_ground_truth,
             merchant_id=merchant_id,
             declared_drift_factor=declared_drift_factor,
+            merchant_profile=merchant_profile,
         )
 
         # 1. Run Control Stream

@@ -252,14 +252,23 @@ def test_reusable_drift_runner_and_artifact_generation():
             amt = sample_legitimate_amount(prof, rng)
             cust_id = f"CUST-{rng.integers(1, prof.legit_customer_pool_size + 1)}"
             dev_id = f"DEV-{rng.integers(1, prof.legit_device_pool_size + 1)}"
+            country = "HIGH_RISK_GEO" if rng.random() < prof.p_high_risk_country else "US"
+            r_pay = rng.random()
+            if r_pay < prof.p_prepaid_payment:
+                payment = "PREPAID_CARD"
+            elif r_pay < prof.p_prepaid_payment + prof.p_debit_payment:
+                payment = "DEBIT_CARD"
+            else:
+                payment = "CREDIT_CARD"
+
             growth_txs.append(Transaction(
                 transaction_id=f"tx_drift_growth_{w}_{i}",
                 timestamp=w_st + timedelta(seconds=off),
                 merchant_id="M_DRIFT_RUNNER",
                 customer_id=cust_id,
                 amount=amt,
-                payment_method="CREDIT_CARD",
-                country="US",
+                payment_method=payment,
+                country=country,
                 device_id=dev_id,
             ))
 
@@ -274,6 +283,7 @@ def test_reusable_drift_runner_and_artifact_generation():
         control_ground_truth=evs_ctrl,
         drift_ground_truth=evs_drift,
         merchant_id="M_DRIFT_RUNNER",
+        merchant_profile=prof,
     )
 
     assert isinstance(result, DriftResult)
@@ -330,11 +340,25 @@ def test_conflicting_duplicate_transactions_raise_value_error():
 def test_drift_runner_enforces_paired_contract_and_rejects_mismatched_inputs():
     """Verify DriftRunner enforces pairing contract and rejects mismatched merchants, exact start/end times, durations, uncontrolled attributes, or GroundTruth."""
     from src.evaluation.drift import DriftRunner
+    from src.generator.archetypes import MerchantProfile
 
     st = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
+    prof = MerchantProfile(
+        merchant_id="M_CTRL",
+        archetype="stable",
+        base_rate_per_min=10.0,
+        base_mean_amount=50.0,
+        base_std_amount=7.5,
+        p_high_risk_country=0.02,
+        p_prepaid_payment=0.05,
+        p_debit_payment=0.15,
+        legit_device_pool_size=10,
+        legit_customer_pool_size=10,
+    )
+
     tx_ctrl_1 = Transaction(transaction_id="tx_1", timestamp=st + timedelta(seconds=10), merchant_id="M_CTRL", customer_id="CUST-1", amount=50.0, payment_method="CREDIT_CARD", country="US", device_id="DEV-1")
     tx_ctrl_2 = Transaction(transaction_id="tx_2", timestamp=st + timedelta(minutes=1, seconds=20), merchant_id="M_CTRL", customer_id="CUST-2", amount=50.0, payment_method="DEBIT_CARD", country="US", device_id="DEV-2")
-    tx_ctrl_3 = Transaction(transaction_id="tx_3", timestamp=st + timedelta(minutes=2, seconds=30), merchant_id="M_CTRL", customer_id="CUST-3", amount=50.0, payment_method="CREDIT_CARD", country="US", device_id="DEV-3")
+    tx_ctrl_3 = Transaction(transaction_id="tx_3", timestamp=st + timedelta(minutes=2, seconds=30), merchant_id="M_CTRL", customer_id="CUST-3", amount=50.0, payment_method="PREPAID_CARD", country="HIGH_RISK_GEO", device_id="DEV-3")
     ctrl_txs = [tx_ctrl_1, tx_ctrl_2, tx_ctrl_3]
 
     gt_1 = GroundTruthEvent(
@@ -362,68 +386,94 @@ def test_drift_runner_enforces_paired_contract_and_rejects_mismatched_inputs():
 
     runner = DriftRunner()
 
-    # 1. Empty control stream -> ValueError
-    with pytest.raises(ValueError, match="control_transactions is empty"):
-        runner.validate_paired_contract([], ctrl_txs, [gt_1], [gt_1], merchant_id="M_CTRL")
+    # 1. Unsupported declared drift factor -> ValueError
+    with pytest.raises(ValueError, match="unsupported declared_drift_factor"):
+        runner.validate_paired_contract(ctrl_txs, ctrl_txs, [gt_1], [gt_1], merchant_id="M_CTRL", declared_drift_factor="uncontrolled_drift")
 
-    # 2. Merchant mismatch -> ValueError
+    # 2. Empty control stream -> ValueError
+    with pytest.raises(ValueError, match="control_transactions is empty"):
+        runner.validate_paired_contract([], ctrl_txs, [gt_1], [gt_1], merchant_id="M_CTRL", merchant_profile=prof)
+
+    # 3. Merchant mismatch -> ValueError
     tx_m2 = Transaction(transaction_id="tx_m2", timestamp=st + timedelta(seconds=10), merchant_id="M_DRIFT", customer_id="CUST-1", amount=50.0, payment_method="CREDIT_CARD", country="US", device_id="DEV-1")
     with pytest.raises(ValueError, match="merchant 'M_CTRL' not found in drift stream"):
-        runner.validate_paired_contract(ctrl_txs, [tx_m2], [gt_1], [gt_1], merchant_id="M_CTRL")
+        runner.validate_paired_contract(ctrl_txs, [tx_m2], [gt_1], [gt_1], merchant_id="M_CTRL", merchant_profile=prof)
 
-    # 3. Exact start time mismatch (starts at 12:00:15 instead of 12:00:10 in the same minute bucket) -> ValueError
+    # 4. Exact start time mismatch -> ValueError
     tx_drift_offset_start = Transaction(transaction_id="tx_1", timestamp=st + timedelta(seconds=15), merchant_id="M_CTRL", customer_id="CUST-1", amount=50.0, payment_method="CREDIT_CARD", country="US", device_id="DEV-1")
     with pytest.raises(ValueError, match="exact start timestamp mismatch"):
-        runner.validate_paired_contract(ctrl_txs, [tx_drift_offset_start, tx_ctrl_2, tx_ctrl_3], [gt_1], [gt_1], merchant_id="M_CTRL")
+        runner.validate_paired_contract(ctrl_txs, [tx_drift_offset_start, tx_ctrl_2, tx_ctrl_3], [gt_1], [gt_1], merchant_id="M_CTRL", merchant_profile=prof)
 
-    # 4. Exact end time mismatch (ends at 12:02:45 instead of 12:02:30 in the same minute bucket) -> ValueError
-    tx_drift_offset_end = Transaction(transaction_id="tx_3", timestamp=st + timedelta(minutes=2, seconds=45), merchant_id="M_CTRL", customer_id="CUST-3", amount=50.0, payment_method="CREDIT_CARD", country="US", device_id="DEV-3")
+    # 5. Exact end time mismatch -> ValueError
+    tx_drift_offset_end = Transaction(transaction_id="tx_3", timestamp=st + timedelta(minutes=2, seconds=45), merchant_id="M_CTRL", customer_id="CUST-3", amount=50.0, payment_method="PREPAID_CARD", country="HIGH_RISK_GEO", device_id="DEV-3")
     with pytest.raises(ValueError, match="exact end timestamp mismatch"):
-        runner.validate_paired_contract(ctrl_txs, [tx_ctrl_1, tx_ctrl_2, tx_drift_offset_end], [gt_1], [gt_1], merchant_id="M_CTRL")
+        runner.validate_paired_contract(ctrl_txs, [tx_ctrl_1, tx_ctrl_2, tx_drift_offset_end], [gt_1], [gt_1], merchant_id="M_CTRL", merchant_profile=prof)
 
-    # 5. Swap countries between common transactions -> ValueError
+    # 6. Swap countries between common transactions -> ValueError
     tx_swap_country_1 = Transaction(transaction_id="tx_1", timestamp=st + timedelta(seconds=10), merchant_id="M_CTRL", customer_id="CUST-1", amount=50.0, payment_method="CREDIT_CARD", country="HIGH_RISK_GEO", device_id="DEV-1")
+    tx_swap_country_3 = Transaction(transaction_id="tx_3", timestamp=st + timedelta(minutes=2, seconds=30), merchant_id="M_CTRL", customer_id="CUST-3", amount=50.0, payment_method="PREPAID_CARD", country="US", device_id="DEV-3")
     with pytest.raises(ValueError, match="uncontrolled country shift"):
-        runner.validate_paired_contract(ctrl_txs, [tx_swap_country_1, tx_ctrl_2, tx_ctrl_3], [gt_1], [gt_1], merchant_id="M_CTRL")
+        runner.validate_paired_contract(ctrl_txs, [tx_swap_country_1, tx_ctrl_2, tx_swap_country_3], [gt_1], [gt_1], merchant_id="M_CTRL", merchant_profile=prof)
 
-    # 6. Change individual payment method on common transaction -> ValueError
-    tx_altered_pay = Transaction(transaction_id="tx_2", timestamp=st + timedelta(minutes=1, seconds=20), merchant_id="M_CTRL", customer_id="CUST-2", amount=50.0, payment_method="CREDIT_CARD", country="US", device_id="DEV-2")
-    with pytest.raises(ValueError, match="uncontrolled payment method shift"):
-        runner.validate_paired_contract(ctrl_txs, [tx_ctrl_1, tx_altered_pay, tx_ctrl_3], [gt_1], [gt_1], merchant_id="M_CTRL")
+    # 7. Out-of-pool growth customer ID (e.g. CUST-99 when pool size is 10) -> ValueError
+    tx_growth_out_cust = Transaction(transaction_id="tx_growth_1", timestamp=st + timedelta(minutes=1), merchant_id="M_CTRL", customer_id="CUST-99", amount=50.0, payment_method="CREDIT_CARD", country="US", device_id="DEV-1")
+    with pytest.raises(ValueError, match="outside canonical pool"):
+        runner.validate_paired_contract(ctrl_txs, ctrl_txs + [tx_growth_out_cust], [gt_1], [gt_1], merchant_id="M_CTRL", merchant_profile=prof)
 
-    # 7. Alter individual transaction amount on common transaction -> ValueError
-    tx_altered_amt = Transaction(transaction_id="tx_1", timestamp=st + timedelta(seconds=10), merchant_id="M_CTRL", customer_id="CUST-1", amount=500.0, payment_method="CREDIT_CARD", country="US", device_id="DEV-1")
-    with pytest.raises(ValueError, match="uncontrolled amount shift"):
-        runner.validate_paired_contract(ctrl_txs, [tx_altered_amt, tx_ctrl_2, tx_ctrl_3], [gt_1], [gt_1], merchant_id="M_CTRL")
+    # 8. Out-of-pool growth device ID (e.g. DEV-99 when pool size is 10) -> ValueError
+    tx_growth_out_dev = Transaction(transaction_id="tx_growth_2", timestamp=st + timedelta(minutes=1), merchant_id="M_CTRL", customer_id="CUST-1", amount=50.0, payment_method="CREDIT_CARD", country="US", device_id="DEV-99")
+    with pytest.raises(ValueError, match="outside canonical pool"):
+        runner.validate_paired_contract(ctrl_txs, ctrl_txs + [tx_growth_out_dev], [gt_1], [gt_1], merchant_id="M_CTRL", merchant_profile=prof)
 
-    # 8. Newly added growth transaction with altered amount distribution -> ValueError
-    tx_growth_bad_amt = Transaction(transaction_id="tx_growth_1", timestamp=st + timedelta(minutes=1), merchant_id="M_CTRL", customer_id="CUST-4", amount=500.0, payment_method="CREDIT_CARD", country="US", device_id="DEV-4")
+    # 9. Strongly skewed customer distribution in growth transactions -> ValueError
+    skewed_cust_txs = [
+        Transaction(transaction_id=f"tx_g_cust_{i}", timestamp=st + timedelta(minutes=1, seconds=i), merchant_id="M_CTRL", customer_id="CUST-1", amount=50.0, payment_method="CREDIT_CARD", country="US", device_id=f"DEV-{(i%5)+1}")
+        for i in range(15)
+    ]
+    with pytest.raises(ValueError, match="customer distribution is strongly skewed"):
+        runner.validate_paired_contract(ctrl_txs, ctrl_txs + skewed_cust_txs, [gt_1], [gt_1], merchant_id="M_CTRL", merchant_profile=prof)
+
+    # 10. Strongly skewed device distribution in growth transactions -> ValueError
+    skewed_dev_txs = [
+        Transaction(transaction_id=f"tx_g_dev_{i}", timestamp=st + timedelta(minutes=1, seconds=i), merchant_id="M_CTRL", customer_id=f"CUST-{(i%5)+1}", amount=50.0, payment_method="CREDIT_CARD", country="US", device_id="DEV-1")
+        for i in range(15)
+    ]
+    with pytest.raises(ValueError, match="device distribution is strongly skewed"):
+        runner.validate_paired_contract(ctrl_txs, ctrl_txs + skewed_dev_txs, [gt_1], [gt_1], merchant_id="M_CTRL", merchant_profile=prof)
+
+    # 11. Growth transaction with uncontrolled country (e.g. UK instead of US) -> ValueError
+    tx_growth_uk = Transaction(transaction_id="tx_growth_uk", timestamp=st + timedelta(minutes=1), merchant_id="M_CTRL", customer_id="CUST-1", amount=50.0, payment_method="CREDIT_CARD", country="UK", device_id="DEV-1")
+    with pytest.raises(ValueError, match="not present in canonical country set"):
+        runner.validate_paired_contract(ctrl_txs, ctrl_txs + [tx_growth_uk], [gt_1], [gt_1], merchant_id="M_CTRL", merchant_profile=prof)
+
+    # 12. Growth transactions with altered payment distribution (TVD > 0.20) -> ValueError
+    prepaid_heavy_txs = [
+        Transaction(transaction_id=f"tx_g_prep_{i}", timestamp=st + timedelta(minutes=1, seconds=i), merchant_id="M_CTRL", customer_id=f"CUST-{(i%5)+1}", amount=50.0, payment_method="PREPAID_CARD", country="US", device_id=f"DEV-{(i%5)+1}")
+        for i in range(10)
+    ]
+    with pytest.raises(ValueError, match="payment distribution deviates from canonical profile"):
+        runner.validate_paired_contract(ctrl_txs, ctrl_txs + prepaid_heavy_txs, [gt_1], [gt_1], merchant_id="M_CTRL", merchant_profile=prof)
+
+    # 13. Growth transactions with altered amount distribution -> ValueError
+    bad_amt_txs = [
+        Transaction(
+            transaction_id=f"tx_g_amt_{i}",
+            timestamp=st + timedelta(minutes=1, seconds=i),
+            merchant_id="M_CTRL",
+            customer_id=f"CUST-{(i%5)+1}",
+            amount=500.0,
+            payment_method="DEBIT_CARD" if i == 0 else ("PREPAID_CARD" if i == 1 else "CREDIT_CARD"),
+            country="US",
+            device_id=f"DEV-{(i%5)+1}",
+        )
+        for i in range(10)
+    ]
     with pytest.raises(ValueError, match="uncontrolled amount distribution shift"):
-        runner.validate_paired_contract(ctrl_txs, ctrl_txs + [tx_growth_bad_amt], [gt_1], [gt_1], merchant_id="M_CTRL")
+        runner.validate_paired_contract(ctrl_txs, ctrl_txs + bad_amt_txs, [gt_1], [gt_1], merchant_id="M_CTRL", merchant_profile=prof)
 
-    # 9. Newly added growth transaction with rogue customer ID space -> ValueError
-    tx_growth_bad_cust = Transaction(transaction_id="tx_growth_2", timestamp=st + timedelta(minutes=1), merchant_id="M_CTRL", customer_id="CUST_ROGUE_99", amount=50.0, payment_method="CREDIT_CARD", country="US", device_id="DEV-4")
-    with pytest.raises(ValueError, match="uncontrolled customer ID format"):
-        runner.validate_paired_contract(ctrl_txs, ctrl_txs + [tx_growth_bad_cust], [gt_1], [gt_1], merchant_id="M_CTRL")
-
-    # 10. Newly added growth transaction with rogue device ID space -> ValueError
-    tx_growth_bad_dev = Transaction(transaction_id="tx_growth_3", timestamp=st + timedelta(minutes=1), merchant_id="M_CTRL", customer_id="CUST-4", amount=50.0, payment_method="CREDIT_CARD", country="US", device_id="DEV_ROGUE_99")
-    with pytest.raises(ValueError, match="uncontrolled device ID format"):
-        runner.validate_paired_contract(ctrl_txs, ctrl_txs + [tx_growth_bad_dev], [gt_1], [gt_1], merchant_id="M_CTRL")
-
-    # 11. Newly added growth transaction with altered high-risk country ratio -> ValueError
-    tx_growth_bad_geo = Transaction(transaction_id="tx_growth_4", timestamp=st + timedelta(minutes=1), merchant_id="M_CTRL", customer_id="CUST-4", amount=50.0, payment_method="CREDIT_CARD", country="HIGH_RISK_GEO", device_id="DEV-4")
-    with pytest.raises(ValueError, match="uncontrolled country distribution shift"):
-        runner.validate_paired_contract(ctrl_txs, ctrl_txs + [tx_growth_bad_geo], [gt_1], [gt_1], merchant_id="M_CTRL")
-
-    # 12. Newly added growth transaction with altered prepaid payment ratio -> ValueError
-    tx_growth_bad_pay = Transaction(transaction_id="tx_growth_5", timestamp=st + timedelta(minutes=1), merchant_id="M_CTRL", customer_id="CUST-4", amount=50.0, payment_method="PREPAID_CARD", country="US", device_id="DEV-4")
-    with pytest.raises(ValueError, match="uncontrolled payment method distribution shift"):
-        runner.validate_paired_contract(ctrl_txs, ctrl_txs + [tx_growth_bad_pay], [gt_1], [gt_1], merchant_id="M_CTRL")
-
-    # 13. GroundTruth mismatch -> ValueError
+    # 14. GroundTruth mismatch -> ValueError
     with pytest.raises(ValueError, match="GroundTruth event ID 'EVT-02' missing in control GT"):
-        runner.validate_paired_contract(ctrl_txs, ctrl_txs, [gt_1], [gt_2_mismatched], merchant_id="M_CTRL")
+        runner.validate_paired_contract(ctrl_txs, ctrl_txs, [gt_1], [gt_2_mismatched], merchant_id="M_CTRL", merchant_profile=prof)
 
 
 
