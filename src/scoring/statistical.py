@@ -1,11 +1,11 @@
-"""StatisticalDeviationScorer module for Day 3 vertical slice statistical scoring.
+"""StatisticalDeviationScorer module for Day 3-6 vertical slice and ablation scoring.
 
 Key Invariants:
-- Input mapping: (FeatureSnapshot, BaselineSnapshot) -> RiskScore.
-- Explicit feature mapping for monitored features (volume, velocity, unique_customers, unique_devices, amount statistics).
+- Input mapping: (FeatureSnapshot, BaselineSnapshot, Optional[signal_mask]) -> RiskScore.
+- Scorer-level signal masking: allows evaluating FULL, -VOLUME, -VELOCITY, -AMOUNT, -BEHAVIORAL without perturbing baseline history.
 - Standardized deviation magnitude M_k = |f_k - expected_k| / robust_scale_k.
 - Zero-scale protection: raises ValueError if robust_scale <= 0.0.
-- Statistical raw score S = max_k M_k (pure statistical standardized deviation, NO EWMA smoothing).
+- Statistical raw score S = max_k M_k (pure statistical standardized deviation).
 - Evidence state mapping:
   - INSUFFICIENT: score = None, confidence = 0.0, triggered_signals = [].
   - DEGRADED: score = float(S), confidence = 0.5, data_quality = "DEGRADED".
@@ -15,7 +15,7 @@ Key Invariants:
 - GroundTruth & Holdout isolation: NO imports of ground truth or holdout code.
 """
 
-from typing import Dict, Optional
+from typing import Dict, Optional, Sequence
 
 from src.contracts.contracts import FeatureSnapshot, BaselineSnapshot, RiskScore
 
@@ -33,6 +33,20 @@ FEATURE_BASELINE_MAP: Dict[str, str] = {
     "max_amount": "amount_max_amount",
 }
 
+FEATURE_GROUP_MAP: Dict[str, str] = {
+    "volume": "volume",
+    "velocity": "velocity",
+    "unique_customers": "behavioral",
+    "unique_devices": "behavioral",
+    "total_amount": "amount",
+    "mean_amount": "amount",
+    "std_amount": "amount",
+    "median_amount": "amount",
+    "mad_amount": "amount",
+    "min_amount": "amount",
+    "max_amount": "amount",
+}
+
 
 class StatisticalDeviationScorer:
     """Computes standardized statistical deviation magnitude without EWMA smoothing."""
@@ -46,8 +60,9 @@ class StatisticalDeviationScorer:
         self,
         feature_snapshot: FeatureSnapshot,
         baseline_snapshot: BaselineSnapshot,
+        signal_mask: Optional[Sequence[str]] = None,
     ) -> RiskScore:
-        """Calculate RiskScore from feature_snapshot and baseline_snapshot."""
+        """Calculate RiskScore from feature_snapshot and baseline_snapshot, applying optional signal_mask."""
         # 1. Handle INSUFFICIENT evidence state
         if baseline_snapshot.evidence_state == "INSUFFICIENT":
             dq = "EMPTY" if feature_snapshot.data_quality == "EMPTY" else "INSUFFICIENT"
@@ -58,10 +73,17 @@ class StatisticalDeviationScorer:
                 data_quality=dq,
             )
 
-        # 2. Compute standardized magnitudes M_k for all features
+        # 2. Compute standardized magnitudes M_k for all features (respecting signal_mask)
         m_magnitudes: Dict[str, float] = {}
 
         for feat_name, base_key in FEATURE_BASELINE_MAP.items():
+            # Apply scorer-level signal mask if specified
+            if signal_mask is not None:
+                grp = FEATURE_GROUP_MAP.get(feat_name, feat_name)
+                # If neither the feature name nor its group is in signal_mask, skip feature
+                if feat_name not in signal_mask and grp not in signal_mask and base_key not in signal_mask:
+                    continue
+
             if base_key not in baseline_snapshot.expected_values or base_key not in baseline_snapshot.robust_scale:
                 raise KeyError(f"Missing required baseline feature expectation/scale for '{base_key}' (feature '{feat_name}')")
 

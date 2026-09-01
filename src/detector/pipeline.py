@@ -4,6 +4,7 @@ Key Invariants:
 - EventBus-driven execution: process_transactions publishes transactions onto TimeOrderedEventBus and calls bus.drain(handler=pipeline._on_transaction_dispatched).
 - Sole time authority: VirtualClock advances monotonically as transactions are drained by the bus.
 - Historical-only baseline: BaselineEngine.get_baseline() is invoked BEFORE updating BaselineEngine with current window features.
+- Scorer-level signal masking: supports ablation studies by passing signal_mask to scorer.calculate_score without perturbing baseline history.
 - Section 20 Scorer Exception Path:
   - Scoped STRICTLY to scorer invocation try...except block.
   - On scorer success: RiskScore -> StateMachine -> Alert + AuditRecord saved to SQLite.
@@ -43,14 +44,16 @@ class StreamingDetectorPipeline:
         self,
         config: Optional[FrozenDetectorConfig] = None,
         scorer: Optional[Any] = None,
+        signal_mask: Optional[Sequence[str]] = None,
         db_path: Union[str, Path] = ":memory:",
         clock: Optional[VirtualClock] = None,
     ):
-        """Initialize pipeline components with frozen configuration, scorer, and SQLite audit store."""
+        """Initialize pipeline components with frozen configuration, scorer, optional signal_mask, and SQLite audit store."""
         self.config = config if config is not None else FrozenDetectorConfig()
         self.clock = clock or VirtualClock()
         self.bus = TimeOrderedEventBus(clock=self.clock)
         self.audit_store = SQLiteAuditStore(db_path=db_path)
+        self.signal_mask = list(signal_mask) if signal_mask is not None else None
 
         self.feature_engine = FeatureEngine()
         self.baseline_engine = BaselineEngine(
@@ -131,12 +134,20 @@ class StreamingDetectorPipeline:
         # 2. Historical-only baseline extraction (BEFORE updating baseline!)
         base_snap = self.baseline_engine.get_baseline(merchant_id, feat_snap)
 
-        # 3. Scorer calculation SCOPED STRICTLY to scorer invocation
+        # 3. Scorer calculation SCOPED STRICTLY to scorer invocation (passing signal_mask for scorer-level ablation)
         scorer_exception: Optional[Exception] = None
         risk_score: Optional[RiskScore] = None
 
         try:
-            risk_score = self.scorer.calculate_score(feat_snap, base_snap)
+            if hasattr(self.scorer, "calculate_score"):
+                import inspect
+                sig = inspect.signature(self.scorer.calculate_score)
+                if "signal_mask" in sig.parameters:
+                    risk_score = self.scorer.calculate_score(feat_snap, base_snap, signal_mask=self.signal_mask)
+                else:
+                    risk_score = self.scorer.calculate_score(feat_snap, base_snap)
+            else:
+                risk_score = self.scorer(feat_snap, base_snap)
         except Exception as err:
             scorer_exception = err
 

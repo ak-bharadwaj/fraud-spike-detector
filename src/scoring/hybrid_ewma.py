@@ -1,24 +1,20 @@
-"""HybridEWMAScorer module for computing anomaly risk scores from feature and baseline snapshots.
+"""Hybrid EWMA scorer implementation combining robust standardized deviations with exponential smoothing.
 
 Key Invariants:
-- Input mapping: (FeatureSnapshot, BaselineSnapshot) -> RiskScore.
-- Explicit feature mapping for all 11 monitored features (4 scalar + 7 amount statistics).
-- Standardized magnitude M_k = |f_k - expected_k| / robust_scale_k.
-- Zero-scale protection: raises ValueError if robust_scale <= 0.0.
-- Raw score S_raw = max_k M_k.
-- EWMA smoothing: S_ewma,t = alpha * S_raw,t + (1 - alpha) * S_ewma,t-1.
-- State reset on INSUFFICIENT evidence: resets merchant EWMA state on evidence gap.
-- Evidence state mapping:
-  - INSUFFICIENT: score = None, confidence = 0.0, triggered_signals = [].
-  - DEGRADED: score = float(S_ewma), confidence = 0.5, data_quality = "DEGRADED".
-  - SUFFICIENT: score = float(S_ewma), confidence = 1.0, data_quality = "GOOD".
+- Monitored feature mapping: maps all required features from FeatureSnapshot to BaselineSnapshot expected values and scales.
+- Scorer-level signal masking: filters candidate deviations inside the scorer interface without modifying baseline calculations.
+- Standardized deviation: M_k = |observed_k - expected_k| / robust_scale_k.
+- Score aggregation: raw score S_raw = max_k M_k over active features.
+- Dynamic EWMA update: S_ewma(t) = alpha * S_raw + (1 - alpha) * S_ewma(t - 1) per merchant.
+- Reset on INSUFFICIENT evidence state to avoid carrying stale score across data gaps.
+- Confidence mapping:
+    INSUFFICIENT -> confidence = 0.0, score = None
+    DEGRADED     -> confidence = 0.5, score = S_ewma
+    SUFFICIENT   -> confidence = 1.0, score = S_ewma
 - Triggered signals: list of feature names where M_k >= static_threshold.
-- Persistence gating is owned by AlertStateMachine in Day 6.
-- Merchant EWMA isolation: EWMA state is strictly maintained per merchant_id.
-- GroundTruth & Holdout isolation: NO imports of ground truth or holdout code.
 """
 
-from typing import Dict, Optional
+from typing import Dict, Optional, Sequence
 
 from src.contracts.contracts import FeatureSnapshot, BaselineSnapshot, RiskScore
 from src.contracts.config_schemas import DetectorConfig, ScorerConfig
@@ -36,6 +32,20 @@ FEATURE_BASELINE_MAP: Dict[str, str] = {
     "mad_amount": "amount_mad_amount",
     "min_amount": "amount_min_amount",
     "max_amount": "amount_max_amount",
+}
+
+FEATURE_GROUP_MAP: Dict[str, str] = {
+    "volume": "volume",
+    "velocity": "velocity",
+    "unique_customers": "behavioral",
+    "unique_devices": "behavioral",
+    "total_amount": "amount",
+    "mean_amount": "amount",
+    "std_amount": "amount",
+    "median_amount": "amount",
+    "mad_amount": "amount",
+    "min_amount": "amount",
+    "max_amount": "amount",
 }
 
 
@@ -71,8 +81,9 @@ class HybridEWMAScorer:
         self,
         feature_snapshot: FeatureSnapshot,
         baseline_snapshot: BaselineSnapshot,
+        signal_mask: Optional[Sequence[str]] = None,
     ) -> RiskScore:
-        """Calculate RiskScore from feature_snapshot and baseline_snapshot."""
+        """Calculate RiskScore from feature_snapshot and baseline_snapshot, applying optional signal_mask."""
         m_id = feature_snapshot.merchant_id
 
         # 1. Handle INSUFFICIENT evidence state
@@ -88,10 +99,16 @@ class HybridEWMAScorer:
                 data_quality=dq,
             )
 
-        # 2. Compute standardized magnitudes M_k for all 11 required features
+        # 2. Compute standardized magnitudes M_k for features
         m_magnitudes: Dict[str, float] = {}
 
         for feat_name, base_key in FEATURE_BASELINE_MAP.items():
+            # Apply scorer-level signal mask if specified
+            if signal_mask is not None:
+                grp = FEATURE_GROUP_MAP.get(feat_name, feat_name)
+                if feat_name not in signal_mask and grp not in signal_mask and base_key not in signal_mask:
+                    continue
+
             if base_key not in baseline_snapshot.expected_values or base_key not in baseline_snapshot.robust_scale:
                 raise KeyError(f"Missing required baseline feature expectation/scale for '{base_key}' (feature '{feat_name}')")
 
@@ -112,7 +129,7 @@ class HybridEWMAScorer:
             m_magnitudes[base_key] = abs(f_val - exp_val) / scale_val
 
         # Maximum standardized magnitude
-        s_raw = float(max(m_magnitudes.values()))
+        s_raw = float(max(m_magnitudes.values())) if m_magnitudes else 0.0
         triggered_signals = sorted([
             k for k, mag in m_magnitudes.items()
             if mag >= self.static_threshold
@@ -140,10 +157,3 @@ class HybridEWMAScorer:
             triggered_signals=triggered_signals,
             data_quality=dq,
         )
-
-    def reset(self, merchant_id: Optional[str] = None) -> None:
-        """Reset EWMA state for a specific merchant or all merchants."""
-        if merchant_id is not None:
-            self._ewma_states.pop(merchant_id, None)
-        else:
-            self._ewma_states.clear()
