@@ -20,7 +20,8 @@
   "dual_run_disclosure": {
     "run_001_original": {
       "experiment_id": "EXP-DAY8-HOLDOUT-CONFIRMATION-001",
-      "commit": "414998f",
+      "execution_commit": "414998f",
+      "artifact_commit": "414998f",
       "status": "SUPERSEDED",
       "reason_superseded": "Post-holdout descriptive calibration methodology bug (pseudo-probability division), empty bucket pseudo-values, and missing bootstrap raw-count contract.",
       "detector_parameters": {
@@ -51,7 +52,8 @@
     },
     "run_002_corrected": {
       "experiment_id": "EXP-DAY8-HOLDOUT-CORRECTED-002",
-      "commit": "fb3c7f9",
+      "execution_commit": "fb3c7f9",
+      "artifact_commit": "20bf655",
       "status": "ACCEPTED_CANONICAL",
       "reason": "Corrected post-holdout descriptive calibration (direct RiskScore bucketing, explicit population accounting), complete bootstrap uncertainty reporting contract with raw counts, and INR '\u20b9' units.",
       "detector_parameters": {

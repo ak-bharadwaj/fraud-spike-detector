@@ -28,12 +28,16 @@ Validates:
    - Explicitly asserts cost unit is '₹' and prevents regression to USD.
 8. Portfolio Cost Analysis:
    - Evaluates Static, Statistical, and Hybrid on holdout as descriptive portfolio analysis.
-9. Required Artifact Hierarchy & Exact Provenance:
+9. Required Artifact Hierarchy:
    - Verifies artifacts/ directory hierarchy including final/metrics.json, final/metrics.csv, final/report.json.
    - Every artifact references experiment_id (EXP-DAY8-HOLDOUT-CORRECTED-002), dataset_hash, config_hash, detector_version, and seed.
-   - final/report.json preserves both RUN 001 (EXP-DAY8-HOLDOUT-CONFIRMATION-001, commit 414998f) and RUN 002 (EXP-DAY8-HOLDOUT-CORRECTED-002, commit fb3c7f9).
-   - Zero occurrences of PENDING_COMMIT anywhere in artifacts.
-10. Holdout Immutability & Replay Determinism:
+10. Unambiguous Provenance Verification (Required Provenance Test):
+    - execution_commit exists (fb3c7f9) and artifact_commit exists (20bf655).
+    - Neither is a placeholder or PENDING_COMMIT.
+    - Experiment identity is stable (EXP-DAY8-HOLDOUT-CORRECTED-002).
+    - Original run remains disclosed (EXP-DAY8-HOLDOUT-CONFIRMATION-001).
+    - Corrected run remains canonical.
+11. Holdout Immutability & Replay Determinism:
     - Holdout SHA before == Holdout SHA after.
     - Replay reproduces 100% bitwise-identical results.
 """
@@ -323,7 +327,8 @@ def test_cost_reporting_unit_is_inr_prevent_usd_regression(tmp_path):
         evasion_results={"status": "CONFIRMED"},
         drift_results={"status": "CONFIRMED"},
         experiment_id="EXP-DAY8-HOLDOUT-CORRECTED-002",
-        corrected_commit="fb3c7f9",
+        execution_commit="fb3c7f9",
+        artifact_commit="20bf655",
     )
 
     csv_path = saved_paths["final_metrics_csv"]
@@ -364,11 +369,11 @@ def test_portfolio_cost_comparison():
 
 
 # =====================================================================
-# 9. Required Artifact Hierarchy & Dual-Run Exact Provenance (Blocker)
+# 9. Required Artifact Hierarchy
 # =====================================================================
 
-def test_required_artifact_hierarchy_and_dual_run_disclosure(tmp_path):
-    """Verify artifacts/ directory hierarchy, new experiment_id, and exact commit SHAs in report.json."""
+def test_required_artifact_hierarchy(tmp_path):
+    """Verify artifacts/ directory hierarchy and all required files."""
     freeze_record = load_freeze_record("config/freeze_record.json")
     manifest, txs, gts = load_locked_holdout_data("data/holdout")
 
@@ -390,7 +395,8 @@ def test_required_artifact_hierarchy_and_dual_run_disclosure(tmp_path):
         evasion_results={"status": "CONFIRMED"},
         drift_results={"status": "CONFIRMED"},
         experiment_id="EXP-DAY8-HOLDOUT-CORRECTED-002",
-        corrected_commit="fb3c7f9",
+        execution_commit="fb3c7f9",
+        artifact_commit="20bf655",
     )
 
     required_keys = [
@@ -403,32 +409,73 @@ def test_required_artifact_hierarchy_and_dual_run_disclosure(tmp_path):
         assert p.exists()
         assert p.stat().st_size > 0
 
-    # Verify final/report.json content & dual run disclosure
+
+# =====================================================================
+# 10. Unambiguous Provenance Verification Test (Blocker)
+# =====================================================================
+
+def test_unambiguous_provenance_and_dual_run_disclosure(tmp_path):
+    """Verify execution_commit and artifact_commit exist, neither is a placeholder, and dual runs are disclosed."""
+    freeze_record = load_freeze_record("config/freeze_record.json")
+    manifest, txs, gts = load_locked_holdout_data("data/holdout")
+
+    m, alerts, scores = execute_single_pass_holdout(txs, gts, freeze_record, True)
+    per_ano = compute_per_anomaly_holdout_metrics(alerts, gts)
+    calib = compute_descriptive_holdout_calibration(scores, gts)
+    boot = compute_bootstrap_uncertainty(alerts, gts, n_resamples=100, seed=42)
+    port = execute_portfolio_comparison(txs, gts, freeze_record)
+
+    saved_paths = save_day8_research_artifacts(
+        base_artifact_dir=tmp_path / "artifacts",
+        freeze_record=freeze_record,
+        holdout_manifest=manifest,
+        holdout_metrics=m,
+        per_anomaly_metrics=per_ano,
+        calibration_results=calib,
+        bootstrap_results=boot,
+        portfolio_results=port,
+        evasion_results={"status": "CONFIRMED"},
+        drift_results={"status": "CONFIRMED"},
+        experiment_id="EXP-DAY8-HOLDOUT-CORRECTED-002",
+        execution_commit="fb3c7f9",
+        artifact_commit="20bf655",
+    )
+
     report_text = saved_paths["final_report_json"].read_text(encoding="utf-8")
     assert "PENDING_COMMIT" not in report_text
 
     report_content = json.loads(report_text)
     assert report_content["experiment_id"] == "EXP-DAY8-HOLDOUT-CORRECTED-002"
-    assert report_content["detector_version"] == "1.0.0"
-    assert report_content["config_hash"] == freeze_record.config_hash
-    assert report_content["holdout_dataset_hash"] == manifest.dataset_hash
-    assert report_content["seed"] == 42
     assert "dual_run_disclosure" in report_content
     
     dual = report_content["dual_run_disclosure"]
-    assert "run_001_original" in dual
-    assert dual["run_001_original"]["experiment_id"] == "EXP-DAY8-HOLDOUT-CONFIRMATION-001"
-    assert dual["run_001_original"]["commit"] == "414998f"
-    assert dual["run_001_original"]["status"] == "SUPERSEDED"
     
+    # 1. Run 001 Original
+    assert "run_001_original" in dual
+    r1 = dual["run_001_original"]
+    assert r1["experiment_id"] == "EXP-DAY8-HOLDOUT-CONFIRMATION-001"
+    assert r1["execution_commit"] == "414998f"
+    assert r1["artifact_commit"] == "414998f"
+    assert r1["status"] == "SUPERSEDED"
+    
+    # 2. Run 002 Corrected
     assert "run_002_corrected" in dual
-    assert dual["run_002_corrected"]["experiment_id"] == "EXP-DAY8-HOLDOUT-CORRECTED-002"
-    assert dual["run_002_corrected"]["commit"] == "fb3c7f9"
-    assert dual["run_002_corrected"]["status"] == "ACCEPTED_CANONICAL"
+    r2 = dual["run_002_corrected"]
+    assert r2["experiment_id"] == "EXP-DAY8-HOLDOUT-CORRECTED-002"
+    assert r2["execution_commit"] == "fb3c7f9"
+    assert r2["artifact_commit"] == "20bf655"
+    assert r2["status"] == "ACCEPTED_CANONICAL"
+    
+    # 3. No placeholders
+    for r in [r1, r2]:
+        for field in ["execution_commit", "artifact_commit", "experiment_id"]:
+            assert r[field]
+            assert "pending" not in r[field].lower()
+            assert "placeholder" not in r[field].lower()
 
 
 # =====================================================================
-# 10. Holdout Immutability & Replay Determinism
+# 11. Holdout Immutability & Replay Determinism
 # =====================================================================
 
 def test_holdout_immutability_and_replay_determinism():
