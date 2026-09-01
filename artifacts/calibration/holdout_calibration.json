@@ -1,8 +1,8 @@
 {
   "experiment_id": "EXP-DAY8-HOLDOUT-CORRECTED-002",
   "detector_version": "1.0.0",
-  "config_hash": "4b70ee788eb888339498669fa65cfb30d59ffd8a59e1a01f493704d0b3c88920",
-  "development_dataset_hash": "54cc76f1d67a41fd14e61349b0636bc6f4f73f75b8ed67064e1cd96193d7e49f",
+  "config_hash": "59034aef4ef11333008c128d7f45ddd88194887460f7856695d13cc9a9834e9d",
+  "development_dataset_hash": "dea8f7c2928eb24835120b8604bd564cecdd190227bd6558988793ff673a4dbe",
   "holdout_dataset_hash": "71595f0cf6681e26ea96232eca900fb805909525367fe90124156de9fa65ddb4",
   "seed": 42,
   "timestamp": "2026-01-07T00:00:00Z",
@@ -13,8 +13,8 @@
         0.5,
         0.6
       ],
-      "n": 52,
-      "mean_predicted_score": 0.5538,
+      "n": 1,
+      "mean_predicted_score": 0.5,
       "observed_positive_rate": 0.0
     },
     {
@@ -23,9 +23,9 @@
         0.6,
         0.7
       ],
-      "n": 42,
-      "mean_predicted_score": 0.6267,
-      "observed_positive_rate": 0.0238
+      "n": 2,
+      "mean_predicted_score": 0.6551,
+      "observed_positive_rate": 0.0
     },
     {
       "bucket": "0.7\u20130.8",
@@ -33,8 +33,8 @@
         0.7,
         0.8
       ],
-      "n": 6,
-      "mean_predicted_score": 0.7104,
+      "n": 4,
+      "mean_predicted_score": 0.7542,
       "observed_positive_rate": 0.0
     },
     {
@@ -43,8 +43,8 @@
         0.8,
         0.9
       ],
-      "n": 2,
-      "mean_predicted_score": 0.825,
+      "n": 5,
+      "mean_predicted_score": 0.8247,
       "observed_positive_rate": 0.0
     },
     {
@@ -53,32 +53,34 @@
         0.9,
         1.0
       ],
-      "n": 0,
-      "mean_predicted_score": null,
-      "observed_positive_rate": null
+      "n": 8,
+      "mean_predicted_score": 0.993,
+      "observed_positive_rate": 0.0
     }
   ],
-  "expected_calibration_error": 0.5886,
-  "total_samples": 115,
-  "in_display_buckets_count": 102,
-  "below_display_buckets_count": 9,
-  "above_display_buckets_count": 4,
+  "expected_calibration_error": 0.8447,
+  "total_samples": 119,
+  "in_display_buckets_count": 20,
+  "below_display_buckets_count": 3,
+  "above_display_buckets_count": 96,
   "population_breakdown": {
-    "total_evaluated_samples": 115,
-    "below_display_buckets_count": 9,
-    "in_display_buckets_count": 102,
-    "above_display_buckets_count": 4
+    "total_evaluated_samples": 119,
+    "below_display_buckets_count": 3,
+    "in_display_buckets_count": 20,
+    "above_display_buckets_count": 96
   },
   "reliability_diagram_data": {
     "mean_predicted_scores": [
-      0.5538,
-      0.6267,
-      0.7104,
-      0.825
+      0.5,
+      0.6551,
+      0.7542,
+      0.8247,
+      0.993
     ],
     "observed_positive_rates": [
       0.0,
-      0.0238,
+      0.0,
+      0.0,
       0.0,
       0.0
     ]

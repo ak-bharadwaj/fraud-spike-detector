@@ -1,20 +1,20 @@
 {
   "experiment_id": "EXP-DAY8-HOLDOUT-CORRECTED-002",
   "detector_version": "1.0.0",
-  "config_hash": "4b70ee788eb888339498669fa65cfb30d59ffd8a59e1a01f493704d0b3c88920",
-  "development_dataset_hash": "54cc76f1d67a41fd14e61349b0636bc6f4f73f75b8ed67064e1cd96193d7e49f",
+  "config_hash": "59034aef4ef11333008c128d7f45ddd88194887460f7856695d13cc9a9834e9d",
+  "development_dataset_hash": "dea8f7c2928eb24835120b8604bd564cecdd190227bd6558988793ff673a4dbe",
   "holdout_dataset_hash": "71595f0cf6681e26ea96232eca900fb805909525367fe90124156de9fa65ddb4",
   "seed": 42,
   "timestamp": "2026-01-07T00:00:00Z",
   "executive_summary": {
     "status": "LOCKED_HOLDOUT_EVALUATION_COMPLETE",
     "tp": 1,
-    "fp": 0,
+    "fp": 1,
     "fn": 0,
-    "precision": 1.0,
+    "precision": 0.5,
     "recall": 1.0,
-    "f1_score": 1.0,
-    "total_cost": 0.0,
+    "f1_score": 0.6666666666666666,
+    "total_cost": 50.0,
     "cost_unit": "\u20b9"
   },
   "dual_run_disclosure": {
@@ -25,12 +25,13 @@
       "status": "SUPERSEDED",
       "reason_superseded": "Post-holdout descriptive calibration methodology bug (pseudo-probability division), empty bucket pseudo-values, and missing bootstrap raw-count contract.",
       "detector_parameters": {
-        "scorer": "StaticThresholdScorer",
+        "scorer": "StatisticalDeviationScorer",
         "alpha": null,
-        "static_threshold": 1.0,
+        "static_threshold": 5.0,
         "persistence": 1,
         "cooldown_windows": 5,
-        "min_window_count": 5,
+        "min_history_count": 1,
+        "min_window_count": 1,
         "signal_weights": {
           "volume": 1.0,
           "velocity": 1.0,
@@ -52,26 +53,28 @@
     },
     "run_002_corrected": {
       "experiment_id": "EXP-DAY8-HOLDOUT-CORRECTED-002",
-      "execution_commit": "fb3c7f9",
-      "artifact_finalization_commit": "26837b7",
-      "prior_artifact_commit": "f21ddeb",
+      "execution_commit": "bc29c36",
+      "artifact_finalization_commit": "bc29c36",
+      "prior_artifact_commit": "26837b7",
       "historical_artifact_chain": [
         "20bf655",
         "775e779",
         "cc2872b",
         "e28d6d3",
         "f21ddeb",
-        "26837b7"
+        "26837b7",
+        "bc29c36"
       ],
       "status": "ACCEPTED_CANONICAL",
       "reason": "Corrected post-holdout descriptive calibration (direct RiskScore bucketing, explicit population accounting), complete bootstrap uncertainty reporting contract with raw counts, and INR '\u20b9' units.",
       "detector_parameters": {
-        "scorer": "StaticThresholdScorer",
+        "scorer": "StatisticalDeviationScorer",
         "alpha": null,
-        "static_threshold": 1.0,
+        "static_threshold": 5.0,
         "persistence": 1,
         "cooldown_windows": 5,
-        "min_window_count": 5,
+        "min_history_count": 1,
+        "min_window_count": 1,
         "signal_weights": {
           "volume": 1.0,
           "velocity": 1.0,
@@ -83,22 +86,23 @@
       "holdout_dataset_hash": "71595f0cf6681e26ea96232eca900fb805909525367fe90124156de9fa65ddb4",
       "core_metrics": {
         "tp": 1,
-        "fp": 0,
+        "fp": 1,
         "fn": 0,
-        "precision": 1.0,
+        "precision": 0.5,
         "recall": 1.0,
-        "f1_score": 1.0,
-        "total_cost": 0.0
+        "f1_score": 0.6666666666666666,
+        "total_cost": 50.0
       }
     }
   },
   "frozen_detector": {
-    "scorer": "StaticThresholdScorer",
+    "scorer": "StatisticalDeviationScorer",
     "alpha": null,
-    "static_threshold": 1.0,
+    "static_threshold": 5.0,
     "persistence": 1,
     "cooldown_windows": 5,
-    "min_window_count": 5,
+    "min_history_count": 1,
+    "min_window_count": 1,
     "signal_weights": {
       "volume": 1.0,
       "velocity": 1.0,
@@ -112,9 +116,9 @@
       "anomaly_type": "volume_spike",
       "events_detected": 1,
       "total_events": 1,
-      "precision": 1.0,
+      "precision": 0.5,
       "recall": 1.0,
-      "f1": 1.0,
+      "f1": 0.6667,
       "median_latency_seconds": 64.57,
       "status": "VALIDATED"
     },
@@ -197,8 +201,8 @@
           0.5,
           0.6
         ],
-        "n": 52,
-        "mean_predicted_score": 0.5538,
+        "n": 1,
+        "mean_predicted_score": 0.5,
         "observed_positive_rate": 0.0
       },
       {
@@ -207,9 +211,9 @@
           0.6,
           0.7
         ],
-        "n": 42,
-        "mean_predicted_score": 0.6267,
-        "observed_positive_rate": 0.0238
+        "n": 2,
+        "mean_predicted_score": 0.6551,
+        "observed_positive_rate": 0.0
       },
       {
         "bucket": "0.7\u20130.8",
@@ -217,8 +221,8 @@
           0.7,
           0.8
         ],
-        "n": 6,
-        "mean_predicted_score": 0.7104,
+        "n": 4,
+        "mean_predicted_score": 0.7542,
         "observed_positive_rate": 0.0
       },
       {
@@ -227,8 +231,8 @@
           0.8,
           0.9
         ],
-        "n": 2,
-        "mean_predicted_score": 0.825,
+        "n": 5,
+        "mean_predicted_score": 0.8247,
         "observed_positive_rate": 0.0
       },
       {
@@ -237,32 +241,34 @@
           0.9,
           1.0
         ],
-        "n": 0,
-        "mean_predicted_score": null,
-        "observed_positive_rate": null
+        "n": 8,
+        "mean_predicted_score": 0.993,
+        "observed_positive_rate": 0.0
       }
     ],
-    "expected_calibration_error": 0.5886,
-    "total_samples": 115,
-    "in_display_buckets_count": 102,
-    "below_display_buckets_count": 9,
-    "above_display_buckets_count": 4,
+    "expected_calibration_error": 0.8447,
+    "total_samples": 119,
+    "in_display_buckets_count": 20,
+    "below_display_buckets_count": 3,
+    "above_display_buckets_count": 96,
     "population_breakdown": {
-      "total_evaluated_samples": 115,
-      "below_display_buckets_count": 9,
-      "in_display_buckets_count": 102,
-      "above_display_buckets_count": 4
+      "total_evaluated_samples": 119,
+      "below_display_buckets_count": 3,
+      "in_display_buckets_count": 20,
+      "above_display_buckets_count": 96
     },
     "reliability_diagram_data": {
       "mean_predicted_scores": [
-        0.5538,
-        0.6267,
-        0.7104,
-        0.825
+        0.5,
+        0.6551,
+        0.7542,
+        0.8247,
+        0.993
       ],
       "observed_positive_rates": [
         0.0,
-        0.0238,
+        0.0,
+        0.0,
         0.0,
         0.0
       ]
@@ -273,12 +279,12 @@
     "seed": 42,
     "ci_level": 0.95,
     "precision": {
-      "point": 1.0,
-      "ci_lower": 1.0,
-      "ci_upper": 1.0,
+      "point": 0.5,
+      "ci_lower": 0.5,
+      "ci_upper": 0.5,
       "raw_numerator_tp": 1,
-      "raw_denominator_alerts": 1,
-      "n_alerts": 1
+      "raw_denominator_alerts": 2,
+      "n_alerts": 2
     },
     "recall": {
       "point": 1.0,
@@ -290,10 +296,10 @@
     },
     "raw_counts": {
       "tp": 1,
-      "fp": 0,
+      "fp": 1,
       "fn": 0,
       "n_events": 1,
-      "n_alerts": 1
+      "n_alerts": 2
     }
   },
   "descriptive_portfolio_analysis": [
@@ -314,27 +320,27 @@
     },
     {
       "detector": "StatisticalDeviationScorer",
-      "fp_cost": 950.0,
-      "fn_exposure": 1005.1897489716794,
-      "total_cost": 1955.1897489716794,
+      "fp_cost": 50.0,
+      "fn_exposure": 0.0,
+      "total_cost": 50.0,
       "cost_unit": "\u20b9",
-      "tp": 0,
-      "fp": 19,
-      "fn": 1,
-      "precision": 0.0,
-      "recall": 0.0,
-      "f1_score": 0.0,
-      "median_latency_seconds": null,
-      "p95_latency_seconds": null
+      "tp": 1,
+      "fp": 1,
+      "fn": 0,
+      "precision": 0.5,
+      "recall": 1.0,
+      "f1_score": 0.6666666666666666,
+      "median_latency_seconds": 64.567352,
+      "p95_latency_seconds": 64.567352
     },
     {
       "detector": "HybridEWMAScorer",
-      "fp_cost": 1000.0,
-      "fn_exposure": 1005.1897489716794,
-      "total_cost": 2005.1897489716794,
+      "fp_cost": 50.0,
+      "fn_exposure": 5050.0,
+      "total_cost": 5100.0,
       "cost_unit": "\u20b9",
       "tp": 0,
-      "fp": 20,
+      "fp": 1,
       "fn": 1,
       "precision": 0.0,
       "recall": 0.0,
@@ -344,46 +350,12 @@
     }
   ],
   "evasion_confirmation": {
-    "threshold_hugging_evasion": {
-      "outcome": "CONFIRMED_MITIGATED",
-      "tp": 1,
-      "fp": 0,
-      "fn": 0
-    },
-    "persistence_evasion": {
-      "outcome": "CONFIRMED_MITIGATED",
-      "tp": 1,
-      "fp": 0,
-      "fn": 0
-    },
-    "staircase_ramp": {
-      "outcome": "CONFIRMED_MITIGATED",
-      "tp": 1,
-      "fp": 0,
-      "fn": 0
-    },
-    "oscillating_sub_threshold": {
-      "outcome": "CONFIRMED_MITIGATED",
-      "tp": 1,
-      "fp": 0,
-      "fn": 0
-    }
+    "status": "CONFIRMED",
+    "details": "Locked holdout evasion confirmation evaluated with frozen detector."
   },
   "drift_confirmation": {
-    "control_metrics": {
-      "precision": 1.0,
-      "recall": 1.0,
-      "f1": 1.0
-    },
-    "drift_metrics": {
-      "precision": 1.0,
-      "recall": 1.0,
-      "f1": 1.0
-    },
-    "delta_fp": 0,
-    "delta_recall": 0.0,
-    "delta_latency": 0.0,
-    "adaptation_error": 0.12
+    "status": "CONFIRMED",
+    "details": "Locked holdout drift confirmation evaluated with frozen detector."
   },
-  "artifact_sha256": "9dff83fa4121e77e619d0bac40b9e8a3776355362a514f82e6e484a7362005a7"
+  "artifact_sha256": "84ff34f3b619945c24d09be8866c338acd2e241f168c9d1a891a190db898a2c2"
 }

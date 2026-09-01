@@ -1,37 +1,39 @@
 {
   "experiment_id": "EXP-DAY8-HOLDOUT-CORRECTED-002",
   "detector_version": "1.0.0",
-  "config_hash": "4b70ee788eb888339498669fa65cfb30d59ffd8a59e1a01f493704d0b3c88920",
-  "development_dataset_hash": "54cc76f1d67a41fd14e61349b0636bc6f4f73f75b8ed67064e1cd96193d7e49f",
+  "config_hash": "59034aef4ef11333008c128d7f45ddd88194887460f7856695d13cc9a9834e9d",
+  "development_dataset_hash": "dea8f7c2928eb24835120b8604bd564cecdd190227bd6558988793ff673a4dbe",
   "holdout_dataset_hash": "71595f0cf6681e26ea96232eca900fb805909525367fe90124156de9fa65ddb4",
   "seed": 42,
   "timestamp": "2026-01-07T00:00:00Z",
   "metrics": {
     "tp": 1,
-    "fp": 0,
+    "fp": 1,
     "fn": 0,
     "tn": null,
-    "precision": 1.0,
+    "precision": 0.5,
     "recall": 1.0,
-    "f1_score": 1.0,
+    "f1_score": 0.6666666666666666,
     "mean_latency_seconds": 64.567352,
     "median_latency_seconds": 64.567352,
     "p95_latency_seconds": 64.567352,
-    "fp_cost": 0.0,
+    "fp_cost": 50.0,
     "fn_exposure": 0.0,
-    "total_cost": 0.0,
+    "total_cost": 50.0,
     "matched_events": [
       {
         "event_id": "EVT-HOLDOUT-001",
         "merchant_id": "HOLDOUT_M1",
-        "alert_id": "ALT-75c3b67cbf4064481d39bc36cb9f4636",
+        "alert_id": "ALT-13aae9b9b1f8713f10bd6c69ad7378f3",
         "latency_seconds": 64.567352,
         "horizon_seconds": 120.0,
         "severity": 10.051897489716794,
         "severity_level": "HIGH"
       }
     ],
-    "unmatched_alerts": [],
+    "unmatched_alerts": [
+      "ALT-ed2bf6d11bf23c3f1f767f5e867595a2"
+    ],
     "unmatched_events": []
   },
   "per_anomaly": {
@@ -39,9 +41,9 @@
       "anomaly_type": "volume_spike",
       "events_detected": 1,
       "total_events": 1,
-      "precision": 1.0,
+      "precision": 0.5,
       "recall": 1.0,
-      "f1": 1.0,
+      "f1": 0.6667,
       "median_latency_seconds": 64.57,
       "status": "VALIDATED"
     },

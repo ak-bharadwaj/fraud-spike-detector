@@ -1,12 +1,12 @@
 metric,value,unit
 tp,1,count
-fp,0,count
+fp,1,count
 fn,0,count
-precision,1.0000,rate
+precision,0.5000,rate
 recall,1.0000,rate
-f1_score,1.0000,score
+f1_score,0.6667,score
 median_latency_seconds,64.57,seconds
 p95_latency_seconds,64.57,seconds
-fp_cost,0.00,₹
+fp_cost,50.00,₹
 fn_exposure,0.00,₹
-total_cost,0.00,₹
+total_cost,50.00,₹

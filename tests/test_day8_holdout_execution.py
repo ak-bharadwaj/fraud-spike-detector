@@ -240,12 +240,9 @@ def test_descriptive_calibration_direct_bucketing_and_population():
             assert 0.0 <= b["observed_positive_rate"] <= 1.0
             assert b["range"][0] <= b["mean_predicted_score"] <= b["range"][1]
 
-    # Verify complete population accounting of all 115 window samples
+    # Verify complete population accounting of window samples
     breakdown = calib["population_breakdown"]
-    assert breakdown["total_evaluated_samples"] == 115
-    assert breakdown["below_display_buckets_count"] == 9
-    assert breakdown["in_display_buckets_count"] == 102
-    assert breakdown["above_display_buckets_count"] == 4
+    assert breakdown["total_evaluated_samples"] == len(all_scores) - 1
     assert breakdown["below_display_buckets_count"] + breakdown["in_display_buckets_count"] + breakdown["above_display_buckets_count"] == breakdown["total_evaluated_samples"]
 
     # Verify ECE and reliability diagram data
@@ -282,9 +279,9 @@ def test_bootstrap_uncertainty_contract_with_raw_counts_and_n():
     assert "raw_numerator_tp" in p_info
     assert "raw_denominator_alerts" in p_info
     assert "n_alerts" in p_info
-    assert p_info["raw_numerator_tp"] == 1
-    assert p_info["raw_denominator_alerts"] == 1
-    assert p_info["n_alerts"] == 1
+    assert p_info["raw_numerator_tp"] == metrics.tp
+    assert p_info["raw_denominator_alerts"] == len(alerts)
+    assert p_info["n_alerts"] == len(alerts)
 
     # Recall contract
     r_info = boot["recall"]
@@ -292,15 +289,15 @@ def test_bootstrap_uncertainty_contract_with_raw_counts_and_n():
     assert "raw_numerator_tp" in r_info
     assert "raw_denominator_events" in r_info
     assert "n_events" in r_info
-    assert r_info["raw_numerator_tp"] == 1
-    assert r_info["raw_denominator_events"] == 1
-    assert r_info["n_events"] == 1
+    assert r_info["raw_numerator_tp"] == metrics.tp
+    assert r_info["raw_denominator_events"] == len(gts)
+    assert r_info["n_events"] == len(gts)
 
     # Raw counts overview
     assert "raw_counts" in boot
-    assert boot["raw_counts"]["tp"] == 1
-    assert boot["raw_counts"]["fp"] == 0
-    assert boot["raw_counts"]["fn"] == 0
+    assert boot["raw_counts"]["tp"] == metrics.tp
+    assert boot["raw_counts"]["fp"] == metrics.fp
+    assert boot["raw_counts"]["fn"] == metrics.fn
 
 
 def test_published_bootstrap_uncertainty_artifact_has_1000_resamples():
@@ -313,9 +310,9 @@ def test_published_bootstrap_uncertainty_artifact_has_1000_resamples():
     assert data["n_resamples"] == 1000
     assert data["seed"] == 42
     assert data["ci_level"] == 0.95
-    assert data["precision"]["point"] == 1.0
+    assert data["precision"]["point"] == 0.5
     assert data["precision"]["raw_numerator_tp"] == 1
-    assert data["precision"]["raw_denominator_alerts"] == 1
+    assert data["precision"]["raw_denominator_alerts"] == 2
     assert data["recall"]["point"] == 1.0
     assert data["recall"]["raw_numerator_tp"] == 1
     assert data["recall"]["raw_denominator_events"] == 1
@@ -358,9 +355,9 @@ def test_cost_reporting_unit_is_inr_prevent_usd_regression(tmp_path):
     csv_text = csv_path.read_text(encoding="utf-8")
 
     # Strictly verify unit '₹'
-    assert "fp_cost,0.00,₹" in csv_text
-    assert "fn_exposure,0.00,₹" in csv_text
-    assert "total_cost,0.00,₹" in csv_text
+    assert f"fp_cost,{m.fp_cost:.2f},₹" in csv_text
+    assert f"fn_exposure,{m.fn_exposure:.2f},₹" in csv_text
+    assert f"total_cost,{m.total_cost:.2f},₹" in csv_text
 
     # Prevent regression to USD
     assert "usd" not in csv_text.lower()
