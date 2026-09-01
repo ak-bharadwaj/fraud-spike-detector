@@ -1,43 +1,44 @@
-"""Tests for Day 4 Trusted Evaluator and Development-Only Parameter Sweeps.
+"""Comprehensive unit tests for Day 4 Trusted Evaluator and Development-Only Parameter Sweeps.
 
 Validates:
-1. Detection Horizons:
-   - velocity = 60s
-   - volume = 120s
-   - amount = 180s
-   - behavioral = 180s
-   - attribute = 180s
-   - sustained = 300s
-   - compound = 300s
-   - evasive = 300s
-2. Boundary Matching:
-   - Alert exactly at GT.start_time
+1. Config-Driven Detection Horizons & Authoritative evaluation.yaml:
+   - velocity_burst = 60s
+   - volume_spike = 120s
+   - amount_shift = 180s
+   - behavioral_anomaly = 180s
+   - attribute_shift = 180s
+   - sustained_spike = 300s
+   - compound_anomaly = 300s
+   - evasive_patterns = 300s
+2. Exact Canonical Anomaly Mapping & Rejection of Unknown Anomaly Types:
+   - Validates exact dictionary lookup without substring guessing.
+   - Raises ValueError on unknown anomaly types.
+3. Cost Model & FN Exposure Semantics:
+   - fp_cost = fp * fp_review_cost
+   - fn_exposure = sum(fn_exposure_factor * event_exposure for unmatched GT)
+   - total_cost = fp_cost + fn_exposure
+4. Configuration Integration:
+   - Proves changing EvaluationConfig changes horizons, FP cost, and FN exposure dynamically.
+5. Boundary & One-to-One Greedy Matching:
+   - Alert exactly at GT.start_time (latency = 0.0s)
    - Alert exactly at GT.start_time + horizon
    - Alert just beyond horizon (FP)
    - Pre-onset alert (alert.timestamp < GT.start_time -> FP)
-3. One-to-One Greedy Matching:
    - 1 GT + multiple alerts (TP=1, remaining FP)
    - Multiple GT + 1 alert (TP=1, remaining FN)
-   - Multiple GT + multiple alerts
-4. Latency Calculation & Statistics:
-   - latency = alert_time - start_time
-   - mean, median, P95 latency calculation
-5. Metrics & Cost Model:
-   - TP, FP, FN, Precision, Recall, F1
-   - Zero-denominator matrix
-   - FP cost = fp * fp_unit_cost
-   - FN exposure = fn * fn_unit_exposure
-   - total_cost = fp_cost + fn_exposure
-6. Development Parameter Sweeps:
-   - Alpha sweep: {0.2, 0.3, 0.5, 0.7, 0.9}
-   - Persistence sweep: {1, 2, 3}
-   - Threshold operating point sweep
-   - Reports Precision, Recall, Median Latency, P95 Latency, FP Cost, FN Exposure
-7. Hard Holdout Isolation:
-   - Parameter sweeps strictly forbidden on holdout data paths.
+6. Latency Calculation & Statistics:
+   - Mean, Median, P95 latency
+7. Zero-Denominator Matrix.
+8. Development Parameter Sweeps:
+   - Alpha sweep across {0.2, 0.3, 0.5, 0.7, 0.9}
+   - Persistence sweep across {1, 2, 3}
+   - Threshold operating point search over [1.0, 10.0] with step 0.5
+9. Hard Holdout Isolation:
+   - Prohibits holdout data access in sweeps.
 """
 
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 import pytest
 
 from src.contracts.contracts import (
@@ -47,10 +48,11 @@ from src.contracts.contracts import (
     FrozenDetectorConfig,
     EvaluationMetrics,
 )
+from src.contracts.config_schemas import EvaluationConfig, CostModelConfig
+from src.contracts.config_loader import load_evaluation_config
 from src.evaluation.evaluator import (
     AnomalyEvaluator,
-    resolve_detection_horizon,
-    DEFAULT_DETECTION_HORIZONS,
+    ANOMALY_HORIZON_MAP,
 )
 from src.evaluation.sweeps import (
     run_alpha_sweep,
@@ -65,19 +67,82 @@ from src.stream.clock import VirtualClock
 
 
 # =====================================================================
-# 1. Detection Horizons Resolution Tests
+# 1. Authoritative Config & Exact Horizon Resolution Tests
 # =====================================================================
 
-def test_detection_horizons_resolution():
-    """Verify exact configured anomaly-specific detection horizons."""
-    assert resolve_detection_horizon("velocity_spike") == 60.0
-    assert resolve_detection_horizon("volume_spike") == 120.0
-    assert resolve_detection_horizon("amount_spike") == 180.0
-    assert resolve_detection_horizon("behavioral_shift") == 180.0
-    assert resolve_detection_horizon("attribute_anomaly") == 180.0
-    assert resolve_detection_horizon("sustained_anomaly") == 300.0
-    assert resolve_detection_horizon("compound_anomaly") == 300.0
-    assert resolve_detection_horizon("slow_burn_evasion") == 300.0
+def test_authoritative_evaluation_yaml_loading():
+    """Verify AnomalyEvaluator loads horizons and cost model strictly from config/evaluation.yaml."""
+    evaluator = AnomalyEvaluator()
+    assert evaluator.resolve_horizon("velocity_burst") == 60.0
+    assert evaluator.resolve_horizon("volume_spike") == 120.0
+    assert evaluator.resolve_horizon("amount_shift") == 180.0
+    assert evaluator.resolve_horizon("behavioral_anomaly") == 180.0
+    assert evaluator.resolve_horizon("attribute_shift") == 180.0
+    assert evaluator.resolve_horizon("sustained_spike") == 300.0
+    assert evaluator.resolve_horizon("compound_anomaly") == 300.0
+    assert evaluator.resolve_horizon("evasive_patterns") == 300.0
+    assert evaluator.fp_review_cost == 50.0
+    assert evaluator.fn_exposure_factor == 1.0
+
+
+def test_unknown_anomaly_type_rejection():
+    """Verify unknown or unconfigured anomaly types raise ValueError (no substring guessing)."""
+    evaluator = AnomalyEvaluator()
+    with pytest.raises(ValueError, match="Unknown or unconfigured anomaly type"):
+        evaluator.resolve_horizon("arbitrary_unknown_anomaly")
+
+
+def test_custom_evaluation_config_integration():
+    """Verify changing validated EvaluationConfig alters horizons, FP cost, and FN exposure."""
+    custom_cfg = EvaluationConfig(
+        horizons={
+            "velocity_burst": 45,
+            "volume_spike": 90,
+            "amount_shift": 150,
+            "behavioral_anomaly": 150,
+            "attribute_shift": 150,
+            "sustained_spike": 240,
+            "compound_anomaly": 240,
+            "evasive_patterns": 240,
+        },
+        cost_model=CostModelConfig(
+            fp_review_cost=75.0,
+            fn_exposure_factor=2.0,
+        ),
+    )
+    evaluator = AnomalyEvaluator(config=custom_cfg)
+    assert evaluator.resolve_horizon("velocity_burst") == 45.0
+    assert evaluator.resolve_horizon("volume_spike") == 90.0
+    assert evaluator.fp_review_cost == 75.0
+    assert evaluator.fn_exposure_factor == 2.0
+
+    st = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
+    gt = GroundTruthEvent(
+        event_id="GT-01",
+        merchant_id="M1",
+        anomaly_type="volume_spike",
+        start_time=st,
+        end_time=st + timedelta(minutes=5),
+        severity=3.0,
+        parameters={"amount_exposure": 200.0},
+    )
+    # Alert at 100s (> 90s custom horizon) -> FP=1, FN=1
+    alt = Alert(
+        alert_id="ALT-01",
+        merchant_id="M1",
+        timestamp=st + timedelta(seconds=100.0),
+        risk_score=4.0,
+        confidence=1.0,
+        reason="breach",
+        detector_version="1.0.0",
+    )
+    res = evaluator.evaluate([alt], [gt])
+    assert res.tp == 0
+    assert res.fp == 1
+    assert res.fn == 1
+    assert res.fp_cost == 75.0  # 1 * 75.0
+    assert res.fn_exposure == 400.0  # 2.0 * 200.0
+    assert res.total_cost == 475.0
 
 
 # =====================================================================
@@ -98,7 +163,7 @@ def test_evaluator_alert_exactly_at_gt_start():
     alt = Alert(
         alert_id="ALT-01",
         merchant_id="M1",
-        timestamp=st,  # Exact start
+        timestamp=st,
         risk_score=4.0,
         confidence=1.0,
         reason="Threshold breach",
@@ -225,7 +290,7 @@ def test_evaluator_one_gt_multiple_alerts_and_cost_model():
         Alert(alert_id="ALT-2", merchant_id="M1", timestamp=st + timedelta(seconds=60), risk_score=4.5, confidence=1.0, reason="breach", detector_version="1.0.0"),
         Alert(alert_id="ALT-3", merchant_id="M1", timestamp=st + timedelta(seconds=90), risk_score=5.0, confidence=1.0, reason="breach", detector_version="1.0.0"),
     ]
-    evaluator = AnomalyEvaluator(fp_unit_cost=50.0, fn_unit_exposure=500.0)
+    evaluator = AnomalyEvaluator()
     metrics = evaluator.evaluate(alts, [gt])
 
     assert metrics.tp == 1
@@ -243,12 +308,12 @@ def test_evaluator_one_gt_multiple_alerts_and_cost_model():
 def test_evaluator_multiple_gt_one_alert():
     """Verify 2 GT events with 1 alert produces TP=1, FN=1, FP=0."""
     st = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
-    gt1 = GroundTruthEvent(event_id="GT-01", merchant_id="M1", anomaly_type="volume_spike", start_time=st, end_time=st + timedelta(minutes=2), severity=4.0)
-    gt2 = GroundTruthEvent(event_id="GT-02", merchant_id="M1", anomaly_type="volume_spike", start_time=st + timedelta(minutes=3), end_time=st + timedelta(minutes=5), severity=4.0)
+    gt1 = GroundTruthEvent(event_id="GT-01", merchant_id="M1", anomaly_type="volume_spike", start_time=st, end_time=st + timedelta(minutes=2), severity=4.0, parameters={"amount_exposure": 300.0})
+    gt2 = GroundTruthEvent(event_id="GT-02", merchant_id="M1", anomaly_type="volume_spike", start_time=st + timedelta(minutes=3), end_time=st + timedelta(minutes=5), severity=4.0, parameters={"amount_exposure": 500.0})
 
     alt = Alert(alert_id="ALT-1", merchant_id="M1", timestamp=st + timedelta(seconds=30), risk_score=4.0, confidence=1.0, reason="breach", detector_version="1.0.0")
 
-    evaluator = AnomalyEvaluator(fp_unit_cost=50.0, fn_unit_exposure=500.0)
+    evaluator = AnomalyEvaluator()
     metrics = evaluator.evaluate([alt], [gt1, gt2])
 
     assert metrics.tp == 1
@@ -257,7 +322,7 @@ def test_evaluator_multiple_gt_one_alert():
     assert metrics.precision == 1.0
     assert metrics.recall == 0.5
     assert metrics.fp_cost == 0.0
-    assert metrics.fn_exposure == 500.0
+    assert metrics.fn_exposure == 500.0  # GT2 missed exposure (1.0 * 500.0)
     assert metrics.total_cost == 500.0
 
 
@@ -338,7 +403,7 @@ def test_development_persistence_sweep_execution():
 
 
 def test_development_threshold_operating_point_sweep():
-    """Verify development threshold operating point sweep evaluates across candidate static thresholds."""
+    """Verify development threshold operating point sweep evaluates across grid [1.0, 10.0] step 0.5."""
     st = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
     gen = SyntheticStreamGenerator(42, [{"id": "M1", "archetype": "stable"}], VirtualClock(initial_time=st))
     txs_base, _ = gen.generate_window(5.0)
@@ -349,12 +414,14 @@ def test_development_threshold_operating_point_sweep():
 
     all_txs = txs_base + txs_spike
 
-    results = run_threshold_operating_point_sweep(all_txs, events, thresholds=[2.0, 3.0, 3.5, 4.0, 5.0])
-    assert len(results) == 5
+    results = run_threshold_operating_point_sweep(all_txs, events)
+    assert len(results) == 19  # [1.0, 1.5, 2.0, ..., 10.0]
 
     for row in results:
         assert "threshold" in row
         assert "f1_score" in row
+        assert "fp_cost" in row
+        assert "fn_exposure" in row
 
 
 def test_development_sweep_holdout_access_prohibited():

@@ -5,7 +5,7 @@ Key Invariants:
 - Parameter sweeps:
   - alpha: {0.2, 0.3, 0.5, 0.7, 0.9}
   - persistence: {1, 2, 3}
-  - threshold: operating-point sweep
+  - threshold: operating-point sweep over [1.0, 10.0] with step 0.5
 - Reports for each sweep point:
   - Precision
   - Recall
@@ -19,6 +19,7 @@ Key Invariants:
 
 from typing import List, Dict, Any, Optional, Sequence
 from pathlib import Path
+import numpy as np
 
 from src.contracts.contracts import (
     Transaction,
@@ -118,13 +119,17 @@ def run_persistence_sweep(
 def run_threshold_operating_point_sweep(
     transactions: Sequence[Transaction],
     ground_truth_events: Sequence[GroundTruthEvent],
-    thresholds: Sequence[float] = (2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0),
+    thresholds: Optional[Sequence[float]] = None,
     base_config: Optional[FrozenDetectorConfig] = None,
     evaluator: Optional[AnomalyEvaluator] = None,
 ) -> List[Dict[str, Any]]:
-    """Execute parameter sweep over static decision threshold operating points on development data."""
+    """Execute parameter sweep over static decision threshold operating points [1.0, 10.0] with step 0.5 on development data."""
     base_cfg = base_config or FrozenDetectorConfig()
     eval_engine = evaluator or AnomalyEvaluator()
+    
+    if thresholds is None:
+        thresholds = [float(t) for t in np.arange(1.0, 10.5, 0.5)]
+
     results = []
 
     for th in thresholds:

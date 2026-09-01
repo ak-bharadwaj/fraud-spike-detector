@@ -2,15 +2,17 @@
 
 Key Invariants:
 - Evaluates detector predictions (Alert list) against GroundTruthEvent list.
+- Driven strictly by authoritative EvaluationConfig (from config/evaluation.yaml or injected config object).
 - Exact configured anomaly-specific detection horizons (Section 13/14):
-    velocity     = 60s
-    volume       = 120s
-    amount       = 180s
-    behavioral   = 180s
-    attribute    = 180s
-    sustained    = 300s
-    compound     = 300s
-    evasive      = 300s
+    velocity_burst     = 60s
+    volume_spike       = 120s
+    amount_shift       = 180s
+    behavioral_anomaly = 180s
+    attribute_shift    = 180s
+    sustained_spike    = 300s
+    compound_anomaly   = 300s
+    evasive_patterns   = 300s
+- Rejects unknown or unconfigured anomaly types with explicit ValueError (no substring guessing or silent fallbacks).
 - Valid detection interval is:
     GT.start_time <= first valid alert <= GT.start_time + configured horizon
 - Pre-onset alerts (alert.timestamp < GT.start_time) are strictly False Positives (FP).
@@ -19,6 +21,10 @@ Key Invariants:
 - One-to-one greedy matching rule: One Alert matches at most one GroundTruthEvent; one GroundTruthEvent matches at most one Alert.
 - Unmatched alerts -> FP; Unmatched events -> FN.
 - Latency calculation: (first_matching_alert.timestamp - event.start_time).total_seconds().
+- Cost Model:
+    fp_cost = fp * config.cost_model.fp_review_cost
+    fn_exposure = sum(config.cost_model.fn_exposure_factor * event_exposure for unmatched GT)
+    total_cost = fp_cost + fn_exposure
 - Produces: TP, FP, FN, Precision, Recall, F1, Mean Latency, Median Latency, P95 Latency, FP Cost, FN Exposure, Total Cost.
 - Zero-denominator semantics:
   - empty/empty (TP=0, FP=0, FN=0) -> P=1, R=1, F1=1.
@@ -31,61 +37,89 @@ Key Invariants:
 
 from typing import List, Optional, Dict, Any, Union
 from datetime import datetime, timedelta
+from pathlib import Path
 import numpy as np
 
 from src.contracts.contracts import Alert, GroundTruthEvent, EvaluationMetrics
+from src.contracts.config_schemas import EvaluationConfig, CostModelConfig
+from src.contracts.config_loader import load_evaluation_config
 
 
-DEFAULT_DETECTION_HORIZONS: Dict[str, float] = {
-    "velocity": 60.0,
-    "volume": 120.0,
-    "amount": 180.0,
-    "behavioral": 180.0,
-    "attribute": 180.0,
-    "sustained": 300.0,
-    "compound": 300.0,
-    "evasive": 300.0,
-    "evasion": 300.0,
-    "slow_burn": 300.0,
+ANOMALY_HORIZON_MAP: Dict[str, str] = {
+    "velocity_burst": "velocity_burst",
+    "velocity_spike": "velocity_burst",
+    "velocity": "velocity_burst",
+    "volume_spike": "volume_spike",
+    "surge_volume": "volume_spike",
+    "surge": "volume_spike",
+    "volume": "volume_spike",
+    "amount_shift": "amount_shift",
+    "amount_spike": "amount_shift",
+    "amount": "amount_shift",
+    "behavioral_anomaly": "behavioral_anomaly",
+    "behavioral_shift": "behavioral_anomaly",
+    "behavioral": "behavioral_anomaly",
+    "attribute_shift": "attribute_shift",
+    "attribute_anomaly": "attribute_shift",
+    "attribute": "attribute_shift",
+    "sustained_spike": "sustained_spike",
+    "sustained_anomaly": "sustained_spike",
+    "sustained": "sustained_spike",
+    "compound_anomaly": "compound_anomaly",
+    "compound": "compound_anomaly",
+    "evasive_patterns": "evasive_patterns",
+    "slow_burn_evasion": "evasive_patterns",
+    "slow_burn": "evasive_patterns",
+    "evasion": "evasive_patterns",
 }
 
 
-def resolve_detection_horizon(
-    anomaly_type: str,
-    custom_horizons: Optional[Dict[str, float]] = None,
-) -> float:
-    """Resolve the detection horizon in seconds for a given anomaly type."""
-    horizons = custom_horizons or DEFAULT_DETECTION_HORIZONS
-    atype = anomaly_type.lower()
-    for key, val in horizons.items():
-        if key in atype:
-            return float(val)
-    # Default fallback to 120.0s (volume)
-    return float(horizons.get("volume", 120.0))
-
-
 class AnomalyEvaluator:
-    """Evaluates detector Alert outputs against GroundTruthEvent streams using strict one-to-one matching and detection horizons."""
+    """Evaluates detector Alert outputs against GroundTruthEvent streams using strict one-to-one matching and authoritative EvaluationConfig."""
 
     def __init__(
         self,
-        custom_horizons: Optional[Dict[str, float]] = None,
+        config: Optional[Union[EvaluationConfig, str, Path]] = None,
         temporal_tolerance_seconds: float = 0.0,
-        fp_unit_cost: float = 50.0,
-        fn_unit_exposure: float = 500.0,
+        fp_unit_cost: Optional[float] = None,
+        fn_exposure_factor: Optional[float] = None,
     ):
-        """Initialize evaluator with detection horizons, optional tolerance, and cost model weights."""
+        """Initialize evaluator with authoritative EvaluationConfig and optional overrides."""
         if temporal_tolerance_seconds < 0.0:
             raise ValueError(f"temporal_tolerance_seconds cannot be negative, got {temporal_tolerance_seconds}")
-        if fp_unit_cost < 0.0:
-            raise ValueError(f"fp_unit_cost cannot be negative, got {fp_unit_cost}")
-        if fn_unit_exposure < 0.0:
-            raise ValueError(f"fn_unit_exposure cannot be negative, got {fn_unit_exposure}")
 
-        self.custom_horizons = custom_horizons or dict(DEFAULT_DETECTION_HORIZONS)
+        if config is None:
+            config_path = Path(__file__).parent.parent.parent / "config" / "evaluation.yaml"
+            self.config = load_evaluation_config(config_path)
+        elif isinstance(config, (str, Path)):
+            self.config = load_evaluation_config(config)
+        elif isinstance(config, EvaluationConfig):
+            self.config = config
+        else:
+            raise TypeError(f"Invalid config type {type(config).__name__}, expected EvaluationConfig, str, or Path")
+
         self.temporal_tolerance_seconds = float(temporal_tolerance_seconds)
-        self.fp_unit_cost = float(fp_unit_cost)
-        self.fn_unit_exposure = float(fn_unit_exposure)
+        self.fp_review_cost = float(fp_unit_cost) if fp_unit_cost is not None else float(self.config.cost_model.fp_review_cost)
+        self.fn_exposure_factor = float(fn_exposure_factor) if fn_exposure_factor is not None else float(self.config.cost_model.fn_exposure_factor)
+
+    def resolve_horizon(self, anomaly_type: str) -> float:
+        """Resolve detection horizon in seconds from configured horizons using exact canonical mapping.
+
+        Raises ValueError for unknown anomaly types.
+        """
+        raw_key = anomaly_type.strip().lower()
+        canon_key = ANOMALY_HORIZON_MAP.get(raw_key)
+
+        if canon_key is None or canon_key not in self.config.horizons:
+            # Check direct match in horizons dictionary
+            if raw_key in self.config.horizons:
+                return float(self.config.horizons[raw_key])
+            raise ValueError(
+                f"Unknown or unconfigured anomaly type: '{anomaly_type}'. "
+                f"Configured evaluation horizons: {sorted(self.config.horizons.keys())}"
+            )
+
+        return float(self.config.horizons[canon_key])
 
     def evaluate(
         self,
@@ -111,6 +145,7 @@ class AnomalyEvaluator:
         matched_events_details: List[Dict[str, Any]] = []
         unmatched_alerts: List[str] = []
         unmatched_events: List[str] = []
+        unmatched_gt_objects: List[GroundTruthEvent] = []
         latencies: List[float] = []
 
         for m_id in sorted(all_merchants):
@@ -121,7 +156,7 @@ class AnomalyEvaluator:
             used_alert_ids = set()
 
             for gt in m_events:
-                horizon_sec = resolve_detection_horizon(gt.anomaly_type, self.custom_horizons)
+                horizon_sec = self.resolve_horizon(gt.anomaly_type)
                 valid_start = gt.start_time.timestamp() - self.temporal_tolerance_seconds
                 valid_end = (gt.start_time + timedelta(seconds=horizon_sec)).timestamp() + self.temporal_tolerance_seconds
 
@@ -152,6 +187,7 @@ class AnomalyEvaluator:
                 else:
                     fn += 1
                     unmatched_events.append(gt.event_id)
+                    unmatched_gt_objects.append(gt)
 
             # Any alert for this merchant not used in one-to-one matching is a False Positive (FP)
             for alt in m_alerts:
@@ -186,9 +222,14 @@ class AnomalyEvaluator:
             median_latency = None
             p95_latency = None
 
-        # 4. Cost Model
-        fp_cost = float(fp * self.fp_unit_cost)
-        fn_exposure = float(fn * self.fn_unit_exposure)
+        # 4. Cost Model: exact business risk formulas from config
+        fp_cost = float(fp * self.fp_review_cost)
+
+        fn_exposure = 0.0
+        for u_gt in unmatched_gt_objects:
+            base_exp = float(u_gt.parameters.get("amount_exposure", u_gt.parameters.get("exposure", 100.0 * u_gt.severity)))
+            fn_exposure += float(self.fn_exposure_factor * base_exp)
+
         total_cost = float(fp_cost + fn_exposure)
 
         return EvaluationMetrics(
