@@ -3,7 +3,9 @@
 Key Invariants:
 - Evaluates detector robustness against distribution drift (e.g. organic baseline growth) under constant configuration.
 - Uses common StreamingDetectorPipeline and AnomalyEvaluator.
-- Paired evaluation: CONTROL (stable) vs DRIFT (growing) with identical seed, duration, and anomaly schedule.
+- Strict Paired Evaluation Contract:
+  - Validates control and drift streams share identical merchant identity, time window, and GroundTruth event specifications (event IDs, anomaly types, start times, end times).
+  - Rejects mismatched inputs with explicit ValueError before pipeline execution.
 - Warmup exclusion: initial warmup windows (e.g. w < 6) are excluded from adaptation calculation.
 - Quantitative adaptation metrics:
   - empirical_post_drift_rate
@@ -60,6 +62,51 @@ class DriftRunner:
         if data_path and "holdout" in str(data_path).lower():
             raise PermissionError("Drift characterization is strictly prohibited on holdout data. Use development data only.")
 
+    @staticmethod
+    def validate_paired_contract(
+        control_transactions: Sequence[Transaction],
+        drift_transactions: Sequence[Transaction],
+        control_ground_truth: Sequence[GroundTruthEvent],
+        drift_ground_truth: Sequence[GroundTruthEvent],
+        merchant_id: str,
+    ) -> None:
+        """Enforce strict pairing contract between control and drift inputs."""
+        if not control_transactions:
+            raise ValueError("Paired drift contract violation: control_transactions is empty")
+        if not drift_transactions:
+            raise ValueError("Paired drift contract violation: drift_transactions is empty")
+
+        # 1. Validate merchant identity
+        ctrl_merchants = {t.merchant_id for t in control_transactions}
+        drift_merchants = {t.merchant_id for t in drift_transactions}
+        if merchant_id not in ctrl_merchants:
+            raise ValueError(f"Paired drift contract violation: merchant '{merchant_id}' not found in control stream")
+        if merchant_id not in drift_merchants:
+            raise ValueError(f"Paired drift contract violation: merchant '{merchant_id}' not found in drift stream")
+        if ctrl_merchants != drift_merchants:
+            raise ValueError(f"Paired drift contract violation: merchant sets differ (control: {ctrl_merchants}, drift: {drift_merchants})")
+
+        # 2. Validate GroundTruth event specifications
+        if len(control_ground_truth) != len(drift_ground_truth):
+            raise ValueError(
+                f"Paired drift contract violation: GroundTruth event count mismatch "
+                f"(control has {len(control_ground_truth)}, drift has {len(drift_ground_truth)})"
+            )
+
+        ctrl_gt_map = {e.event_id: e for e in control_ground_truth}
+        for drift_e in drift_ground_truth:
+            if drift_e.event_id not in ctrl_gt_map:
+                raise ValueError(f"Paired drift contract violation: GroundTruth event ID '{drift_e.event_id}' missing in control GT")
+            ctrl_e = ctrl_gt_map[drift_e.event_id]
+            if ctrl_e.merchant_id != drift_e.merchant_id:
+                raise ValueError(f"Paired drift contract violation for '{drift_e.event_id}': merchant_id mismatch ({ctrl_e.merchant_id} vs {drift_e.merchant_id})")
+            if ctrl_e.anomaly_type != drift_e.anomaly_type:
+                raise ValueError(f"Paired drift contract violation for '{drift_e.event_id}': anomaly_type mismatch ({ctrl_e.anomaly_type} vs {drift_e.anomaly_type})")
+            if ctrl_e.start_time != drift_e.start_time:
+                raise ValueError(f"Paired drift contract violation for '{drift_e.event_id}': start_time mismatch ({ctrl_e.start_time} vs {drift_e.start_time})")
+            if ctrl_e.end_time != drift_e.end_time:
+                raise ValueError(f"Paired drift contract violation for '{drift_e.event_id}': end_time mismatch ({ctrl_e.end_time} vs {drift_e.end_time})")
+
     def run_paired_drift_experiment(
         self,
         control_transactions: Sequence[Transaction],
@@ -76,6 +123,13 @@ class DriftRunner:
     ) -> DriftResult:
         """Run paired control vs drift experiment through the common detector pipeline and measure adaptation."""
         self.verify_development_only(data_path)
+        self.validate_paired_contract(
+            control_transactions=control_transactions,
+            drift_transactions=drift_transactions,
+            control_ground_truth=control_ground_truth,
+            drift_ground_truth=drift_ground_truth,
+            merchant_id=merchant_id,
+        )
 
         # 1. Run Control Stream
         pipe_ctrl = StreamingDetectorPipeline(config=self.config, db_path=":memory:")

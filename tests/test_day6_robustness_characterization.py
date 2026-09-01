@@ -264,6 +264,83 @@ def test_reusable_drift_runner_and_artifact_generation():
         runner.verify_development_only("data/holdout/stream.json")
 
 
+def test_conflicting_duplicate_transactions_raise_value_error():
+    """Verify duplicate transactions with same transaction_id but conflicting payload (e.g. differing amount/customer) raise ValueError."""
+    st = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
+    config = FrozenDetectorConfig(min_window_count=1)
+    pipeline = StreamingDetectorPipeline(config=config, db_path=":memory:")
+
+    tx_original = Transaction(
+        transaction_id="TX_CONFLICT_01",
+        timestamp=st + timedelta(seconds=10),
+        merchant_id="M_CONF",
+        customer_id="C_ORIGINAL",
+        amount=50.0,
+        payment_method="CREDIT_CARD",
+        country="US",
+        device_id="DEV_1",
+    )
+    tx_conflicting = Transaction(
+        transaction_id="TX_CONFLICT_01",  # Same ID!
+        timestamp=st + timedelta(seconds=10),
+        merchant_id="M_CONF",
+        customer_id="C_TAMPERED",  # Conflicting field!
+        amount=5000.0,             # Conflicting field!
+        payment_method="CREDIT_CARD",
+        country="US",
+        device_id="DEV_1",
+    )
+
+    with pytest.raises(ValueError, match="Conflicting duplicate transaction detected"):
+        pipeline.process_transactions([tx_original, tx_conflicting])
+
+
+def test_drift_runner_enforces_paired_contract_and_rejects_mismatched_inputs():
+    """Verify DriftRunner enforces pairing contract and rejects mismatched merchants, empty streams, or mismatched GroundTruth."""
+    from src.evaluation.drift import DriftRunner
+
+    st = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
+    tx_m1 = Transaction(transaction_id="tx_1", timestamp=st + timedelta(seconds=10), merchant_id="M_CTRL", customer_id="C1", amount=50.0, payment_method="CREDIT_CARD", country="US", device_id="D1")
+    tx_m2 = Transaction(transaction_id="tx_2", timestamp=st + timedelta(seconds=10), merchant_id="M_DRIFT", customer_id="C1", amount=50.0, payment_method="CREDIT_CARD", country="US", device_id="D1")
+
+    gt_1 = GroundTruthEvent(
+        event_id="EVT-01",
+        merchant_id="M_CTRL",
+        anomaly_type="volume_spike",
+        start_time=st,
+        end_time=st + timedelta(minutes=2),
+        duration_seconds=120.0,
+        severity=4.0,
+        severity_level="HIGH",
+        parameters={"target_magnitude": 4.0, "excess_transaction_count": 20, "mean_transaction_amount": 50.0, "exposure_factor": 1.0},
+    )
+    gt_2_mismatched = GroundTruthEvent(
+        event_id="EVT-02",  # Different ID!
+        merchant_id="M_CTRL",
+        anomaly_type="velocity_burst",  # Different anomaly type!
+        start_time=st,
+        end_time=st + timedelta(minutes=2),
+        duration_seconds=120.0,
+        severity=4.0,
+        severity_level="HIGH",
+        parameters={"target_magnitude": 4.0, "excess_transaction_count": 20, "mean_transaction_amount": 50.0, "exposure_factor": 1.0},
+    )
+
+    runner = DriftRunner()
+
+    # 1. Empty control stream -> ValueError
+    with pytest.raises(ValueError, match="control_transactions is empty"):
+        runner.validate_paired_contract([], [tx_m1], [gt_1], [gt_1], merchant_id="M_CTRL")
+
+    # 2. Merchant mismatch -> ValueError
+    with pytest.raises(ValueError, match="merchant 'M_CTRL' not found in drift stream"):
+        runner.validate_paired_contract([tx_m1], [tx_m2], [gt_1], [gt_1], merchant_id="M_CTRL")
+
+    # 3. GroundTruth mismatch -> ValueError
+    with pytest.raises(ValueError, match="GroundTruth event ID 'EVT-02' missing in control GT"):
+        runner.validate_paired_contract([tx_m1], [tx_m1], [gt_1], [gt_2_mismatched], merchant_id="M_CTRL")
+
+
 
 # =====================================================================
 # 3. Scorer Exception Stress, Recovery & Merchant Isolation

@@ -84,11 +84,20 @@ class StreamingDetectorPipeline:
         self._emitted_alerts.clear()
 
         self.bus.clear()
-        seen_tx_ids = set()
+        seen_txs: Dict[str, Transaction] = {}
         unique_txs: List[Transaction] = []
         for tx in transactions:
-            if tx.transaction_id not in seen_tx_ids:
-                seen_tx_ids.add(tx.transaction_id)
+            if tx.transaction_id in seen_txs:
+                existing = seen_txs[tx.transaction_id]
+                if tx != existing:
+                    raise ValueError(
+                        f"Conflicting duplicate transaction detected for ID '{tx.transaction_id}': "
+                        f"existing payload ({existing.model_dump()}) != new payload ({tx.model_dump()})"
+                    )
+                # Exact duplicate -> safely ignore without double counting
+                continue
+            else:
+                seen_txs[tx.transaction_id] = tx
                 unique_txs.append(tx)
 
         self.bus.publish_batch(unique_txs)
