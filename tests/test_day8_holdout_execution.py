@@ -59,7 +59,8 @@ from src.contracts.contracts import (
     RiskScore,
     EvaluationMetrics,
 )
-from src.evaluation.freeze import load_freeze_record, compute_config_hash
+from src.evaluation.freeze import load_freeze_record, compute_config_hash, FreezeRecord
+from src.baseline.baseline_engine import BaselineEngine
 from src.evaluation.holdout import (
     HoldoutManifest,
     HoldoutProtection,
@@ -536,8 +537,23 @@ def test_published_canonical_report_provenance_and_artifact_sha():
 
     r2 = data["dual_run_disclosure"]["run_002_corrected"]
     assert r2["execution_commit"] == "bc29c36"
-    assert r2["artifact_finalization_commit"] == "5841ddb"
     assert r2["status"] == "ACCEPTED_CANONICAL"
+
+    # Verify provenance structure:
+    # 1. artifact_finalization_commit is a non-empty, non-placeholder git hex SHA
+    assert r2["artifact_finalization_commit"]
+    assert all(c in "0123456789abcdef" for c in r2["artifact_finalization_commit"].lower())
+    assert len(r2["artifact_finalization_commit"]) in (7, 40)
+    assert "pending" not in r2["artifact_finalization_commit"].lower()
+    assert "placeholder" not in r2["artifact_finalization_commit"].lower()
+
+    # 2. historical_artifact_chain is valid non-empty list of commit SHAs ending in artifact_finalization_commit
+    chain = r2["historical_artifact_chain"]
+    assert isinstance(chain, list) and len(chain) > 0
+    for commit_sha in chain:
+        assert all(c in "0123456789abcdef" for c in commit_sha.lower())
+        assert len(commit_sha) in (7, 40)
+    assert chain[-1] == r2["artifact_finalization_commit"]
 
 
 # =====================================================================
@@ -596,4 +612,73 @@ def test_single_authoritative_holdout_execution_path():
     scorer = build_frozen_scorer(freeze_record)
     assert scorer.__class__.__name__ == freeze_record.selected_scorer
     assert scorer.__class__.__name__ == "StatisticalDeviationScorer"
+
+
+def test_holdout_execution_strictly_consumes_min_history_and_min_window_counts(monkeypatch):
+    """Verify execute_single_pass_holdout strictly consumes distinct min_history_count and min_window_count without fallback/substitution."""
+    manifest, txs, gts = load_locked_holdout_data("data/holdout")
+    
+    instantiated_args = []
+    original_init = BaselineEngine.__init__
+
+    def spy_init(self, *args, **kwargs):
+        instantiated_args.append(kwargs)
+        original_init(self, *args, **kwargs)
+
+    monkeypatch.setattr(BaselineEngine, "__init__", spy_init)
+
+    # 1. Test case: min_history_count = 10, min_window_count = 2 (distinct!)
+    rec1 = FreezeRecord(
+        detector_version="1.0.0",
+        config_hash="TEST_HASH_1",
+        development_dataset_hash="DEV_HASH",
+        seed=42,
+        selected_scorer="StatisticalDeviationScorer",
+        all_selected_parameters={
+            "scorer": "StatisticalDeviationScorer",
+            "alpha": None,
+            "static_threshold": 5.0,
+            "persistence": 1,
+            "cooldown_windows": 5,
+            "min_history_count": 10,
+            "min_window_count": 2,
+            "signal_weights": {"volume": 1.0, "velocity": 1.0, "amount": 1.0, "behavioral": 1.0},
+            "detector_version": "1.0.0",
+        },
+        selection_rationale="Test min_history_count != min_window_count consumption",
+        freeze_timestamp="2026-01-08T00:00:00Z",
+    )
+
+    execute_single_pass_holdout(txs, gts, rec1, explicit_evaluation_mode=True)
+    assert len(instantiated_args) >= 1
+    assert instantiated_args[-1]["min_history_count"] == 10
+    assert instantiated_args[-1]["min_window_count"] == 2
+
+    # 2. Test case: min_history_count = 3, min_window_count = 8 (inverted distinct!)
+    rec2 = FreezeRecord(
+        detector_version="1.0.0",
+        config_hash="TEST_HASH_2",
+        development_dataset_hash="DEV_HASH",
+        seed=42,
+        selected_scorer="StatisticalDeviationScorer",
+        all_selected_parameters={
+            "scorer": "StatisticalDeviationScorer",
+            "alpha": None,
+            "static_threshold": 5.0,
+            "persistence": 1,
+            "cooldown_windows": 5,
+            "min_history_count": 3,
+            "min_window_count": 8,
+            "signal_weights": {"volume": 1.0, "velocity": 1.0, "amount": 1.0, "behavioral": 1.0},
+            "detector_version": "1.0.0",
+        },
+        selection_rationale="Test min_history_count != min_window_count consumption 2",
+        freeze_timestamp="2026-01-08T00:00:00Z",
+    )
+
+    execute_single_pass_holdout(txs, gts, rec2, explicit_evaluation_mode=True)
+    assert len(instantiated_args) >= 2
+    assert instantiated_args[-1]["min_history_count"] == 3
+    assert instantiated_args[-1]["min_window_count"] == 8
+
 

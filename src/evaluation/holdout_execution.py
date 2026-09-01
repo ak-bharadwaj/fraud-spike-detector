@@ -94,15 +94,19 @@ def execute_single_pass_holdout(
         raise ValueError("Frozen configuration violation: Parameter overrides are strictly prohibited on Day 8.")
 
     params = freeze_record.all_selected_parameters
-    th = float(params.get("static_threshold", 3.5))
-    persistence = int(params.get("persistence", 2))
-    cooldown = int(params.get("cooldown_windows", 5))
-    min_windows = int(params.get("min_window_count", 5))
+    th = float(params["static_threshold"])
+    persistence = int(params["persistence"])
+    cooldown = int(params["cooldown_windows"])
+    min_history_count = int(params["min_history_count"])
+    min_window_count = int(params["min_window_count"])
     weights = params.get("signal_weights", None)
 
     scorer = build_frozen_scorer(freeze_record)
     feature_engine = FeatureEngine()
-    baseline_engine = BaselineEngine(min_history_count=min_windows, min_window_count=min_windows)
+    baseline_engine = BaselineEngine(
+        min_history_count=min_history_count,
+        min_window_count=min_window_count,
+    )
     state_machine = AlertStateMachine(
         persistence=persistence,
         cooldown_windows=cooldown,
@@ -315,11 +319,12 @@ def execute_portfolio_comparison(
 ) -> List[Dict[str, Any]]:
     """Compare Static, Statistical, and Hybrid EWMA scorers on locked holdout (Descriptive Portfolio Analysis)."""
     params = freeze_record.all_selected_parameters
-    th = float(params.get("static_threshold", 3.5))
-    alpha = float(params.get("alpha", 0.3) if params.get("alpha") is not None else 0.3)
-    p = int(params.get("persistence", 2))
-    c = int(params.get("cooldown_windows", 5))
-    min_w = int(params.get("min_window_count", 5))
+    th = float(params["static_threshold"])
+    alpha = float(params["alpha"]) if params.get("alpha") is not None else 0.3
+    p = int(params["persistence"])
+    c = int(params["cooldown_windows"])
+    min_h = int(params["min_history_count"])
+    min_w = int(params["min_window_count"])
     weights = params.get("signal_weights", None)
 
     strategies = [
