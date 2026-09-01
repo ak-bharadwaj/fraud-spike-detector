@@ -165,10 +165,11 @@ class AnomalyEvaluator:
 
             for gt in m_events:
                 horizon_sec = self.resolve_horizon(gt.anomaly_type)
-                valid_start = gt.start_time.timestamp() - self.temporal_tolerance_seconds
+                # Pre-onset alerts are strictly False Positives (no tolerance before start_time)
+                valid_start = gt.start_time.timestamp()
                 valid_end = (gt.start_time + timedelta(seconds=horizon_sec)).timestamp() + self.temporal_tolerance_seconds
 
-                # Candidate alerts strictly within valid detection horizon [start_time - tol, start_time + horizon + tol]
+                # Candidate alerts strictly within valid detection horizon [start_time, start_time + horizon + tol]
                 candidate_alerts = [
                     alt for alt in m_alerts
                     if (alt.alert_id not in used_alert_ids and
@@ -230,13 +231,28 @@ class AnomalyEvaluator:
             median_latency = None
             p95_latency = None
 
-        # 4. Cost Model: exact business risk formulas from config
+        # 4. Cost Model (Section 24):
+        # FP cost = FP * review_cost
+        # FN exposure = sum(excess_transaction_count * mean_transaction_amount * exposure_factor)
         fp_cost = float(fp * self.fp_review_cost)
 
         fn_exposure = 0.0
         for u_gt in unmatched_gt_objects:
-            base_exp = float(u_gt.parameters.get("amount_exposure", u_gt.parameters.get("exposure", 100.0 * u_gt.severity)))
-            fn_exposure += float(self.fn_exposure_factor * base_exp)
+            params = u_gt.parameters or {}
+            if "excess_transaction_count" in params and "mean_transaction_amount" in params:
+                excess_tx = float(params["excess_transaction_count"])
+                mean_amt = float(params["mean_transaction_amount"])
+                factor = float(params.get("exposure_factor", self.fn_exposure_factor))
+                event_exposure = excess_tx * mean_amt * factor
+            elif "excess_tx_count" in params and "mean_amount" in params:
+                excess_tx = float(params["excess_tx_count"])
+                mean_amt = float(params["mean_amount"])
+                factor = float(params.get("exposure_factor", self.fn_exposure_factor))
+                event_exposure = excess_tx * mean_amt * factor
+            else:
+                base_exp = float(params.get("amount_exposure", params.get("exposure", 100.0 * u_gt.severity)))
+                event_exposure = float(self.fn_exposure_factor * base_exp)
+            fn_exposure += float(event_exposure)
 
         total_cost = float(fp_cost + fn_exposure)
 

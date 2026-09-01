@@ -146,28 +146,49 @@ def test_temporal_boundary_exact_start_and_end():
 
 
 def test_temporal_out_of_bounds_and_tolerance():
-    """Verify timestamps just outside GT interval without tolerance fail, but succeed with non-zero tolerance."""
+    """Verify pre-onset alerts are ALWAYS false positives (no pre-onset tolerance) and after-horizon alerts fail unless covered by end-boundary tolerance."""
     st = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
     et = st + timedelta(minutes=5)
     gt = make_dummy_gt_event("M1", st, et)
 
-    # 30s before start_time
+    # 1. 30s before start_time with 0s tolerance -> FP=1, FN=1
     alt_early = make_dummy_alert("M1", st - timedelta(seconds=30), alert_id="ALT-EARLY")
-
-    # Without tolerance -> FP=1, FN=1
     eval_no_tol = AnomalyEvaluator(temporal_tolerance_seconds=0.0)
     res_no_tol = eval_no_tol.evaluate([alt_early], [gt])
     assert res_no_tol.tp == 0
     assert res_no_tol.fp == 1
     assert res_no_tol.fn == 1
 
-    # With 60s tolerance -> TP=1, FP=0, FN=0 (latency is -30s signed delta)
+    # 2. 30s before start_time with 60s tolerance -> STILL FP=1, FN=1 (pre-onset alerts are ALWAYS FP, zero tolerance before onset)
     eval_tol = AnomalyEvaluator(temporal_tolerance_seconds=60.0)
     res_tol = eval_tol.evaluate([alt_early], [gt])
-    assert res_tol.tp == 1
-    assert res_tol.fp == 0
-    assert res_tol.fn == 0
-    assert res_tol.mean_latency_seconds == -30.0
+    assert res_tol.tp == 0
+    assert res_tol.fp == 1
+    assert res_tol.fn == 1
+
+    # 3. Exact onset (alert at start_time) -> TP=1, FP=0, FN=0 (latency = 0.0s)
+    alt_onset = make_dummy_alert("M1", st, alert_id="ALT-ONSET")
+    res_onset = eval_no_tol.evaluate([alt_onset], [gt])
+    assert res_onset.tp == 1
+    assert res_onset.fp == 0
+    assert res_onset.fn == 0
+    assert res_onset.mean_latency_seconds == 0.0
+
+    # 4. Exact horizon (120s for volume_spike) -> TP=1, FP=0, FN=0 (latency = 120.0s)
+    alt_horizon = make_dummy_alert("M1", st + timedelta(seconds=120), alert_id="ALT-HORIZON")
+    res_horizon = eval_no_tol.evaluate([alt_horizon], [gt])
+    assert res_horizon.tp == 1
+    assert res_horizon.fp == 0
+    assert res_horizon.fn == 0
+    assert res_horizon.mean_latency_seconds == 120.0
+
+    # 5. After horizon (150s with 0s tolerance) -> FP=1, FN=1
+    alt_after = make_dummy_alert("M1", st + timedelta(seconds=150), alert_id="ALT-AFTER")
+    res_after = eval_no_tol.evaluate([alt_after], [gt])
+    assert res_after.tp == 0
+    assert res_after.fp == 1
+    assert res_after.fn == 1
+
 
 
 # =====================================================================
@@ -354,6 +375,46 @@ def test_cost_model_calculation_accuracy():
     assert res.fp_cost == 50.0  # 1 FP * 50.0
     assert res.fn_exposure == 1200.0  # 1 Missed GT * 1200.0
     assert res.total_cost == 1250.0  # 50.0 + 1200.0
+
+
+def test_fn_exposure_calculated_from_excess_count_and_mean_amount():
+    """Verify exact Section 24 FN exposure formula: FN_exposure = excess_transaction_count * mean_transaction_amount * exposure_factor."""
+    st = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
+    
+    # Ground truth event with excess_transaction_count=20, mean_transaction_amount=100.0, exposure_factor=0.5
+    gt_missed = GroundTruthEvent(
+        event_id="GT-MISSED-1",
+        merchant_id="M1",
+        anomaly_type="volume_spike",
+        start_time=st,
+        end_time=st + timedelta(minutes=5),
+        severity=4.0,
+        parameters={
+            "excess_transaction_count": 20,
+            "mean_transaction_amount": 100.0,
+            "exposure_factor": 0.5,
+        },
+    )
+
+    # 2 False positive alerts
+    alt_fp1 = make_dummy_alert("M1", st + timedelta(hours=1), alert_id="ALT-FP1")
+    alt_fp2 = make_dummy_alert("M1", st + timedelta(hours=2), alert_id="ALT-FP2")
+
+    evaluator = AnomalyEvaluator(fp_unit_cost=50.0, fn_exposure_factor=0.5)
+    res = evaluator.evaluate([alt_fp1, alt_fp2], [gt_missed])
+
+    assert res.tp == 0
+    assert res.fp == 2
+    assert res.fn == 1
+
+    # Exact expected calculations:
+    # FP cost = 2 * 50.0 = ₹100.0
+    # FN exposure = 20 * 100.0 * 0.5 = ₹1,000.0
+    # Total cost = 100.0 + 1000.0 = ₹1,100.0
+    assert res.fp_cost == 100.0
+    assert res.fn_exposure == 1000.0
+    assert res.total_cost == 1100.0
+
 
 
 def test_development_sweeps_reject_holdout_paths():
