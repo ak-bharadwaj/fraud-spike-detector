@@ -11,7 +11,7 @@ from src.contracts.config_loader import (
 def test_load_detector_config():
     config_path = Path(__file__).parent.parent / "config" / "detector.yaml"
     cfg = load_detector_config(config_path)
-    assert cfg.version in ["1.0.0", "1.1.0"]
+    assert cfg.version == "1.1.0"
     assert cfg.scorer.type in ["StaticThresholdScorer", "StatisticalDeviationScorer", "HybridEWMAScorer"]
     assert cfg.evidence.min_window_count >= 1
 

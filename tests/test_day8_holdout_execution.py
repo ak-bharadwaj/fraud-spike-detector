@@ -124,7 +124,7 @@ def test_holdout_manifest_and_sha_verification():
 def test_frozen_configuration_enforcement_and_override_rejection():
     """Verify frozen configuration is loaded from config/freeze_record.json and parameter overrides are rejected."""
     freeze_record = load_freeze_record("config/freeze_record.json")
-    assert freeze_record.detector_version in ["1.0.0", "1.1.0"]
+    assert freeze_record.detector_version == "1.1.0"
     assert freeze_record.seed == 42
     assert compute_config_hash(freeze_record.all_selected_parameters) == freeze_record.config_hash
 
@@ -490,7 +490,7 @@ def test_unambiguous_provenance_and_artifact_sha_reproducibility(tmp_path):
     assert "PENDING_COMMIT" not in report_text
 
     report_content = json.loads(report_text)
-    assert report_content["experiment_id"] in ["EXP-DAY8-HOLDOUT-RECONSTRUCTED-003", "EXP-DAY9-HOLDOUT-CORRECTED-CONFIDENCE-004"]
+    assert report_content["experiment_id"] == "EXP-DAY9-HOLDOUT-CORRECTED-CONFIDENCE-004"
     assert "artifact_sha256" in report_content
     assert len(report_content["artifact_sha256"]) == 64
 
@@ -542,18 +542,15 @@ def test_published_canonical_report_provenance_and_artifact_sha():
         pytest.skip("Artifacts not yet generated on clean checkout.")
 
     data = json.loads(report_path.read_text(encoding="utf-8"))
-    assert data["experiment_id"] in ["EXP-DAY8-HOLDOUT-RECONSTRUCTED-003", "EXP-DAY9-HOLDOUT-CORRECTED-CONFIDENCE-004"]
-    assert data["detector_version"] in ["1.0.0", "1.1.0"]
-    assert data["config_hash"] in [
-        "59034aef4ef11333008c128d7f45ddd88194887460f7856695d13cc9a9834e9d",
-        "be2cc361452ce5f5e3ecf25cd56cb7595a5f5230e7914ef547c73aa316d87da7",
-    ]
+    assert data["experiment_id"] == "EXP-DAY9-HOLDOUT-CORRECTED-CONFIDENCE-004"
+    assert data["detector_version"] == "1.1.0"
+    assert data["config_hash"] == "be2cc361452ce5f5e3ecf25cd56cb7595a5f5230e7914ef547c73aa316d87da7"
     assert data["holdout_dataset_hash"] == "1a0f1a0d2a5fcc37561f663b033ca8902a98d4d399c118797a05c49505676a76"
 
     # Strictly verify provenance against actual git repository state
     prov_result = verify_canonical_report_provenance(data)
     assert prov_result["status"] == "PROVENANCE_VERIFIED"
-    assert prov_result["execution_commit"] in ["bc29c36", "adc1adb"]
+    assert prov_result["execution_commit"] == "adc1adb"
     assert prov_result["chain_length"] >= 8
 
 

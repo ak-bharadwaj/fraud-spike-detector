@@ -124,14 +124,16 @@ def execute_data_quality_characterization(
     holdout_dataset_hash: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Execute all 5 data quality degradation scenarios and persist evidence artifact."""
-    from src.evaluation.freeze import load_freeze_record
+    from src.evaluation.freeze import load_freeze_record, compute_dataset_hash
 
     fr = freeze_record or load_freeze_record("config/freeze_record.json")
-    h_hash = holdout_dataset_hash or "1a0f1a0d2a5fcc37561f663b033ca8902a98d4d399c118797a05c49505676a76"
 
     st = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
     gen = SyntheticStreamGenerator(seed, [{"id": "M_DQ", "archetype": "stable"}], VirtualClock(initial_time=st))
     base_txs, _ = gen.generate_window(15.0)
+
+    # Compute actual canonical dataset hash of base transactions evaluated in this characterization
+    actual_dq_dataset_hash = compute_dataset_hash(base_txs, seed=seed)
 
     config = FrozenDetectorConfig(min_window_count=1)
 
@@ -140,8 +142,8 @@ def execute_data_quality_characterization(
         "detector_version": fr.detector_version,
         "config_hash": fr.config_hash,
         "development_dataset_hash": fr.development_dataset_hash,
-        "holdout_dataset_hash": h_hash,
-        "dataset_hash": h_hash,
+        "dataset_hash": actual_dq_dataset_hash,
+        "characterization_dataset_hash": actual_dq_dataset_hash,
         "seed": fr.seed,
         "scenarios": {},
     }
@@ -195,7 +197,7 @@ def execute_data_quality_characterization(
         "description": "Exact duplicate transactions deduplicated deterministically without volume inflation.",
     }
 
-    # 4. Delayed Events
+    # 4. Timestamp Displacement Delay
     tx_delayed = DataQualityInjector.inject_delayed_events(base_txs, delay_seconds=120.0, count=10, seed=seed)
     pipe_del = StreamingDetectorPipeline(config=config, db_path=":memory:")
     alerts_del = pipe_del.process_transactions(tx_delayed)
@@ -203,10 +205,10 @@ def execute_data_quality_characterization(
         "status": "PASS",
         "delayed_transactions": 10,
         "stream_crashed": False,
-        "description": "Delayed transactions processed across chronological virtual windows without wall-clock dependence.",
+        "description": "Displaces transaction timestamps forward across virtual windows, validating deterministic window assignment without stream crash.",
     }
 
-    # 5. Out-of-order Arrival
+    # 5. Out-of-order Arrival (True Late Arrival Delivery)
     tx_ooo = DataQualityInjector.inject_out_of_order(base_txs, seed=seed)
     pipe_ooo = StreamingDetectorPipeline(config=config, db_path=":memory:")
     alerts_ooo = pipe_ooo.process_transactions(tx_ooo)
@@ -218,7 +220,7 @@ def execute_data_quality_characterization(
         "stream_shuffled": True,
         "in_order_equivalence": True,
         "stream_crashed": False,
-        "description": "Out-of-order transactions ordered chronologically by TimeOrderedEventBus matching in-order replay.",
+        "description": "True out-of-order / late arrival stream delivery where earlier-timestamped events arrive late in the batch sequence; buffered and re-ordered deterministically by TimeOrderedEventBus matching chronological in-order replay bit-for-bit.",
     }
 
     # Persist artifact

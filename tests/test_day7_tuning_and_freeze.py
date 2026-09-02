@@ -377,7 +377,7 @@ def test_canonical_freeze_record_file_exists_and_valid():
     assert freeze_path.exists(), "config/freeze_record.json must exist"
 
     record = load_freeze_record(freeze_path)
-    assert record.detector_version in ["1.0.0", "1.1.0"]
+    assert record.detector_version == "1.1.0"
     assert record.selected_scorer in ["StaticThresholdScorer", "StatisticalDeviationScorer", "HybridEWMAScorer"]
     assert record.seed == 42
     assert len(record.config_hash) == 64

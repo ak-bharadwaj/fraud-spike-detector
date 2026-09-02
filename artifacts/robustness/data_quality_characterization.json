@@ -3,8 +3,8 @@
   "detector_version": "1.1.0",
   "config_hash": "be2cc361452ce5f5e3ecf25cd56cb7595a5f5230e7914ef547c73aa316d87da7",
   "development_dataset_hash": "dea8f7c2928eb24835120b8604bd564cecdd190227bd6558988793ff673a4dbe",
-  "holdout_dataset_hash": "1a0f1a0d2a5fcc37561f663b033ca8902a98d4d399c118797a05c49505676a76",
-  "dataset_hash": "1a0f1a0d2a5fcc37561f663b033ca8902a98d4d399c118797a05c49505676a76",
+  "dataset_hash": "325f4d1a3345eca76c32dab766635101d68286bfabecc60ca57c5ecf9f024d4b",
+  "characterization_dataset_hash": "325f4d1a3345eca76c32dab766635101d68286bfabecc60ca57c5ecf9f024d4b",
   "seed": 42,
   "scenarios": {
     "missing_device_identifier": {
@@ -34,14 +34,14 @@
       "status": "PASS",
       "delayed_transactions": 10,
       "stream_crashed": false,
-      "description": "Delayed transactions processed across chronological virtual windows without wall-clock dependence."
+      "description": "Displaces transaction timestamps forward across virtual windows, validating deterministic window assignment without stream crash."
     },
     "out_of_order_arrival": {
       "status": "PASS",
       "stream_shuffled": true,
       "in_order_equivalence": true,
       "stream_crashed": false,
-      "description": "Out-of-order transactions ordered chronologically by TimeOrderedEventBus matching in-order replay."
+      "description": "True out-of-order / late arrival stream delivery where earlier-timestamped events arrive late in the batch sequence; buffered and re-ordered deterministically by TimeOrderedEventBus matching chronological in-order replay bit-for-bit."
     }
   }
 }

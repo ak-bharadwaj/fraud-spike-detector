@@ -284,10 +284,12 @@ def test_day9_required_artifact_hierarchy_and_consistency():
         assert p.exists(), f"Required artifact {p} does not exist"
         if p.suffix == ".json":
             content = json.loads(p.read_text(encoding="utf-8"))
-            assert content.get("detector_version") in ["1.0.0", "1.1.0"]
-            assert content.get("config_hash") in ["59034aef4ef11333008c128d7f45ddd88194887460f7856695d13cc9a9834e9d", "be2cc361452ce5f5e3ecf25cd56cb7595a5f5230e7914ef547c73aa316d87da7"]
-            assert content.get("holdout_dataset_hash") == "1a0f1a0d2a5fcc37561f663b033ca8902a98d4d399c118797a05c49505676a76"
-            assert content.get("dataset_hash") == "1a0f1a0d2a5fcc37561f663b033ca8902a98d4d399c118797a05c49505676a76"
+            assert content.get("detector_version") == "1.1.0"
+            assert content.get("config_hash") == "be2cc361452ce5f5e3ecf25cd56cb7595a5f5230e7914ef547c73aa316d87da7"
+            assert "dataset_hash" in content and len(content["dataset_hash"]) == 64
+            if p.name != "data_quality_characterization.json":
+                assert content.get("holdout_dataset_hash") == "1a0f1a0d2a5fcc37561f663b033ca8902a98d4d399c118797a05c49505676a76"
+                assert content.get("dataset_hash") == "1a0f1a0d2a5fcc37561f663b033ca8902a98d4d399c118797a05c49505676a76"
             assert content.get("seed") == 42
 
 
