@@ -83,9 +83,9 @@
     },
     "run_004_canonical": {
       "experiment_id": "EXP-DAY9-HOLDOUT-CORRECTED-CONFIDENCE-004",
-      "execution_commit": "bc29c36",
-      "artifact_finalization_commit": "3b281ca",
-      "prior_artifact_commit": "355c52f",
+      "execution_commit": "adc1adb",
+      "artifact_finalization_commit": "adc1adb",
+      "prior_artifact_commit": "3b281ca",
       "historical_artifact_chain": [
         "20bf655",
         "775e779",
@@ -98,7 +98,8 @@
         "5841ddb",
         "60ab651",
         "355c52f",
-        "3b281ca"
+        "3b281ca",
+        "adc1adb"
       ],
       "status": "ACCEPTED_CANONICAL",
       "reason": "Post-holdout composite confidence integration (evidence quality, feature availability, signal agreement) and data quality robustness characterization conforming to Master Plan Section 17/19/27/39.",
@@ -776,5 +777,5 @@
       "total_cost": 13000.0
     }
   ],
-  "artifact_sha256": "f602641b88ce090fba4e7e85d723558e8a94771dd0c8b660c654dbc9ee58cfcf"
+  "artifact_sha256": "04846314dc34547db4041f438b09ced098c1f2f71e325fac627463d0c0331bab"
 }

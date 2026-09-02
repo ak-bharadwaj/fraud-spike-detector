@@ -42,11 +42,11 @@ save_day8_research_artifacts(
     drift_results=drift_res,
     ewma_tradeoff_results=ewma_sweep,
     experiment_id="EXP-DAY9-HOLDOUT-CORRECTED-CONFIDENCE-004",
-    execution_commit="bc29c36",
-    artifact_finalization_commit="3b281ca",
-    prior_artifact_commit="355c52f",
+    execution_commit="adc1adb",
+    artifact_finalization_commit="adc1adb",
+    prior_artifact_commit="3b281ca",
     historical_artifact_chain=[
-        "20bf655", "775e779", "cc2872b", "e28d6d3", "f21ddeb", "26837b7", "bc29c36", "049caf5", "5841ddb", "60ab651", "355c52f", "3b281ca"
+        "20bf655", "775e779", "cc2872b", "e28d6d3", "f21ddeb", "26837b7", "bc29c36", "049caf5", "5841ddb", "60ab651", "355c52f", "3b281ca", "adc1adb"
     ],
 )
 
