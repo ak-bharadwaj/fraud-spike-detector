@@ -5,6 +5,22 @@
   "development_dataset_hash": "dea8f7c2928eb24835120b8604bd564cecdd190227bd6558988793ff673a4dbe",
   "dataset_hash": "325f4d1a3345eca76c32dab766635101d68286bfabecc60ca57c5ecf9f024d4b",
   "characterization_dataset_hash": "325f4d1a3345eca76c32dab766635101d68286bfabecc60ca57c5ecf9f024d4b",
+  "runtime_config": {
+    "scorer": "StatisticalDeviationScorer",
+    "alpha": null,
+    "static_threshold": 5.0,
+    "persistence": 1,
+    "cooldown_windows": 5,
+    "min_history_count": 1,
+    "min_window_count": 1,
+    "signal_weights": {
+      "volume": 1.0,
+      "velocity": 1.0,
+      "amount": 1.0,
+      "behavioral": 1.0
+    },
+    "detector_version": "1.1.0"
+  },
   "seed": 42,
   "scenarios": {
     "missing_device_identifier": {

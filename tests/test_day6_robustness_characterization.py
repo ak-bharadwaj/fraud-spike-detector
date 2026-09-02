@@ -262,8 +262,25 @@ def test_deterministic_data_quality_injection_and_characterization_scenarios():
     assert res["scenarios"]["delayed_events"]["status"] == "PASS"
     assert res["scenarios"]["out_of_order_arrival"]["status"] == "PASS"
 
+    # Verify exact runtime configuration binding and hash equivalence
+    from src.evaluation.freeze import load_freeze_record, compute_config_hash
+    fr = load_freeze_record("config/freeze_record.json")
+    assert res["config_hash"] == fr.config_hash
+    assert res["detector_version"] == "1.1.0"
+    assert res["dataset_hash"] == res["characterization_dataset_hash"]
+    assert res["dataset_hash"] == "325f4d1a3345eca76c32dab766635101d68286bfabecc60ca57c5ecf9f024d4b"
+    assert res["runtime_config"]["scorer"] == "StatisticalDeviationScorer"
+    assert res["runtime_config"]["static_threshold"] == 5.0
+    assert res["runtime_config"]["persistence"] == 1
+    assert res["runtime_config"]["cooldown_windows"] == 5
+    assert res["runtime_config"]["detector_version"] == "1.1.0"
+    assert compute_config_hash(res["runtime_config"]) == fr.config_hash
+
     art_file = Path("artifacts/robustness/data_quality_characterization.json")
     assert art_file.exists()
+    disk_content = json.loads(art_file.read_text(encoding="utf-8"))
+    assert disk_content["config_hash"] == fr.config_hash
+    assert compute_config_hash(disk_content["runtime_config"]) == fr.config_hash
 
 
 def test_reusable_drift_runner_and_artifact_generation():
