@@ -373,6 +373,8 @@ def test_risk_score_pydantic_schema_compliance():
 
 def test_confidence_varies_independently_of_risk():
     """Verify confidence can vary independently of risk score (e.g. High Risk with Low Confidence)."""
+    from src.scoring.statistical import StatisticalDeviationScorer
+
     st = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
     scorer = StatisticalDeviationScorer(static_threshold=3.5)
 
@@ -395,7 +397,7 @@ def test_confidence_varies_independently_of_risk():
     r3 = scorer.calculate_score(feat_high_conf, base_suff, signal_mask=["volume"])
     assert r3.score == 10.0
     assert r3.confidence < 1.0  # Feature availability reduced!
-    assert r3.confidence == pytest.approx(0.70, abs=1e-2)
+    assert r3.confidence == 0.25
 
     # 4. High Risk + Weak Signal Agreement: isolated single-signal spike without corroboration
     # Only volume spikes, velocity and behavioral remain at expected baseline
@@ -420,7 +422,7 @@ def test_confidence_varies_independently_of_risk():
     r4 = scorer.calculate_score(feat_isolated, base_suff)
     assert r4.score == 10.0
     assert r4.confidence < 1.0  # Lower confidence due to lack of multi-signal agreement!
-    assert r4.confidence == pytest.approx(0.775, abs=1e-2)
+    assert r4.confidence == 0.75
 
     # 5. Low Risk + High Confidence: nominal unperturbed window
     feat_nominal = make_dummy_feature("M1", st, volume=10.0, data_quality="GOOD")

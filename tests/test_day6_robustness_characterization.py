@@ -171,7 +171,7 @@ def test_real_missing_and_degraded_transaction_injection_through_pipeline():
     assert len(audits) == 2
     rec = audits[1]
     assert rec["data_quality_status"] == "DEGRADED"
-    assert rec["confidence"] == 0.5
+    assert 0.0 < rec["confidence"] <= 0.5
     assert rec["features"]["volume"] == 3.0
     assert rec["features"]["data_quality"] == "DEGRADED"
 

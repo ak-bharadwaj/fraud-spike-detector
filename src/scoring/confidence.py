@@ -3,17 +3,17 @@
 Calculates normalized confidence in [0.0, 1.0] as a composite of:
 1. Evidence Quality (E): Based on BaselineEngine evidence state and FeatureSnapshot data quality.
 2. Feature Availability (F): Proportion of unmasked, valid feature groups present in the snapshot.
-3. Signal Agreement (S): Degree of multi-signal corroboration among elevated feature deviations.
+3. Signal Agreement (S): Multi-signal corroboration among elevated feature deviations.
 
 Formula:
-  C = 0.0 if E == 0.0 else round(E * (0.4 * F + 0.6 * S), 4)
+  C = 0.0 if E == 0.0 else round(E * F * S, 4)
 
 Key Invariants:
 - RiskScore.score semantics remain strictly unaltered.
 - Confidence is bounded in [0.0, 1.0].
 - Evidence state remains owned solely by BaselineEngine.
 - Scorer-level ablation reduces feature availability (F) without starving baseline history.
-- Enables independent variation: High Risk with Lower Confidence under degraded quality, partial availability, or weak signal agreement.
+- Enables independent variation: High Risk with Lower Confidence under degraded quality (E=0.5), partial availability (F<1.0), or isolated single-signal anomalies (S<1.0).
 """
 
 from typing import Dict, Optional, Sequence
@@ -31,6 +31,13 @@ FEATURE_GROUPS = {
     "mad_amount": "amount",
     "min_amount": "amount",
     "max_amount": "amount",
+    "amount_total_amount": "amount",
+    "amount_mean_amount": "amount",
+    "amount_std_amount": "amount",
+    "amount_median_amount": "amount",
+    "amount_mad_amount": "amount",
+    "amount_min_amount": "amount",
+    "amount_max_amount": "amount",
 }
 
 ALL_FEATURE_GROUP_NAMES = {"volume", "velocity", "behavioral", "amount"}
@@ -74,7 +81,7 @@ def compute_composite_confidence(
             # Sub-threshold nominal regime: all signals agree on nominal behavior
             s_factor = 1.0
         else:
-            # Above-threshold anomaly: check multi-group corroboration
+            # Above-threshold anomaly regime: check multi-group corroboration
             group_max_mags: Dict[str, float] = {}
             for feat_name, mag in magnitudes.items():
                 grp = FEATURE_GROUPS.get(feat_name, feat_name)
@@ -85,9 +92,14 @@ def compute_composite_confidence(
                 if g_mag >= max(1.0, 0.3 * max_mag)
             )
             total_active_groups = len(group_max_mags) if group_max_mags else 1
-            agreement_ratio = elevated_groups / max(1, total_active_groups)
-            s_factor = 0.5 + 0.5 * agreement_ratio
 
-    # 4. Composite Confidence
-    composite = e_factor * (0.4 * f_factor + 0.6 * s_factor)
+            if total_active_groups <= 1 or elevated_groups >= 2:
+                # Corroborated anomaly across 2 or more feature groups (e.g. volume + velocity)
+                s_factor = 1.0
+            else:
+                # Isolated single-signal spike without corroboration from any other feature group
+                s_factor = 0.75
+
+    # 4. Multiplicative Composite Confidence
+    composite = e_factor * f_factor * s_factor
     return round(float(max(0.0, min(1.0, composite))), 4)
