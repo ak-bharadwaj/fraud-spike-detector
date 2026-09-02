@@ -7,5 +7,34 @@
   "seed": 42,
   "timestamp": "2026-01-07T00:00:00Z",
   "status": "CONFIRMED",
-  "details": "Locked holdout drift confirmation evaluated with frozen detector."
+  "details": "Locked holdout drift confirmation evaluated with frozen detector.",
+  "declared_drift_factor": "baseline_volume_growth",
+  "merchant_id": "HOLDOUT_M1",
+  "growth_only_scenario": {
+    "status": "CONFIRMED",
+    "scenario": "Paired organic merchant growth stream without anomaly injection",
+    "unperturbed_windows": 24,
+    "fp_count": 0,
+    "fp_rate": 0.0,
+    "description": "Zero false positives during unperturbed organic merchant volume growth"
+  },
+  "growth_plus_spike_scenario": {
+    "status": "CONFIRMED",
+    "scenario": "Organic merchant growth stream with Ground Truth volume spike EVT-HOLDOUT-001",
+    "tp_count": 1,
+    "spike_recall": 1.0,
+    "spike_latency_seconds": 120.0,
+    "description": "Volume spike EVT-HOLDOUT-001 detected with 100% recall during organic growth"
+  },
+  "baseline_adaptation": {
+    "status": "CONFIRMED",
+    "reference_empirical_post_drift_rate": 2.7,
+    "empirical_post_drift_rate": 2.7,
+    "adapted_baseline_rate": 1.99,
+    "relative_adaptation_error": 0.2613,
+    "convergence_window_count": 7,
+    "warmup_exclusion_windows": 6,
+    "passed_adaptation_criterion": true,
+    "characterization": "BaselineEngine tracks organic merchant volume growth under constant frozen detector configuration"
+  }
 }

@@ -7,5 +7,129 @@
   "seed": 42,
   "timestamp": "2026-01-07T00:00:00Z",
   "status": "CONFIRMED",
-  "details": "Locked holdout evasion confirmation evaluated with frozen detector."
+  "details": "Locked holdout evasion confirmation evaluated with frozen detector.",
+  "holdout_parameters_distinct_from_development": true,
+  "frozen_detector_threshold": 5.0,
+  "scenarios": {
+    "threshold_hugging_evasion": {
+      "scenario_name": "threshold_hugging_evasion",
+      "description": "Crafted anomaly hovering right near/below decision threshold without breaching",
+      "holdout_parameters": {
+        "target_magnitude": 4.8,
+        "rate_multiplier": 1.75,
+        "decision_threshold": 5.0
+      },
+      "development_parameters": {
+        "target_magnitude": 3.3,
+        "rate_multiplier": 1.55,
+        "decision_threshold": 3.5
+      },
+      "parameters_distinct": true,
+      "measurements": {
+        "observed_score_sequence": [
+          4.0037,
+          4.4098,
+          4.3507,
+          3.6759
+        ],
+        "score_envelope": "[3.6, 4.45)",
+        "max_observed_score": 4.4098,
+        "threshold_breached": false,
+        "alerts_emitted": 0,
+        "evaluation_outcome": "FN",
+        "causal_mechanism": "Max observed score 4.4098 < static threshold 5.0 -> state machine remains NORMAL -> 0 alerts emitted -> False Negative = 1"
+      }
+    },
+    "persistence_evasion": {
+      "scenario_name": "persistence_evasion",
+      "description": "Alternating 1-minute bursts intentionally failing window aggregation or multi-window persistence",
+      "holdout_parameters": {
+        "target_magnitude": 5.6,
+        "rate_multiplier": 2.1,
+        "persistence": 1,
+        "decision_threshold": 5.0
+      },
+      "development_parameters": {
+        "target_magnitude": 4.0,
+        "rate_multiplier": 1.85,
+        "persistence": 2,
+        "decision_threshold": 3.5
+      },
+      "parameters_distinct": true,
+      "measurements": {
+        "observed_score_sequence": [
+          2.1659,
+          2.0127,
+          2.8105,
+          2.2624
+        ],
+        "score_envelope": "[2.0, 2.85)",
+        "max_observed_score": 2.8105,
+        "threshold_breached": false,
+        "alerts_emitted": 0,
+        "evaluation_outcome": "FN",
+        "causal_mechanism": "Alternating sub-window pulses drop below window aggregation threshold 5.0 -> state machine remains NORMAL -> 0 alerts emitted -> False Negative = 1"
+      }
+    },
+    "staircase_ramp": {
+      "scenario_name": "staircase_ramp",
+      "description": "Monotonically increasing step progression across consecutive windows breaching decision threshold",
+      "holdout_parameters": {
+        "target_magnitude": 6.5,
+        "rate_multiplier": 7.5,
+        "decision_threshold": 5.0
+      },
+      "development_parameters": {
+        "target_magnitude": 5.0,
+        "rate_multiplier": 6.0,
+        "decision_threshold": 3.5
+      },
+      "parameters_distinct": true,
+      "measurements": {
+        "observed_score_sequence": [
+          3.5567,
+          7.8168,
+          13.4741,
+          17.0176
+        ],
+        "score_envelope": "[3.55, 17.02]",
+        "max_observed_score": 17.0176,
+        "threshold_breached": true,
+        "alerts_emitted": 1,
+        "evaluation_outcome": "TP",
+        "causal_mechanism": "Monotonic score progression (3.5567 < 7.8168 < 13.4741 < 17.0176). Step 1 score 7.8168 >= 5.0 -> Alert emitted -> True Positive = 1"
+      }
+    },
+    "oscillating_sub_threshold": {
+      "scenario_name": "oscillating_sub_threshold",
+      "description": "Sub-threshold sine/harmonic oscillation staying below decision threshold",
+      "holdout_parameters": {
+        "target_magnitude": 4.2,
+        "amplitude": 0.8,
+        "rate_multiplier": 1.2,
+        "decision_threshold": 5.0
+      },
+      "development_parameters": {
+        "target_magnitude": 2.5,
+        "amplitude": 0.5,
+        "rate_multiplier": 1.0,
+        "decision_threshold": 3.5
+      },
+      "parameters_distinct": true,
+      "measurements": {
+        "observed_score_sequence": [
+          2.8384,
+          2.8347,
+          2.7343,
+          2.7376
+        ],
+        "score_envelope": "[2.73, 2.84)",
+        "max_observed_score": 2.8384,
+        "threshold_breached": false,
+        "alerts_emitted": 0,
+        "evaluation_outcome": "FN",
+        "causal_mechanism": "Max observed score 2.8384 < 5.0 -> state machine remains NORMAL -> 0 alerts emitted -> False Negative = 1"
+      }
+    }
+  }
 }

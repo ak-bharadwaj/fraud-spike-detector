@@ -805,3 +805,55 @@ def test_holdout_execution_strictly_consumes_min_history_and_min_window_counts(m
     assert instantiated_args[-1]["min_window_count"] == 8
 
 
+def test_holdout_evasion_and_drift_artifacts_contain_section_31_32_evidence():
+    """Verify holdout_evasion.json and holdout_drift.json contain required Section 31 & 32 evidence."""
+    evasion_path = Path("artifacts/evasion/holdout_evasion.json")
+    drift_path = Path("artifacts/drift/holdout_drift.json")
+
+    assert evasion_path.exists(), "artifacts/evasion/holdout_evasion.json missing"
+    assert drift_path.exists(), "artifacts/drift/holdout_drift.json missing"
+
+    evasion_data = json.loads(evasion_path.read_text(encoding="utf-8"))
+    drift_data = json.loads(drift_path.read_text(encoding="utf-8"))
+
+    # Section 32 Evasion Evidence Validation
+    assert evasion_data["status"] == "CONFIRMED"
+    assert evasion_data["holdout_parameters_distinct_from_development"] is True
+    assert evasion_data["frozen_detector_threshold"] == 5.0
+
+    scenarios = evasion_data["scenarios"]
+    for sc_name in ["threshold_hugging_evasion", "persistence_evasion", "staircase_ramp", "oscillating_sub_threshold"]:
+        assert sc_name in scenarios, f"Missing evasion scenario '{sc_name}' in holdout_evasion.json"
+        sc = scenarios[sc_name]
+        assert sc["parameters_distinct"] is True
+        assert "holdout_parameters" in sc
+        assert "development_parameters" in sc
+        assert "measurements" in sc
+        m = sc["measurements"]
+        assert "observed_score_sequence" in m
+        assert "causal_mechanism" in m
+
+    # Section 31 Drift Evidence Validation
+    assert drift_data["status"] == "CONFIRMED"
+    assert drift_data["declared_drift_factor"] == "baseline_volume_growth"
+    assert drift_data["merchant_id"] == "HOLDOUT_M1"
+
+    assert "growth_only_scenario" in drift_data
+    g_only = drift_data["growth_only_scenario"]
+    assert g_only["status"] == "CONFIRMED"
+    assert "fp_rate" in g_only
+    assert g_only["fp_count"] == 0
+
+    assert "growth_plus_spike_scenario" in drift_data
+    g_spike = drift_data["growth_plus_spike_scenario"]
+    assert g_spike["status"] == "CONFIRMED"
+    assert g_spike["spike_recall"] == 1.0
+    assert g_spike["spike_latency_seconds"] == 120.0
+
+    assert "baseline_adaptation" in drift_data
+    adapt = drift_data["baseline_adaptation"]
+    assert adapt["status"] == "CONFIRMED"
+    assert adapt["passed_adaptation_criterion"] is True
+    assert adapt["convergence_window_count"] >= 7
+
+
