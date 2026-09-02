@@ -14,7 +14,7 @@
     "threshold_hugging_evasion": {
       "scenario_name": "threshold_hugging_evasion",
       "event_id": "EVT-HOLDOUT-002",
-      "description": "Crafted anomaly hovering right near/below decision threshold without breaching",
+      "description": "Fluctuating score progression hovering near decision threshold boundary",
       "holdout_parameters": {
         "target_magnitude": 4.8,
         "rate_multiplier": 1.75,
@@ -38,13 +38,13 @@
         "threshold_breached": true,
         "alerts_emitted": 1,
         "evaluation_outcome": "TP",
-        "causal_mechanism": "Monotonic score progression [0.8935, 5.659, 5.1624, 7.0]. Step score >= 5.0 -> Alert emitted -> True Positive = 1"
+        "causal_mechanism": "Observed score sequence [0.8935, 5.659, 5.1624, 7.0] reached peak score 7.0 >= decision threshold 5.0 -> 1 alert(s) emitted -> True Positive = 1"
       }
     },
     "persistence_evasion": {
       "scenario_name": "persistence_evasion",
       "event_id": "EVT-HOLDOUT-003",
-      "description": "Alternating 1-minute bursts intentionally failing window aggregation or multi-window persistence",
+      "description": "Burst anomaly testing window aggregation and multi-window persistence state transitions",
       "holdout_parameters": {
         "target_magnitude": 5.6,
         "rate_multiplier": 2.1,
@@ -70,13 +70,13 @@
         "threshold_breached": true,
         "alerts_emitted": 1,
         "evaluation_outcome": "TP",
-        "causal_mechanism": "Monotonic score progression [2.1735, 6.5, 1.9888, 4.0]. Step score >= 5.0 -> Alert emitted -> True Positive = 1"
+        "causal_mechanism": "Observed score sequence [2.1735, 6.5, 1.9888, 4.0] reached peak score 6.5 >= decision threshold 5.0 -> 1 alert(s) emitted -> True Positive = 1"
       }
     },
     "staircase_ramp": {
       "scenario_name": "staircase_ramp",
       "event_id": "EVT-HOLDOUT-004",
-      "description": "Monotonically increasing step progression across consecutive windows breaching decision threshold",
+      "description": "Step-ramp volume progression ramping across consecutive windows breaching decision threshold",
       "holdout_parameters": {
         "target_magnitude": 6.5,
         "rate_multiplier": 7.5,
@@ -100,13 +100,13 @@
         "threshold_breached": true,
         "alerts_emitted": 1,
         "evaluation_outcome": "TP",
-        "causal_mechanism": "Monotonic score progression [1.2817, 9.0, 17.5, 15.2]. Step score >= 5.0 -> Alert emitted -> True Positive = 1"
+        "causal_mechanism": "Observed score sequence [1.2817, 9.0, 17.5, 15.2] reached peak score 17.5 >= decision threshold 5.0 -> 1 alert(s) emitted -> True Positive = 1"
       }
     },
     "oscillating_sub_threshold": {
       "scenario_name": "oscillating_sub_threshold",
       "event_id": "EVT-HOLDOUT-005",
-      "description": "Sub-threshold sine/harmonic oscillation staying below decision threshold",
+      "description": "Sub-threshold harmonic oscillation staying below decision threshold",
       "holdout_parameters": {
         "target_magnitude": 4.2,
         "amplitude": 0.8,

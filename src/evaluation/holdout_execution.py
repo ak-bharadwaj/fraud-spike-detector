@@ -394,7 +394,7 @@ def build_canonical_holdout_evasion_results(
     scenarios_meta = {
         "threshold_hugging_evasion": {
             "event_id": "EVT-HOLDOUT-002",
-            "description": "Crafted anomaly hovering right near/below decision threshold without breaching",
+            "description": "Fluctuating score progression hovering near decision threshold boundary",
             "holdout_params": {"target_magnitude": 4.8, "rate_multiplier": 1.75, "decision_threshold": frozen_th},
             "dev_params": {"target_magnitude": 3.3, "rate_multiplier": 1.55, "decision_threshold": 3.5},
             "start_time": datetime(2026, 1, 1, 12, 20, tzinfo=timezone.utc),
@@ -402,7 +402,7 @@ def build_canonical_holdout_evasion_results(
         },
         "persistence_evasion": {
             "event_id": "EVT-HOLDOUT-003",
-            "description": "Alternating 1-minute bursts intentionally failing window aggregation or multi-window persistence",
+            "description": "Burst anomaly testing window aggregation and multi-window persistence state transitions",
             "holdout_params": {"target_magnitude": 5.6, "rate_multiplier": 2.10, "persistence": frozen_p, "decision_threshold": frozen_th},
             "dev_params": {"target_magnitude": 4.0, "rate_multiplier": 1.85, "persistence": 2, "decision_threshold": 3.5},
             "start_time": datetime(2026, 1, 1, 12, 30, tzinfo=timezone.utc),
@@ -410,7 +410,7 @@ def build_canonical_holdout_evasion_results(
         },
         "staircase_ramp": {
             "event_id": "EVT-HOLDOUT-004",
-            "description": "Monotonically increasing step progression across consecutive windows breaching decision threshold",
+            "description": "Step-ramp volume progression ramping across consecutive windows breaching decision threshold",
             "holdout_params": {"target_magnitude": 6.5, "rate_multiplier": 7.5, "decision_threshold": frozen_th},
             "dev_params": {"target_magnitude": 5.0, "rate_multiplier": 6.0, "decision_threshold": 3.5},
             "start_time": datetime(2026, 1, 1, 12, 40, tzinfo=timezone.utc),
@@ -418,7 +418,7 @@ def build_canonical_holdout_evasion_results(
         },
         "oscillating_sub_threshold": {
             "event_id": "EVT-HOLDOUT-005",
-            "description": "Sub-threshold sine/harmonic oscillation staying below decision threshold",
+            "description": "Sub-threshold harmonic oscillation staying below decision threshold",
             "holdout_params": {"target_magnitude": 4.2, "amplitude": 0.8, "rate_multiplier": 1.2, "decision_threshold": frozen_th},
             "dev_params": {"target_magnitude": 2.5, "amplitude": 0.5, "rate_multiplier": 1.0, "decision_threshold": 3.5},
             "start_time": datetime(2026, 1, 1, 12, 50, tzinfo=timezone.utc),
@@ -448,7 +448,7 @@ def build_canonical_holdout_evasion_results(
         outcome = "TP" if n_alerts > 0 else "FN"
 
         if outcome == "TP":
-            causal = f"Monotonic score progression {anom_scores}. Step score >= {frozen_th} -> Alert emitted -> True Positive = 1"
+            causal = f"Observed score sequence {anom_scores} reached peak score {max_score} >= decision threshold {frozen_th} -> {n_alerts} alert(s) emitted -> True Positive = 1"
         else:
             causal = f"Max observed score {max_score} < static threshold {frozen_th} -> state machine remains NORMAL -> {n_alerts} alerts emitted -> False Negative = 1"
 
