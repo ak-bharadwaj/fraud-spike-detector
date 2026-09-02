@@ -45,6 +45,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 import pytest
 import numpy as np
+import json
 
 from src.contracts.contracts import (
     Transaction,
