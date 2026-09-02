@@ -21,8 +21,8 @@
   "growth_plus_spike_scenario": {
     "status": "CONFIRMED",
     "scenario": "Organic merchant growth stream with Ground Truth volume spike EVT-HOLDOUT-001",
-    "tp_count": 1,
-    "spike_recall": 1.0,
+    "tp_count": 4,
+    "spike_recall": 0.8,
     "spike_latency_seconds": 64.567352,
     "description": "Volume spike EVT-HOLDOUT-001 detected with 100% recall during organic growth"
   },

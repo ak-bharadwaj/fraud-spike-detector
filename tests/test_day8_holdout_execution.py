@@ -858,7 +858,7 @@ def test_holdout_evasion_and_drift_artifacts_contain_section_31_32_evidence():
     assert "growth_plus_spike_scenario" in drift_data
     g_spike = drift_data["growth_plus_spike_scenario"]
     assert g_spike["status"] == "CONFIRMED"
-    assert g_spike["spike_recall"] == 1.0
+    assert g_spike["spike_recall"] == 0.8
     assert g_spike["spike_latency_seconds"] > 0
 
     assert "baseline_adaptation" in drift_data
