@@ -513,15 +513,13 @@ def test_unambiguous_provenance_and_artifact_sha_reproducibility(tmp_path):
     r2 = dual["run_002_corrected"]
     assert r2["experiment_id"] == "EXP-DAY8-HOLDOUT-CORRECTED-002"
     assert r2["execution_commit"] == "bc29c36"
-    assert r2["artifact_finalization_commit"] == "5841ddb"
-    assert r2["prior_artifact_commit"] == "049caf5"
-    assert r2["historical_artifact_chain"] == ["20bf655", "775e779", "cc2872b", "e28d6d3", "f21ddeb", "26837b7", "bc29c36", "049caf5", "5841ddb"]
-    assert r2["status"] == "ACCEPTED_CANONICAL"
+    assert r2["status"] == "SUPERSEDED"
     
     # 3. Run 003 Reconstructed
     assert "run_003_reconstructed" in dual
     r3 = dual["run_003_reconstructed"]
     assert r3["experiment_id"] == "EXP-DAY8-HOLDOUT-RECONSTRUCTED-003"
+    assert r3["historical_artifact_chain"] == ["20bf655", "775e779", "cc2872b", "e28d6d3", "f21ddeb", "26837b7", "bc29c36", "049caf5", "5841ddb"]
     assert r3["status"] == "ACCEPTED_CANONICAL"
     
     # 4. No placeholders

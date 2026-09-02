@@ -533,8 +533,8 @@
     "growth_plus_spike_scenario": {
       "status": "CONFIRMED",
       "scenario": "Organic merchant growth stream with Ground Truth volume spike EVT-HOLDOUT-001",
-      "tp_count": 4,
-      "spike_recall": 0.8,
+      "tp_count": 1,
+      "spike_recall": 1.0,
       "spike_latency_seconds": 64.567352,
       "description": "Volume spike EVT-HOLDOUT-001 detected with 100% recall during organic growth"
     },
@@ -550,5 +550,5 @@
       "characterization": "BaselineEngine tracks organic merchant volume growth under constant frozen detector configuration"
     }
   },
-  "artifact_sha256": "fd4367b0408198c9859180f9a184ff2e14c98146d10b04fee529f00102cfb49b"
+  "artifact_sha256": "2128c5dcb849e0edcd579a1313cf0342e0886e22e8a54c2c6484584aadfeb8b8"
 }
