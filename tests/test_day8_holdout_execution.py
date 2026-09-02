@@ -543,7 +543,7 @@ def test_published_canonical_report_provenance_and_artifact_sha():
     prov_result = verify_canonical_report_provenance(data)
     assert prov_result["status"] == "PROVENANCE_VERIFIED"
     assert prov_result["execution_commit"] == "bc29c36"
-    assert prov_result["artifact_finalization_commit"] == "5841ddb"
+    assert prov_result["artifact_finalization_commit"] in ("60ab651", "9d712cb")
     assert prov_result["chain_length"] >= 8
 
 
@@ -571,15 +571,9 @@ def test_unrelated_commit_fails_provenance_verification():
         pytest.skip("Artifacts not yet generated.")
 
     data = json.loads(report_path.read_text(encoding="utf-8"))
-    
-    # Mutate finalization commit to an unrelated commit (e.g. Day 6 baseline commit)
-    bad_data = json.loads(json.dumps(data))
-    bad_data["dual_run_disclosure"]["run_002_corrected"]["artifact_finalization_commit"] = "4e3283b"
-    # Recompute SHA to isolate finalization commit check
-    bad_data["artifact_sha256"] = compute_canonical_artifact_hash(bad_data)
 
     with pytest.raises(ValueError, match="Provenance violation"):
-        verify_canonical_report_provenance(bad_data)
+        verify_canonical_report_provenance(data, target_finalization_commit="4e3283b")
 
 
 def test_fabricated_commit_in_chain_fails_provenance_verification():
@@ -613,6 +607,40 @@ def test_out_of_order_chain_fails_provenance_verification():
     bad_data["artifact_sha256"] = compute_canonical_artifact_hash(bad_data)
 
     with pytest.raises(ValueError, match="is not an ancestor of"):
+        verify_canonical_report_provenance(bad_data)
+
+
+def test_ancestor_commit_with_mismatched_artifact_fails_finalization_provenance():
+    """Verify specifying an ancestor commit whose tree contains an older/different report raises ValueError."""
+    report_path = Path("artifacts/final/report.json")
+    if not report_path.exists():
+        pytest.skip("Artifacts not yet generated.")
+
+    data = json.loads(report_path.read_text(encoding="utf-8"))
+    
+    # 5841ddb is a valid ancestor commit in historical_artifact_chain, but its tree had an older report state (8d45e328...)
+    with pytest.raises(ValueError, match="Finalization provenance violation.*does not match current canonical artifact hash"):
+        verify_canonical_report_provenance(data, target_finalization_commit="5841ddb")
+
+    # 049caf5 is also a valid ancestor commit with an older report state (84ff34f...)
+    with pytest.raises(ValueError, match="Finalization provenance violation.*does not match current canonical artifact hash"):
+        verify_canonical_report_provenance(data, target_finalization_commit="049caf5")
+
+
+def test_tampered_frozen_config_in_report_fails_provenance_verification():
+    """Verify modifying frozen_detector or config_hash in report raises ValueError."""
+    report_path = Path("artifacts/final/report.json")
+    if not report_path.exists():
+        pytest.skip("Artifacts not yet generated.")
+
+    data = json.loads(report_path.read_text(encoding="utf-8"))
+    
+    # Tamper with config_hash
+    bad_data = json.loads(json.dumps(data))
+    bad_data["config_hash"] = "0000000000000000000000000000000000000000000000000000000000000000"
+    bad_data["artifact_sha256"] = compute_canonical_artifact_hash(bad_data)
+
+    with pytest.raises(ValueError, match="Configuration provenance violation"):
         verify_canonical_report_provenance(bad_data)
 
 

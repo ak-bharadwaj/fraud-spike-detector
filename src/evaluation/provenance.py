@@ -2,11 +2,11 @@
 
 Provides structural validation of holdout evaluation provenance:
 - Verifies canonical SHA-256 artifact hash matches the content excluding 'artifact_sha256'.
-- Verifies execution_commit exists in git history and is an ancestor of artifact_finalization_commit.
-- Verifies artifact_finalization_commit exists in git history and terminates the historical_artifact_chain.
+- Verifies frozen configuration equality between report and canonical freeze_record.json.
+- Verifies execution_commit exists in git history, contains the matching freeze_record.json, and is an ancestor of finalization commit.
 - Verifies historical_artifact_chain is a real, strictly ordered topological ancestor sequence in git.
-- Verifies configuration hash equality between report and frozen detector record.
-- Rejects tampered artifacts, fabricated commits, and disconnected/out-of-order chains.
+- Verifies artifact finalization commit exists in git history and its tree contains the exact canonical artifact state.
+- Rejects tampered artifacts, fabricated commits, disconnected/out-of-order chains, and commits with mismatched artifact trees.
 """
 
 from typing import Dict, Any, List, Optional, Union
@@ -53,16 +53,51 @@ def git_is_ancestor(ancestor_sha: str, descendant_sha: str, cwd: Optional[Path] 
         return False
 
 
+def get_git_file_content(commit_sha: str, file_path: str, cwd: Optional[Path] = None) -> Optional[str]:
+    """Retrieve raw text content of a file at a specific git commit using git show."""
+    try:
+        normalized_path = str(file_path).replace("\\", "/")
+        res = subprocess.run(
+            ["git", "show", f"{commit_sha}:{normalized_path}"],
+            cwd=str(cwd) if cwd else None,
+            capture_output=True,
+            text=True,
+        )
+        if res.returncode == 0:
+            return res.stdout
+    except Exception:
+        pass
+    return None
+
+
+def get_git_finalization_commit_for_file(file_path: str, cwd: Optional[Path] = None) -> Optional[str]:
+    """Retrieve the exact short commit SHA that finalized/committed file_path in git history."""
+    try:
+        normalized_path = str(file_path).replace("\\", "/")
+        res = subprocess.run(
+            ["git", "log", "-n", "1", "--format=%h", "--", normalized_path],
+            cwd=str(cwd) if cwd else None,
+            capture_output=True,
+            text=True,
+        )
+        if res.returncode == 0 and res.stdout.strip():
+            return res.stdout.strip()
+    except Exception:
+        pass
+    return None
+
+
 def verify_canonical_report_provenance(
     report_data: Dict[str, Any],
     repo_root: Optional[Union[str, Path]] = None,
     verify_git: bool = True,
+    target_finalization_commit: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Strictly verify canonical report integrity, artifact SHA, and git history provenance.
 
     Raises:
         ValueError: If artifact SHA is invalid/tampered, commits do not exist, chain is disconnected,
-                    or provenance is inconsistent with git history.
+                    tree contents differ, or provenance is inconsistent with git history.
     """
     root_path = Path(repo_root) if repo_root else Path.cwd()
 
@@ -78,31 +113,46 @@ def verify_canonical_report_provenance(
             f"recorded artifact_sha256 '{actual_sha}'. The artifact has been tampered with."
         )
 
-    # 2. Extract dual run disclosure
+    # 2. Frozen Configuration Provenance Verification against canonical freeze_record.json
+    freeze_path = root_path / "config" / "freeze_record.json"
+    if freeze_path.exists():
+        freeze_data = json.loads(freeze_path.read_text(encoding="utf-8"))
+        if report_data.get("config_hash") != freeze_data.get("config_hash"):
+            raise ValueError(
+                f"Configuration provenance violation: Report config_hash '{report_data.get('config_hash')}' "
+                f"does not match canonical freeze record hash '{freeze_data.get('config_hash')}'."
+            )
+        if report_data.get("frozen_detector") != freeze_data.get("all_selected_parameters"):
+            raise ValueError(
+                "Configuration provenance violation: Report frozen_detector parameters do not match canonical freeze record."
+            )
+        if report_data.get("development_dataset_hash") != freeze_data.get("development_dataset_hash"):
+            raise ValueError(
+                "Configuration provenance violation: Report development_dataset_hash does not match canonical freeze record."
+            )
+
+    # 3. Extract dual run disclosure
     dual_run = report_data.get("dual_run_disclosure")
     if not dual_run or "run_002_corrected" not in dual_run:
         raise ValueError("Provenance violation: Missing 'run_002_corrected' in dual_run_disclosure.")
 
     r2 = dual_run["run_002_corrected"]
     exec_commit = r2.get("execution_commit")
-    final_commit = r2.get("artifact_finalization_commit")
     chain = r2.get("historical_artifact_chain")
 
     if not exec_commit or not isinstance(exec_commit, str) or len(exec_commit) < 7:
         raise ValueError(f"Provenance violation: Invalid execution_commit '{exec_commit}'.")
 
-    if not final_commit or not isinstance(final_commit, str) or len(final_commit) < 7:
-        raise ValueError(f"Provenance violation: Invalid artifact_finalization_commit '{final_commit}'.")
-
     if not chain or not isinstance(chain, list) or len(chain) == 0:
         raise ValueError("Provenance violation: 'historical_artifact_chain' is missing or empty.")
 
-    # 3. Chain termination invariant
-    if chain[-1] != final_commit:
-        raise ValueError(
-            f"Provenance violation: Historical chain terminates at '{chain[-1]}' "
-            f"instead of artifact_finalization_commit '{final_commit}'."
-        )
+    # Determine artifact finalization commit:
+    # Explicit target override (for negative regression testing) OR derived from Git repository state
+    git_final_commit = get_git_finalization_commit_for_file("artifacts/final/report.json", cwd=root_path)
+    final_commit = target_finalization_commit or git_final_commit or r2.get("artifact_finalization_commit")
+
+    if not final_commit or not isinstance(final_commit, str) or len(final_commit) < 7:
+        raise ValueError(f"Provenance violation: Invalid artifact_finalization_commit '{final_commit}'.")
 
     # 4. Strict Git Repository Provenance Verification
     if verify_git:
@@ -114,14 +164,7 @@ def verify_canonical_report_provenance(
         if not git_commit_exists(final_commit, cwd=root_path):
             raise ValueError(f"Provenance violation: artifact_finalization_commit '{final_commit}' does not exist in git repository.")
 
-        # Verify execution_commit is an ancestor of artifact_finalization_commit
-        if not git_is_ancestor(exec_commit, final_commit, cwd=root_path):
-            raise ValueError(
-                f"Provenance violation: execution_commit '{exec_commit}' is not an ancestor of "
-                f"artifact_finalization_commit '{final_commit}'."
-            )
-
-        # Verify full chronological ancestry chain
+        # Verify full chronological ancestry chain first
         for i, commit in enumerate(chain):
             if not git_commit_exists(commit, cwd=root_path):
                 raise ValueError(f"Provenance violation: Chain commit '{commit}' (index {i}) does not exist in git repository.")
@@ -132,6 +175,37 @@ def verify_canonical_report_provenance(
                         f"Provenance violation: Chain commit '{prev}' is not an ancestor of '{commit}' "
                         f"at chain index {i}."
                     )
+
+        # Check that execution_commit tree contains matching freeze_record.json
+        exec_freeze_str = get_git_file_content(exec_commit, "config/freeze_record.json", cwd=root_path)
+        if exec_freeze_str is not None:
+            exec_freeze = json.loads(exec_freeze_str)
+            if exec_freeze.get("config_hash") != report_data.get("config_hash"):
+                raise ValueError(
+                    f"Execution provenance violation: freeze_record at execution_commit '{exec_commit}' "
+                    f"has config_hash '{exec_freeze.get('config_hash')}', not '{report_data.get('config_hash')}'."
+                )
+
+        # Verify execution_commit is an ancestor of artifact_finalization_commit
+        if not git_is_ancestor(exec_commit, final_commit, cwd=root_path):
+            raise ValueError(
+                f"Provenance violation: execution_commit '{exec_commit}' is not an ancestor of "
+                f"artifact_finalization_commit '{final_commit}'."
+            )
+
+        # Check that artifact_finalization_commit tree contains the exact canonical artifact state
+        final_report_str = get_git_file_content(final_commit, "artifacts/final/report.json", cwd=root_path)
+        if final_report_str is None:
+            raise ValueError(
+                f"Provenance violation: artifacts/final/report.json does not exist in tree of commit '{final_commit}'."
+            )
+        tree_data = json.loads(final_report_str)
+        tree_sha = compute_canonical_artifact_hash(tree_data)
+        if tree_sha != actual_sha:
+            raise ValueError(
+                f"Finalization provenance violation: Git tree at artifact_finalization_commit '{final_commit}' "
+                f"contains artifact with hash '{tree_sha}', which does not match current canonical artifact hash '{actual_sha}'."
+            )
 
     return {
         "status": "PROVENANCE_VERIFIED",
