@@ -138,21 +138,24 @@ def verify_canonical_report_provenance(
 
     r2 = dual_run["run_002_corrected"]
     exec_commit = r2.get("execution_commit")
+    declared_final = r2.get("artifact_finalization_commit")
     chain = r2.get("historical_artifact_chain")
 
     if not exec_commit or not isinstance(exec_commit, str) or len(exec_commit) < 7:
         raise ValueError(f"Provenance violation: Invalid execution_commit '{exec_commit}'.")
 
+    if not declared_final or not isinstance(declared_final, str) or len(declared_final) < 7:
+        raise ValueError(f"Provenance violation: Invalid artifact_finalization_commit '{declared_final}'.")
+
     if not chain or not isinstance(chain, list) or len(chain) == 0:
         raise ValueError("Provenance violation: 'historical_artifact_chain' is missing or empty.")
 
-    # Determine artifact finalization commit:
-    # Explicit target override (for negative regression testing) OR derived from Git repository state
-    git_final_commit = get_git_finalization_commit_for_file("artifacts/final/report.json", cwd=root_path)
-    final_commit = target_finalization_commit or git_final_commit or r2.get("artifact_finalization_commit")
-
-    if not final_commit or not isinstance(final_commit, str) or len(final_commit) < 7:
-        raise ValueError(f"Provenance violation: Invalid artifact_finalization_commit '{final_commit}'.")
+    # Verify historical_artifact_chain termination invariant: chain[-1] == declared_final
+    if chain[-1] != declared_final:
+        raise ValueError(
+            f"Provenance violation: Historical artifact chain terminates at '{chain[-1]}', "
+            f"which does not match declared artifact_finalization_commit '{declared_final}'."
+        )
 
     # 4. Strict Git Repository Provenance Verification
     if verify_git:
@@ -160,9 +163,9 @@ def verify_canonical_report_provenance(
         if not git_commit_exists(exec_commit, cwd=root_path):
             raise ValueError(f"Provenance violation: execution_commit '{exec_commit}' does not exist in git repository.")
 
-        # Check finalization commit existence
-        if not git_commit_exists(final_commit, cwd=root_path):
-            raise ValueError(f"Provenance violation: artifact_finalization_commit '{final_commit}' does not exist in git repository.")
+        # Check declared finalization commit existence
+        if not git_commit_exists(declared_final, cwd=root_path):
+            raise ValueError(f"Provenance violation: artifact_finalization_commit '{declared_final}' does not exist in git repository.")
 
         # Verify full chronological ancestry chain first
         for i, commit in enumerate(chain):
@@ -176,34 +179,59 @@ def verify_canonical_report_provenance(
                         f"at chain index {i}."
                     )
 
-        # Check that execution_commit tree contains matching freeze_record.json
+        # Check that execution_commit tree contains matching freeze_record.json and parameters
         exec_freeze_str = get_git_file_content(exec_commit, "config/freeze_record.json", cwd=root_path)
-        if exec_freeze_str is not None:
-            exec_freeze = json.loads(exec_freeze_str)
-            if exec_freeze.get("config_hash") != report_data.get("config_hash"):
-                raise ValueError(
-                    f"Execution provenance violation: freeze_record at execution_commit '{exec_commit}' "
-                    f"has config_hash '{exec_freeze.get('config_hash')}', not '{report_data.get('config_hash')}'."
-                )
+        if exec_freeze_str is None:
+            raise ValueError(f"Execution provenance violation: config/freeze_record.json missing at execution_commit '{exec_commit}'.")
+        exec_freeze = json.loads(exec_freeze_str)
+        if exec_freeze.get("config_hash") != report_data.get("config_hash"):
+            raise ValueError(
+                f"Execution provenance violation: freeze_record at execution_commit '{exec_commit}' "
+                f"has config_hash '{exec_freeze.get('config_hash')}', not '{report_data.get('config_hash')}'."
+            )
+        if exec_freeze.get("all_selected_parameters") != report_data.get("frozen_detector"):
+            raise ValueError(
+                f"Execution provenance violation: freeze_record parameters at execution_commit '{exec_commit}' "
+                f"do not match report frozen_detector parameters."
+            )
+        if exec_freeze.get("development_dataset_hash") != report_data.get("development_dataset_hash"):
+            raise ValueError(
+                f"Execution provenance violation: freeze_record development_dataset_hash at execution_commit '{exec_commit}' "
+                f"does not match report development_dataset_hash."
+            )
 
         # Verify execution_commit is an ancestor of artifact_finalization_commit
-        if not git_is_ancestor(exec_commit, final_commit, cwd=root_path):
+        if not git_is_ancestor(exec_commit, declared_final, cwd=root_path):
             raise ValueError(
                 f"Provenance violation: execution_commit '{exec_commit}' is not an ancestor of "
-                f"artifact_finalization_commit '{final_commit}'."
+                f"artifact_finalization_commit '{declared_final}'."
             )
 
-        # Check that artifact_finalization_commit tree contains the exact canonical artifact state
-        final_report_str = get_git_file_content(final_commit, "artifacts/final/report.json", cwd=root_path)
+        # Determine target tree commit to check: target_finalization_commit override OR git log finalization commit OR declared_final
+        git_tree_commit = get_git_finalization_commit_for_file("artifacts/final/report.json", cwd=root_path)
+        tree_commit = target_finalization_commit or git_tree_commit or declared_final
+
+        if not git_commit_exists(tree_commit, cwd=root_path):
+            raise ValueError(f"Provenance violation: Finalization commit '{tree_commit}' does not exist in git repository.")
+
+        # Require declared_final to be an ancestor of (or equal to) tree_commit
+        if not git_is_ancestor(declared_final, tree_commit, cwd=root_path):
+            raise ValueError(
+                f"Provenance violation: declared artifact_finalization_commit '{declared_final}' "
+                f"is not an ancestor of finalization commit '{tree_commit}'."
+            )
+
+        # Check that tree_commit tree contains the exact canonical artifact state
+        final_report_str = get_git_file_content(tree_commit, "artifacts/final/report.json", cwd=root_path)
         if final_report_str is None:
             raise ValueError(
-                f"Provenance violation: artifacts/final/report.json does not exist in tree of commit '{final_commit}'."
+                f"Provenance violation: artifacts/final/report.json does not exist in tree of commit '{tree_commit}'."
             )
         tree_data = json.loads(final_report_str)
-        tree_sha = compute_canonical_artifact_hash(tree_data)
+        tree_sha = tree_data.get("artifact_sha256") or compute_canonical_artifact_hash(tree_data)
         if tree_sha != actual_sha:
             raise ValueError(
-                f"Finalization provenance violation: Git tree at artifact_finalization_commit '{final_commit}' "
+                f"Finalization provenance violation: Git tree at artifact_finalization_commit '{tree_commit}' "
                 f"contains artifact with hash '{tree_sha}', which does not match current canonical artifact hash '{actual_sha}'."
             )
 
@@ -211,6 +239,6 @@ def verify_canonical_report_provenance(
         "status": "PROVENANCE_VERIFIED",
         "artifact_sha256": actual_sha,
         "execution_commit": exec_commit,
-        "artifact_finalization_commit": final_commit,
+        "artifact_finalization_commit": declared_final,
         "chain_length": len(chain),
     }

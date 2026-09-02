@@ -383,9 +383,9 @@ def save_day8_research_artifacts(
     evasion_results: Dict[str, Any],
     drift_results: Dict[str, Any],
     experiment_id: str = "EXP-DAY8-HOLDOUT-CORRECTED-002",
-    execution_commit: str = "fb3c7f9",
-    artifact_finalization_commit: str = "26837b7",
-    prior_artifact_commit: str = "f21ddeb",
+    execution_commit: str = "bc29c36",
+    artifact_finalization_commit: str = "60ab651",
+    prior_artifact_commit: str = "5841ddb",
     historical_artifact_chain: Optional[List[str]] = None,
 ) -> Dict[str, Path]:
     """Save all Day 8 research outputs in structured artifact directories matching required Section 39 hierarchy."""
@@ -504,7 +504,7 @@ def save_day8_research_artifacts(
             "execution_commit": execution_commit,
             "artifact_finalization_commit": artifact_finalization_commit,
             "prior_artifact_commit": prior_artifact_commit,
-            "historical_artifact_chain": historical_artifact_chain or ["20bf655", "775e779", "cc2872b", "e28d6d3", "f21ddeb", "26837b7"],
+            "historical_artifact_chain": historical_artifact_chain or ["20bf655", "775e779", "cc2872b", "e28d6d3", "f21ddeb", "26837b7", "bc29c36", "049caf5", "5841ddb", "60ab651"],
             "status": "ACCEPTED_CANONICAL",
             "reason": "Corrected post-holdout descriptive calibration (direct RiskScore bucketing, explicit population accounting), complete bootstrap uncertainty reporting contract with raw counts, and INR '₹' units.",
             "detector_parameters": freeze_record.all_selected_parameters,
