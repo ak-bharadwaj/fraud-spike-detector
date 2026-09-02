@@ -233,6 +233,48 @@ def run_persistence_sweep(
     return results
 
 
+def run_ewma_precision_latency_tradeoff_sweep(
+    transactions: Sequence[Transaction],
+    ground_truth_events: Sequence[GroundTruthEvent],
+    alphas: Sequence[float] = (0.2, 0.3, 0.5, 0.7, 0.9),
+    persistences: Sequence[int] = (1, 2, 3),
+    base_config: Optional[FrozenDetectorConfig] = None,
+    evaluator: Optional[AnomalyEvaluator] = None,
+    data_path: Optional[str] = None,
+) -> List[Dict[str, Any]]:
+    """Execute development parameter sweep over EWMA alpha smoothing and persistence grid (15 operating points) (Master Plan §18/§35)."""
+    _verify_development_only_data(data_path)
+    base_cfg = base_config or FrozenDetectorConfig()
+    eval_engine = evaluator or AnomalyEvaluator()
+    results = []
+
+    for alpha in alphas:
+        for p in persistences:
+            cfg = base_cfg.model_copy(update={"persistence": int(p), "ewma_alpha": float(alpha)})
+            scorer = HybridEWMAScorer(alpha=float(alpha), static_threshold=cfg.static_threshold)
+            pipeline = StreamingDetectorPipeline(config=cfg, scorer=scorer, db_path=":memory:")
+            alerts = pipeline.process_transactions(transactions)
+            metrics: EvaluationMetrics = eval_engine.evaluate(alerts=alerts, ground_truth_events=list(ground_truth_events))
+
+            results.append({
+                "alpha": float(alpha),
+                "persistence": int(p),
+                "tp": metrics.tp,
+                "fp": metrics.fp,
+                "fn": metrics.fn,
+                "precision": float(metrics.precision),
+                "recall": float(metrics.recall),
+                "f1_score": float(metrics.f1_score),
+                "median_latency_seconds": float(metrics.median_latency_seconds) if metrics.median_latency_seconds is not None else None,
+                "p95_latency_seconds": float(metrics.p95_latency_seconds) if metrics.p95_latency_seconds is not None else None,
+                "fp_cost": float(metrics.fp_cost),
+                "fn_exposure": float(metrics.fn_exposure),
+                "total_cost": float(metrics.total_cost),
+            })
+
+    return results
+
+
 def run_threshold_operating_point_sweep(
     transactions: Sequence[Transaction],
     ground_truth_events: Sequence[GroundTruthEvent],

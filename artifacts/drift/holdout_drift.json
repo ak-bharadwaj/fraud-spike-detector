@@ -17,7 +17,7 @@
     "unperturbed_windows": 24,
     "fp_count": 1,
     "fp_rate": 0.041666666666666664,
-    "description": "Zero false positives during unperturbed organic merchant volume growth"
+    "description": "Observed low false positive rate (1 FP in 24 unperturbed windows, 4.17%) during unperturbed organic merchant volume growth"
   },
   "growth_plus_spike_scenario": {
     "status": "CONFIRMED",
@@ -25,7 +25,7 @@
     "tp_count": 4,
     "spike_recall": 0.8,
     "spike_latency_seconds": 64.567352,
-    "description": "Volume spike EVT-HOLDOUT-001 detected with 100% recall during organic growth"
+    "description": "Ground truth events detected with 80.0% recall (4 TP) during organic growth"
   },
   "baseline_adaptation": {
     "status": "CONFIRMED",

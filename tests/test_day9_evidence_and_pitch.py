@@ -55,7 +55,7 @@ def test_day9_precision_recall_comparison():
     assert core["fn"] == 1
     assert core["precision"] == 0.8
     assert core["recall"] == 0.8
-    assert core["f1_score"] == 0.8
+    assert core["f1_score"] == pytest.approx(0.8)
     assert core["total_cost"] == 850.0
 
 
@@ -71,8 +71,8 @@ def test_day9_latency_distribution_and_horizon_rules():
     metrics_path = Path("artifacts/final/metrics.json")
     metrics_data = json.loads(metrics_path.read_text(encoding="utf-8"))["metrics"]
 
-    assert metrics_data["median_latency_seconds"] == 64.57
-    assert metrics_data["p95_latency_seconds"] == 64.57
+    assert metrics_data["median_latency_seconds"] == pytest.approx(64.57, abs=1e-2)
+    assert metrics_data["p95_latency_seconds"] == pytest.approx(64.57, abs=1e-2)
 
 
 # =====================================================================
@@ -81,12 +81,38 @@ def test_day9_latency_distribution_and_horizon_rules():
 
 def test_day9_ewma_precision_latency_tradeoff_sweep():
     """Verify development sweep evidence covers alpha in {0.2, 0.3, 0.5, 0.7, 0.9} and persistence in {1, 2, 3}."""
-    freeze_record = load_freeze_record(Path("config/freeze_record.json"))
-    params = freeze_record.all_selected_parameters
+    ewma_path = Path("artifacts/ablation/ewma_tradeoff.json")
+    assert ewma_path.exists(), "artifacts/ablation/ewma_tradeoff.json must exist"
 
-    assert float(params["alpha"]) == 0.5
-    assert int(params["persistence"]) == 1
-    assert float(params["static_threshold"]) == 5.0
+    data = json.loads(ewma_path.read_text(encoding="utf-8"))
+    assert "sweep_results" in data
+    sweeps = data["sweep_results"]
+    assert len(sweeps) == 15, "Expected 15 operating points (5 alphas x 3 persistences)"
+
+    alphas_seen = set()
+    persistences_seen = set()
+
+    for row in sweeps:
+        assert "alpha" in row
+        assert "persistence" in row
+        assert "tp" in row
+        assert "fp" in row
+        assert "fn" in row
+        assert "precision" in row
+        assert "recall" in row
+        assert "f1_score" in row
+        assert "median_latency_seconds" in row
+        assert "p95_latency_seconds" in row
+        assert "fp_cost" in row
+        assert "fn_exposure" in row
+        assert "total_cost" in row
+        assert row["total_cost"] == pytest.approx(row["fp_cost"] + row["fn_exposure"])
+
+        alphas_seen.add(round(row["alpha"], 2))
+        persistences_seen.add(row["persistence"])
+
+    assert alphas_seen == {0.2, 0.3, 0.5, 0.7, 0.9}
+    assert persistences_seen == {1, 2, 3}
 
 
 # =====================================================================
@@ -132,7 +158,9 @@ def test_day9_drift_results():
 
     data = json.loads(drift_path.read_text(encoding="utf-8"))
     assert data["status"] == "CONFIRMED"
-    assert data["growth_only_scenario"]["fp_rate"] == 0.0
+    assert data["growth_only_scenario"]["fp_count"] == 1
+    assert data["growth_only_scenario"]["fp_rate"] == pytest.approx(1 / 24)
+    assert "zero false positives" not in data["growth_only_scenario"]["description"].lower()
     assert data["growth_plus_spike_scenario"]["tp_count"] == 4
     assert data["growth_plus_spike_scenario"]["spike_recall"] == 0.8
     assert data["baseline_adaptation"]["passed_adaptation_criterion"] is True
@@ -189,16 +217,18 @@ def test_day9_portfolio_comparison():
     assert port_path.exists(), "artifacts/portfolio/portfolio_comparison.json must exist"
 
     data = json.loads(port_path.read_text(encoding="utf-8"))
-    portfolio = data["portfolio"]
-    assert "static_threshold" in portfolio
-    assert "statistical_deviation" in portfolio
-    assert "hybrid_ewma" in portfolio
+    portfolio_list = data["portfolio"]
+    portfolio = {item["detector"]: item for item in portfolio_list}
+
+    assert "StaticThresholdScorer" in portfolio
+    assert "StatisticalDeviationScorer" in portfolio
+    assert "HybridEWMAScorer" in portfolio
 
     for model_name, res in portfolio.items():
         assert "fp_cost" in res
         assert "fn_exposure" in res
         assert "total_cost" in res
-        assert res["total_cost"] == res["fp_cost"] + res["fn_exposure"]
+        assert res["total_cost"] == pytest.approx(res["fp_cost"] + res["fn_exposure"])
 
 
 # =====================================================================
@@ -239,6 +269,7 @@ def test_day9_required_artifact_hierarchy_and_consistency():
     required_paths = [
         Path("artifacts/calibration/holdout_calibration.json"),
         Path("artifacts/ablation/holdout_metrics.json"),
+        Path("artifacts/ablation/ewma_tradeoff.json"),
         Path("artifacts/drift/holdout_drift.json"),
         Path("artifacts/evasion/holdout_evasion.json"),
         Path("artifacts/uncertainty/bootstrap_uncertainty.json"),

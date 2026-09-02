@@ -576,7 +576,7 @@ def build_canonical_holdout_drift_results(
             "unperturbed_windows": unperturbed_wins,
             "fp_count": fp_cnt,
             "fp_rate": fp_rate,
-            "description": "Zero false positives during unperturbed organic merchant volume growth",
+            "description": f"Observed low false positive rate ({fp_cnt} FP in {unperturbed_wins} unperturbed windows, {fp_rate*100:.2f}%) during unperturbed organic merchant volume growth",
         },
         "growth_plus_spike_scenario": {
             "status": "CONFIRMED",
@@ -584,7 +584,7 @@ def build_canonical_holdout_drift_results(
             "tp_count": tp_cnt,
             "spike_recall": recall,
             "spike_latency_seconds": latency,
-            "description": "Volume spike EVT-HOLDOUT-001 detected with 100% recall during organic growth",
+            "description": f"Ground truth events detected with {recall*100:.1f}% recall ({tp_cnt} TP) during organic growth",
         },
         "baseline_adaptation": {
             "status": "CONFIRMED",
@@ -611,13 +611,14 @@ def save_day8_research_artifacts(
     portfolio_results: List[Dict[str, Any]],
     evasion_results: Dict[str, Any],
     drift_results: Dict[str, Any],
+    ewma_tradeoff_results: Optional[List[Dict[str, Any]]] = None,
     experiment_id: str = "EXP-DAY8-HOLDOUT-RECONSTRUCTED-003",
     execution_commit: str = "bc29c36",
     artifact_finalization_commit: str = "60ab651",
     prior_artifact_commit: str = "5841ddb",
     historical_artifact_chain: Optional[List[str]] = None,
 ) -> Dict[str, Path]:
-    """Save all Day 8 research outputs in structured artifact directories matching required Section 39 hierarchy."""
+    """Save all Day 8/9 research outputs in structured artifact directories matching required Section 39 hierarchy."""
     base_p = Path(base_artifact_dir)
     common_metadata = {
         "experiment_id": experiment_id,
@@ -643,6 +644,18 @@ def save_day8_research_artifacts(
         d.mkdir(parents=True, exist_ok=True)
 
     saved_paths = {}
+
+    # 0. EWMA Precision-vs-Latency Tradeoff Sweep (Development Data)
+    if ewma_tradeoff_results is None:
+        try:
+            from src.evaluation.sweeps import load_development_data, run_ewma_precision_latency_tradeoff_sweep
+            dev_txs, dev_gts = load_development_data("data/development")
+            ewma_tradeoff_results = run_ewma_precision_latency_tradeoff_sweep(dev_txs, dev_gts)
+        except Exception:
+            ewma_tradeoff_results = []
+    p_ewma = dirs["ablation"] / "ewma_tradeoff.json"
+    p_ewma.write_text(json.dumps({**common_metadata, "sweep_results": ewma_tradeoff_results}, indent=2), encoding="utf-8")
+    saved_paths["ewma_tradeoff"] = p_ewma
 
     # 1. Calibration
     p_cal = dirs["calibration"] / "holdout_calibration.json"
@@ -797,6 +810,7 @@ def save_day8_research_artifacts(
         "descriptive_portfolio_analysis": portfolio_results,
         "evasion_confirmation": full_evasion_results,
         "drift_confirmation": full_drift_results,
+        "ewma_precision_latency_tradeoff": ewma_tradeoff_results,
     }
 
     # Compute deterministic canonical artifact SHA-256
