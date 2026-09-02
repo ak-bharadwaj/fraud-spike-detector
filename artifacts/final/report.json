@@ -4,6 +4,7 @@
   "config_hash": "59034aef4ef11333008c128d7f45ddd88194887460f7856695d13cc9a9834e9d",
   "development_dataset_hash": "dea8f7c2928eb24835120b8604bd564cecdd190227bd6558988793ff673a4dbe",
   "holdout_dataset_hash": "1a0f1a0d2a5fcc37561f663b033ca8902a98d4d399c118797a05c49505676a76",
+  "dataset_hash": "1a0f1a0d2a5fcc37561f663b033ca8902a98d4d399c118797a05c49505676a76",
   "seed": 42,
   "timestamp": "2026-01-07T00:00:00Z",
   "executive_summary": {
@@ -550,5 +551,5 @@
       "characterization": "BaselineEngine tracks organic merchant volume growth under constant frozen detector configuration"
     }
   },
-  "artifact_sha256": "706c8c1753f7cef9ac146dce6407dc1f7e80631b3892d7058fd8e4afd82e2b88"
+  "artifact_sha256": "3f16813501b45fe02406ea7a22eeb283b85c06b64ff25a1880cdf31a9d7e6745"
 }

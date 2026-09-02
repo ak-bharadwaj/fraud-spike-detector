@@ -625,6 +625,7 @@ def save_day8_research_artifacts(
         "config_hash": freeze_record.config_hash,
         "development_dataset_hash": freeze_record.development_dataset_hash,
         "holdout_dataset_hash": holdout_manifest.dataset_hash,
+        "dataset_hash": holdout_manifest.dataset_hash,
         "seed": freeze_record.seed,
         "timestamp": freeze_record.freeze_timestamp,
     }
