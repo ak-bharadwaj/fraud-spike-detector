@@ -506,7 +506,7 @@ def test_runtime_detector_configuration_binding_and_consistency(tmp_path):
     bad_yaml_th = tmp_path / "bad_th.yaml"
     bad_yaml_th.write_text(
         """
-version: 1.0.0
+version: 1.1.0
 scorer:
   type: StatisticalDeviationScorer
   alpha: null
@@ -532,7 +532,7 @@ signal_weights:
     bad_yaml_alpha = tmp_path / "bad_alpha.yaml"
     bad_yaml_alpha.write_text(
         """
-version: 1.0.0
+version: 1.1.0
 scorer:
   type: StatisticalDeviationScorer
   alpha: 0.5
@@ -558,7 +558,7 @@ signal_weights:
     bad_yaml_weights = tmp_path / "bad_weights.yaml"
     bad_yaml_weights.write_text(
         """
-version: 1.0.0
+version: 1.1.0
 scorer:
   type: StatisticalDeviationScorer
   alpha: null
@@ -584,7 +584,7 @@ signal_weights:
     bad_yaml_scorer = tmp_path / "bad_scorer.yaml"
     bad_yaml_scorer.write_text(
         """
-version: 1.0.0
+version: 1.1.0
 scorer:
   type: HybridEWMAScorer
   alpha: null
