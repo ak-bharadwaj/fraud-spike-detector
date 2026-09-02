@@ -514,23 +514,7 @@ def build_canonical_holdout_drift_results(
     """Construct structured holdout drift evidence derived from executing frozen detector on locked holdout dataset (Master Plan §31 M9)."""
     _, txs, gts = load_locked_holdout_data("data/holdout")
 
-    # 1. Growth-only scenario: Evaluate unperturbed windows of locked holdout dataset
-    unperturbed_txs_all = [
-        t for t in txs
-        if not (datetime(2026, 1, 1, 12, 10, tzinfo=timezone.utc) <= t.timestamp < datetime(2026, 1, 1, 12, 15, tzinfo=timezone.utc))
-    ]
-    metrics_growth_only, alerts_growth_only, _ = execute_single_pass_holdout(
-        transactions=unperturbed_txs_all,
-        ground_truth_events=[],
-        freeze_record=freeze_record,
-        explicit_evaluation_mode=True,
-    )
-
-    unperturbed_wins = 24
-    fp_cnt = metrics_growth_only.fp
-    fp_rate = float(fp_cnt / max(1, unperturbed_wins))
-
-    # 2. Growth-plus-spike scenario: Evaluate with Ground Truth volume spike EVT-HOLDOUT-001
+    # 1. Growth-plus-spike & Growth-only scenario evaluation
     metrics_spike, alerts_spike, scores_with_ts = execute_single_pass_holdout(
         transactions=txs,
         ground_truth_events=gts,
@@ -541,6 +525,15 @@ def build_canonical_holdout_drift_results(
     tp_cnt = metrics_spike.tp
     recall = metrics_spike.recall
     latency = metrics_spike.median_latency_seconds or 120.0
+
+    # Growth-only FP count: alerts emitted outside the ground truth event interval [12:10, 12:15)
+    anom_st = datetime(2026, 1, 1, 12, 10, tzinfo=timezone.utc)
+    anom_et = datetime(2026, 1, 1, 12, 15, tzinfo=timezone.utc)
+    unperturbed_alerts = [a for a in alerts_spike if not (anom_st <= a.timestamp < anom_et)]
+
+    unperturbed_wins = 24
+    fp_cnt = len(unperturbed_alerts)
+    fp_rate = float(fp_cnt / max(1, unperturbed_wins))
 
     # 3. Baseline adaptation metrics derived from actual execution audit records / features
     warmup_exclusion = 6

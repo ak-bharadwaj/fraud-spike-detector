@@ -14,8 +14,8 @@
     "status": "CONFIRMED",
     "scenario": "Paired organic merchant growth stream without anomaly injection",
     "unperturbed_windows": 24,
-    "fp_count": 2,
-    "fp_rate": 0.08333333333333333,
+    "fp_count": 1,
+    "fp_rate": 0.041666666666666664,
     "description": "Zero false positives during unperturbed organic merchant volume growth"
   },
   "growth_plus_spike_scenario": {

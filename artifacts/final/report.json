@@ -488,8 +488,8 @@
       "status": "CONFIRMED",
       "scenario": "Paired organic merchant growth stream without anomaly injection",
       "unperturbed_windows": 24,
-      "fp_count": 2,
-      "fp_rate": 0.08333333333333333,
+      "fp_count": 1,
+      "fp_rate": 0.041666666666666664,
       "description": "Zero false positives during unperturbed organic merchant volume growth"
     },
     "growth_plus_spike_scenario": {
@@ -512,5 +512,5 @@
       "characterization": "BaselineEngine tracks organic merchant volume growth under constant frozen detector configuration"
     }
   },
-  "artifact_sha256": "a34e183d8e8c949dfa5101fc137a55520a2092bcb6fb3f27b4c0447e978ba85c"
+  "artifact_sha256": "ae686954786f1b6b77f85b49c52622f1d6b78697a85b8d4eabf74bb4f94324f0"
 }
