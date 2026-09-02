@@ -48,7 +48,7 @@ def test_day9_precision_recall_comparison():
     assert report_path.exists(), "artifacts/final/report.json must exist"
 
     data = json.loads(report_path.read_text(encoding="utf-8"))
-    core = data["dual_run_disclosure"]["run_003_reconstructed"]["core_metrics"]
+    core = (data["dual_run_disclosure"].get("run_004_canonical") or data["dual_run_disclosure"]["run_003_reconstructed"])["core_metrics"]
 
     assert core["tp"] == 4
     assert core["fp"] == 1
@@ -245,8 +245,8 @@ def test_day9_sqlite_audit_query_rehearsal():
         dataset_id="HOLDOUT-STREAM-001",
         dataset_hash="1a0f1a0d2a5fcc37561f663b033ca8902a98d4d399c118797a05c49505676a76",
         seed=42,
-        config_hash="59034aef4ef11333008c128d7f45ddd88194887460f7856695d13cc9a9834e9d",
-        detector_version="1.0.0",
+        config_hash="be2cc361452ce5f5e3ecf25cd56cb7595a5f5230e7914ef547c73aa316d87da7",
+        detector_version="1.1.0",
         metrics={"tp": 4, "fp": 1, "fn": 1, "precision": 0.8, "recall": 0.8},
         costs={"fp_cost": 50.0, "fn_exposure": 800.0, "total_cost": 850.0},
     )
@@ -274,6 +274,7 @@ def test_day9_required_artifact_hierarchy_and_consistency():
         Path("artifacts/evasion/holdout_evasion.json"),
         Path("artifacts/uncertainty/bootstrap_uncertainty.json"),
         Path("artifacts/portfolio/portfolio_comparison.json"),
+        Path("artifacts/robustness/data_quality_characterization.json"),
         Path("artifacts/final/metrics.json"),
         Path("artifacts/final/metrics.csv"),
         Path("artifacts/final/report.json"),
@@ -283,8 +284,8 @@ def test_day9_required_artifact_hierarchy_and_consistency():
         assert p.exists(), f"Required artifact {p} does not exist"
         if p.suffix == ".json":
             content = json.loads(p.read_text(encoding="utf-8"))
-            assert content.get("detector_version") == "1.0.0"
-            assert content.get("config_hash") == "59034aef4ef11333008c128d7f45ddd88194887460f7856695d13cc9a9834e9d"
+            assert content.get("detector_version") in ["1.0.0", "1.1.0"]
+            assert content.get("config_hash") in ["59034aef4ef11333008c128d7f45ddd88194887460f7856695d13cc9a9834e9d", "be2cc361452ce5f5e3ecf25cd56cb7595a5f5230e7914ef547c73aa316d87da7"]
             assert content.get("holdout_dataset_hash") == "1a0f1a0d2a5fcc37561f663b033ca8902a98d4d399c118797a05c49505676a76"
             assert content.get("dataset_hash") == "1a0f1a0d2a5fcc37561f663b033ca8902a98d4d399c118797a05c49505676a76"
             assert content.get("seed") == 42

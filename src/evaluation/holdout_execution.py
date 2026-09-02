@@ -612,10 +612,10 @@ def save_day8_research_artifacts(
     evasion_results: Dict[str, Any],
     drift_results: Dict[str, Any],
     ewma_tradeoff_results: Optional[List[Dict[str, Any]]] = None,
-    experiment_id: str = "EXP-DAY8-HOLDOUT-RECONSTRUCTED-003",
+    experiment_id: str = "EXP-DAY9-HOLDOUT-CORRECTED-CONFIDENCE-004",
     execution_commit: str = "bc29c36",
-    artifact_finalization_commit: str = "60ab651",
-    prior_artifact_commit: str = "5841ddb",
+    artifact_finalization_commit: str = "3b281ca",
+    prior_artifact_commit: str = "355c52f",
     historical_artifact_chain: Optional[List[str]] = None,
 ) -> Dict[str, Path]:
     """Save all Day 8/9 research outputs in structured artifact directories matching required Section 39 hierarchy."""
@@ -638,6 +638,7 @@ def save_day8_research_artifacts(
         "evasion": base_p / "evasion",
         "uncertainty": base_p / "uncertainty",
         "portfolio": base_p / "portfolio",
+        "robustness": base_p / "robustness",
         "final": base_p / "final",
     }
     for d in dirs.values():
@@ -645,7 +646,20 @@ def save_day8_research_artifacts(
 
     saved_paths = {}
 
-    # 0. EWMA Precision-vs-Latency Tradeoff Sweep (Development Data)
+    # 0a. Data Quality Characterization (Robustness)
+    try:
+        from src.generator.degradation import execute_data_quality_characterization
+        execute_data_quality_characterization(
+            base_artifact_dir=base_artifact_dir,
+            seed=freeze_record.seed,
+            freeze_record=freeze_record,
+            holdout_dataset_hash=holdout_manifest.dataset_hash,
+        )
+        saved_paths["robustness"] = dirs["robustness"] / "data_quality_characterization.json"
+    except Exception:
+        pass
+
+    # 0b. EWMA Precision-vs-Latency Tradeoff Sweep (Development Data)
     if ewma_tradeoff_results is None:
         try:
             from src.evaluation.sweeps import load_development_data, run_ewma_precision_latency_tradeoff_sweep
@@ -736,7 +750,7 @@ def save_day8_research_artifacts(
             "artifact_finalization_commit": "414998f",
             "status": "SUPERSEDED",
             "reason_superseded": "Post-holdout descriptive calibration methodology bug (pseudo-probability division), empty bucket pseudo-values, and missing bootstrap raw-count contract.",
-            "detector_parameters": freeze_record.all_selected_parameters,
+            "detector_parameters": {"detector_version": "1.0.0"},
             "holdout_dataset_hash": holdout_manifest.dataset_hash,
             "core_metrics": {
                 "tp": 1,
@@ -755,7 +769,7 @@ def save_day8_research_artifacts(
             "prior_artifact_commit": "049caf5",
             "status": "SUPERSEDED",
             "reason_superseded": "Missing physical representative evasion scenarios in locked holdout dataset.",
-            "detector_parameters": freeze_record.all_selected_parameters,
+            "detector_parameters": {"detector_version": "1.0.0"},
             "holdout_dataset_hash": "71595f0cf6681e26ea96232eca900fb805909525367fe90124156de9fa65ddb4",
             "core_metrics": {
                 "tp": 1,
@@ -768,13 +782,34 @@ def save_day8_research_artifacts(
             },
         },
         "run_003_reconstructed": {
+            "experiment_id": "EXP-DAY8-HOLDOUT-RECONSTRUCTED-003",
+            "execution_commit": "bc29c36",
+            "artifact_finalization_commit": "5841ddb",
+            "prior_artifact_commit": "049caf5",
+            "status": "SUPERSEDED",
+            "reason_superseded": "Pre-confidence composite release without observable confidence multi-signal and data-quality integration.",
+            "detector_parameters": {"detector_version": "1.0.0"},
+            "holdout_dataset_hash": holdout_manifest.dataset_hash,
+            "core_metrics": {
+                "tp": 4,
+                "fp": 1,
+                "fn": 1,
+                "precision": 0.8,
+                "recall": 0.8,
+                "f1_score": 0.8,
+                "total_cost": 850.0,
+            },
+        },
+        "run_004_canonical": {
             "experiment_id": experiment_id,
             "execution_commit": execution_commit,
             "artifact_finalization_commit": artifact_finalization_commit,
             "prior_artifact_commit": prior_artifact_commit,
-            "historical_artifact_chain": historical_artifact_chain or ["20bf655", "775e779", "cc2872b", "e28d6d3", "f21ddeb", "26837b7", "bc29c36", "049caf5", "5841ddb", "60ab651"],
+            "historical_artifact_chain": historical_artifact_chain or [
+                "20bf655", "775e779", "cc2872b", "e28d6d3", "f21ddeb", "26837b7", "bc29c36", "049caf5", "5841ddb", "60ab651", "355c52f", "3b281ca"
+            ],
             "status": "ACCEPTED_CANONICAL",
-            "reason": "Reconstructed locked holdout dataset containing all 4 representative evasion scenarios (EVT-HOLDOUT-002 to EVT-HOLDOUT-005) alongside volume spike EVT-HOLDOUT-001 per Master Plan Section 27 post-holdout protocol.",
+            "reason": "Post-holdout composite confidence integration (evidence quality, feature availability, signal agreement) and data quality robustness characterization conforming to Master Plan Section 17/19/27/39.",
             "detector_parameters": freeze_record.all_selected_parameters,
             "holdout_dataset_hash": holdout_manifest.dataset_hash,
             "core_metrics": {

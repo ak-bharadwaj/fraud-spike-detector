@@ -1,7 +1,7 @@
 {
-  "experiment_id": "EXP-DAY8-HOLDOUT-RECONSTRUCTED-003",
-  "detector_version": "1.0.0",
-  "config_hash": "59034aef4ef11333008c128d7f45ddd88194887460f7856695d13cc9a9834e9d",
+  "experiment_id": "EXP-DAY9-HOLDOUT-CORRECTED-CONFIDENCE-004",
+  "detector_version": "1.1.0",
+  "config_hash": "be2cc361452ce5f5e3ecf25cd56cb7595a5f5230e7914ef547c73aa316d87da7",
   "development_dataset_hash": "dea8f7c2928eb24835120b8604bd564cecdd190227bd6558988793ff673a4dbe",
   "holdout_dataset_hash": "1a0f1a0d2a5fcc37561f663b033ca8902a98d4d399c118797a05c49505676a76",
   "dataset_hash": "1a0f1a0d2a5fcc37561f663b033ca8902a98d4d399c118797a05c49505676a76",
@@ -26,19 +26,6 @@
       "status": "SUPERSEDED",
       "reason_superseded": "Post-holdout descriptive calibration methodology bug (pseudo-probability division), empty bucket pseudo-values, and missing bootstrap raw-count contract.",
       "detector_parameters": {
-        "scorer": "StatisticalDeviationScorer",
-        "alpha": null,
-        "static_threshold": 5.0,
-        "persistence": 1,
-        "cooldown_windows": 5,
-        "min_history_count": 1,
-        "min_window_count": 1,
-        "signal_weights": {
-          "volume": 1.0,
-          "velocity": 1.0,
-          "amount": 1.0,
-          "behavioral": 1.0
-        },
         "detector_version": "1.0.0"
       },
       "holdout_dataset_hash": "1a0f1a0d2a5fcc37561f663b033ca8902a98d4d399c118797a05c49505676a76",
@@ -60,19 +47,6 @@
       "status": "SUPERSEDED",
       "reason_superseded": "Missing physical representative evasion scenarios in locked holdout dataset.",
       "detector_parameters": {
-        "scorer": "StatisticalDeviationScorer",
-        "alpha": null,
-        "static_threshold": 5.0,
-        "persistence": 1,
-        "cooldown_windows": 5,
-        "min_history_count": 1,
-        "min_window_count": 1,
-        "signal_weights": {
-          "volume": 1.0,
-          "velocity": 1.0,
-          "amount": 1.0,
-          "behavioral": 1.0
-        },
         "detector_version": "1.0.0"
       },
       "holdout_dataset_hash": "71595f0cf6681e26ea96232eca900fb805909525367fe90124156de9fa65ddb4",
@@ -91,6 +65,27 @@
       "execution_commit": "bc29c36",
       "artifact_finalization_commit": "5841ddb",
       "prior_artifact_commit": "049caf5",
+      "status": "SUPERSEDED",
+      "reason_superseded": "Pre-confidence composite release without observable confidence multi-signal and data-quality integration.",
+      "detector_parameters": {
+        "detector_version": "1.0.0"
+      },
+      "holdout_dataset_hash": "1a0f1a0d2a5fcc37561f663b033ca8902a98d4d399c118797a05c49505676a76",
+      "core_metrics": {
+        "tp": 4,
+        "fp": 1,
+        "fn": 1,
+        "precision": 0.8,
+        "recall": 0.8,
+        "f1_score": 0.8,
+        "total_cost": 850.0
+      }
+    },
+    "run_004_canonical": {
+      "experiment_id": "EXP-DAY9-HOLDOUT-CORRECTED-CONFIDENCE-004",
+      "execution_commit": "bc29c36",
+      "artifact_finalization_commit": "3b281ca",
+      "prior_artifact_commit": "355c52f",
       "historical_artifact_chain": [
         "20bf655",
         "775e779",
@@ -100,10 +95,13 @@
         "26837b7",
         "bc29c36",
         "049caf5",
-        "5841ddb"
+        "5841ddb",
+        "60ab651",
+        "355c52f",
+        "3b281ca"
       ],
       "status": "ACCEPTED_CANONICAL",
-      "reason": "Reconstructed locked holdout dataset containing all 4 representative evasion scenarios (EVT-HOLDOUT-002 to EVT-HOLDOUT-005) alongside volume spike EVT-HOLDOUT-001 per Master Plan Section 27 post-holdout protocol.",
+      "reason": "Post-holdout composite confidence integration (evidence quality, feature availability, signal agreement) and data quality robustness characterization conforming to Master Plan Section 17/19/27/39.",
       "detector_parameters": {
         "scorer": "StatisticalDeviationScorer",
         "alpha": null,
@@ -118,7 +116,7 @@
           "amount": 1.0,
           "behavioral": 1.0
         },
-        "detector_version": "1.0.0"
+        "detector_version": "1.1.0"
       },
       "holdout_dataset_hash": "1a0f1a0d2a5fcc37561f663b033ca8902a98d4d399c118797a05c49505676a76",
       "core_metrics": {
@@ -146,7 +144,7 @@
       "amount": 1.0,
       "behavioral": 1.0
     },
-    "detector_version": "1.0.0"
+    "detector_version": "1.1.0"
   },
   "per_anomaly_performance": {
     "volume_spike": {
@@ -778,5 +776,5 @@
       "total_cost": 13000.0
     }
   ],
-  "artifact_sha256": "3f0aa31f84224ec54f6ed65900e2de3cb4b4b96949e96a71fa725e435021db2e"
+  "artifact_sha256": "f602641b88ce090fba4e7e85d723558e8a94771dd0c8b660c654dbc9ee58cfcf"
 }

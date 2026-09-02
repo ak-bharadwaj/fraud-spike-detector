@@ -120,8 +120,15 @@ class DataQualityInjector:
 def execute_data_quality_characterization(
     base_artifact_dir: str = "artifacts",
     seed: int = 42,
+    freeze_record: Optional[Any] = None,
+    holdout_dataset_hash: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Execute all 5 data quality degradation scenarios and persist evidence artifact."""
+    from src.evaluation.freeze import load_freeze_record
+
+    fr = freeze_record or load_freeze_record("config/freeze_record.json")
+    h_hash = holdout_dataset_hash or "1a0f1a0d2a5fcc37561f663b033ca8902a98d4d399c118797a05c49505676a76"
+
     st = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
     gen = SyntheticStreamGenerator(seed, [{"id": "M_DQ", "archetype": "stable"}], VirtualClock(initial_time=st))
     base_txs, _ = gen.generate_window(15.0)
@@ -129,10 +136,13 @@ def execute_data_quality_characterization(
     config = FrozenDetectorConfig(min_window_count=1)
 
     results: Dict[str, Any] = {
-        "timestamp": "2026-01-07T00:00:00Z",
-        "detector_version": "1.0.0",
-        "config_hash": "59034aef4ef11333008c128d7f45ddd88194887460f7856695d13cc9a9834e9d",
-        "seed": seed,
+        "timestamp": fr.freeze_timestamp,
+        "detector_version": fr.detector_version,
+        "config_hash": fr.config_hash,
+        "development_dataset_hash": fr.development_dataset_hash,
+        "holdout_dataset_hash": h_hash,
+        "dataset_hash": h_hash,
+        "seed": fr.seed,
         "scenarios": {},
     }
 

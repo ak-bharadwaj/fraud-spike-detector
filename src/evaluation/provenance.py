@@ -131,12 +131,22 @@ def verify_canonical_report_provenance(
                 "Configuration provenance violation: Report development_dataset_hash does not match canonical freeze record."
             )
 
-    # 3. Extract dual run disclosure
+    # 3. Extract multi-run disclosure
     dual_run = report_data.get("dual_run_disclosure")
-    if not dual_run or ("run_003_reconstructed" not in dual_run and "run_002_corrected" not in dual_run):
+    if not dual_run or not isinstance(dual_run, dict):
+        raise ValueError("Provenance violation: Missing run disclosure in dual_run_disclosure.")
+
+    r_active = None
+    for run_key, run_val in dual_run.items():
+        if isinstance(run_val, dict) and run_val.get("status") == "ACCEPTED_CANONICAL":
+            r_active = run_val
+            break
+    if r_active is None:
+        r_active = dual_run.get("run_004_canonical") or dual_run.get("run_003_reconstructed") or dual_run.get("run_002_corrected")
+
+    if not r_active:
         raise ValueError("Provenance violation: Missing canonical run disclosure in dual_run_disclosure.")
 
-    r_active = dual_run.get("run_003_reconstructed") or dual_run.get("run_002_corrected")
     exec_commit = r_active.get("execution_commit")
     declared_final = r_active.get("artifact_finalization_commit")
     chain = r_active.get("historical_artifact_chain")

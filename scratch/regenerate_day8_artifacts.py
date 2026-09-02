@@ -41,14 +41,21 @@ save_day8_research_artifacts(
     evasion_results=evasion_res,
     drift_results=drift_res,
     ewma_tradeoff_results=ewma_sweep,
-    experiment_id="EXP-DAY8-HOLDOUT-RECONSTRUCTED-003",
+    experiment_id="EXP-DAY9-HOLDOUT-CORRECTED-CONFIDENCE-004",
     execution_commit="bc29c36",
-    artifact_finalization_commit="5841ddb",
-    prior_artifact_commit="049caf5",
-    historical_artifact_chain=["20bf655", "775e779", "cc2872b", "e28d6d3", "f21ddeb", "26837b7", "bc29c36", "049caf5", "5841ddb"],
+    artifact_finalization_commit="3b281ca",
+    prior_artifact_commit="355c52f",
+    historical_artifact_chain=[
+        "20bf655", "775e779", "cc2872b", "e28d6d3", "f21ddeb", "26837b7", "bc29c36", "049caf5", "5841ddb", "60ab651", "355c52f", "3b281ca"
+    ],
 )
 
 from src.generator.degradation import execute_data_quality_characterization
-execute_data_quality_characterization(base_artifact_dir="artifacts", seed=42)
+execute_data_quality_characterization(
+    base_artifact_dir="artifacts",
+    seed=42,
+    freeze_record=freeze_record,
+    holdout_dataset_hash=manifest.dataset_hash,
+)
 
 print("Artifacts successfully regenerated!")

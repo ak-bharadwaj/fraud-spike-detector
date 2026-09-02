@@ -1,7 +1,10 @@
 {
   "timestamp": "2026-01-07T00:00:00Z",
-  "detector_version": "1.0.0",
-  "config_hash": "59034aef4ef11333008c128d7f45ddd88194887460f7856695d13cc9a9834e9d",
+  "detector_version": "1.1.0",
+  "config_hash": "be2cc361452ce5f5e3ecf25cd56cb7595a5f5230e7914ef547c73aa316d87da7",
+  "development_dataset_hash": "dea8f7c2928eb24835120b8604bd564cecdd190227bd6558988793ff673a4dbe",
+  "holdout_dataset_hash": "1a0f1a0d2a5fcc37561f663b033ca8902a98d4d399c118797a05c49505676a76",
+  "dataset_hash": "1a0f1a0d2a5fcc37561f663b033ca8902a98d4d399c118797a05c49505676a76",
   "seed": 42,
   "scenarios": {
     "missing_device_identifier": {
