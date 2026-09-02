@@ -482,7 +482,7 @@ def test_unambiguous_provenance_and_artifact_sha_reproducibility(tmp_path):
         portfolio_results=port,
         evasion_results={"status": "CONFIRMED"},
         drift_results={"status": "CONFIRMED"},
-        experiment_id="EXP-DAY8-HOLDOUT-CORRECTED-002",
+        experiment_id="EXP-DAY8-HOLDOUT-RECONSTRUCTED-003",
         execution_commit="bc29c36",
         artifact_finalization_commit="5841ddb",
         prior_artifact_commit="049caf5",
@@ -493,7 +493,7 @@ def test_unambiguous_provenance_and_artifact_sha_reproducibility(tmp_path):
     assert "PENDING_COMMIT" not in report_text
 
     report_content = json.loads(report_text)
-    assert report_content["experiment_id"] == "EXP-DAY8-HOLDOUT-CORRECTED-002"
+    assert report_content["experiment_id"] == "EXP-DAY8-HOLDOUT-RECONSTRUCTED-003"
     assert "artifact_sha256" in report_content
     assert len(report_content["artifact_sha256"]) == 64
 
@@ -521,8 +521,14 @@ def test_unambiguous_provenance_and_artifact_sha_reproducibility(tmp_path):
     assert r2["historical_artifact_chain"] == ["20bf655", "775e779", "cc2872b", "e28d6d3", "f21ddeb", "26837b7", "bc29c36", "049caf5", "5841ddb"]
     assert r2["status"] == "ACCEPTED_CANONICAL"
     
-    # 3. No placeholders
-    for r in [r1, r2]:
+    # 3. Run 003 Reconstructed
+    assert "run_003_reconstructed" in dual
+    r3 = dual["run_003_reconstructed"]
+    assert r3["experiment_id"] == "EXP-DAY8-HOLDOUT-RECONSTRUCTED-003"
+    assert r3["status"] == "ACCEPTED_CANONICAL"
+    
+    # 4. No placeholders
+    for r in [r1, r2, r3]:
         for field in ["execution_commit", "artifact_finalization_commit", "experiment_id"]:
             assert r[field]
             assert "pending" not in r[field].lower()
@@ -536,10 +542,10 @@ def test_published_canonical_report_provenance_and_artifact_sha():
         pytest.skip("Artifacts not yet generated on clean checkout.")
 
     data = json.loads(report_path.read_text(encoding="utf-8"))
-    assert data["experiment_id"] == "EXP-DAY8-HOLDOUT-CORRECTED-002"
+    assert data["experiment_id"] == "EXP-DAY8-HOLDOUT-RECONSTRUCTED-003"
     assert data["detector_version"] == "1.0.0"
     assert data["config_hash"] == "59034aef4ef11333008c128d7f45ddd88194887460f7856695d13cc9a9834e9d"
-    assert data["holdout_dataset_hash"] == "71595f0cf6681e26ea96232eca900fb805909525367fe90124156de9fa65ddb4"
+    assert data["holdout_dataset_hash"] == "1a0f1a0d2a5fcc37561f663b033ca8902a98d4d399c118797a05c49505676a76"
 
     # Strictly verify provenance against actual git repository state
     prov_result = verify_canonical_report_provenance(data)

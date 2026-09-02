@@ -1,26 +1,26 @@
 {
-  "experiment_id": "EXP-DAY8-HOLDOUT-CORRECTED-002",
+  "experiment_id": "EXP-DAY8-HOLDOUT-RECONSTRUCTED-003",
   "detector_version": "1.0.0",
   "config_hash": "59034aef4ef11333008c128d7f45ddd88194887460f7856695d13cc9a9834e9d",
   "development_dataset_hash": "dea8f7c2928eb24835120b8604bd564cecdd190227bd6558988793ff673a4dbe",
-  "holdout_dataset_hash": "71595f0cf6681e26ea96232eca900fb805909525367fe90124156de9fa65ddb4",
+  "holdout_dataset_hash": "1a0f1a0d2a5fcc37561f663b033ca8902a98d4d399c118797a05c49505676a76",
   "seed": 42,
   "timestamp": "2026-01-07T00:00:00Z",
   "cost_unit": "\u20b9",
   "metrics": {
-    "tp": 1,
+    "tp": 4,
     "fp": 1,
-    "fn": 0,
+    "fn": 1,
     "tn": null,
-    "precision": 0.5,
-    "recall": 1.0,
-    "f1_score": 0.6666666666666666,
+    "precision": 0.8,
+    "recall": 0.8,
+    "f1_score": 0.8000000000000002,
     "mean_latency_seconds": 64.567352,
     "median_latency_seconds": 64.567352,
     "p95_latency_seconds": 64.567352,
     "fp_cost": 50.0,
-    "fn_exposure": 0.0,
-    "total_cost": 50.0,
+    "fn_exposure": 800.0,
+    "total_cost": 850.0,
     "matched_events": [
       {
         "event_id": "EVT-HOLDOUT-001",
@@ -30,21 +30,50 @@
         "horizon_seconds": 120.0,
         "severity": 10.051897489716794,
         "severity_level": "HIGH"
+      },
+      {
+        "event_id": "EVT-HOLDOUT-002",
+        "merchant_id": "HOLDOUT_M1",
+        "alert_id": "ALT-77f37d0f2052be8656b5d9446af8c03a",
+        "latency_seconds": 64.567352,
+        "horizon_seconds": 300.0,
+        "severity": 5.514193099434525,
+        "severity_level": "HIGH"
+      },
+      {
+        "event_id": "EVT-HOLDOUT-003",
+        "merchant_id": "HOLDOUT_M1",
+        "alert_id": "ALT-4022a6acff110cbc4f91a5c85bed5e29",
+        "latency_seconds": 64.567352,
+        "horizon_seconds": 300.0,
+        "severity": 4.269091285027805,
+        "severity_level": "HIGH"
+      },
+      {
+        "event_id": "EVT-HOLDOUT-004",
+        "merchant_id": "HOLDOUT_M1",
+        "alert_id": "ALT-2103ec98cb93bfb3ff1fd0bdc26eec03",
+        "latency_seconds": 64.567352,
+        "horizon_seconds": 300.0,
+        "severity": 18.51858982768249,
+        "severity_level": "HIGH"
       }
     ],
     "unmatched_alerts": [
-      "ALT-ed2bf6d11bf23c3f1f767f5e867595a2"
+      "ALT-a56ccb11a0546b39c346c0a957a738db"
     ],
-    "unmatched_events": []
+    "unmatched_events": [
+      "EVT-HOLDOUT-005"
+    ]
   },
   "per_anomaly": {
     "volume_spike": {
       "anomaly_type": "volume_spike",
       "events_detected": 1,
       "total_events": 1,
-      "precision": 0.5,
+      "precision": 0.2,
       "recall": 1.0,
-      "f1": 0.6667,
+      "f1": 0.3333,
       "median_latency_seconds": 64.57,
       "status": "VALIDATED"
     },

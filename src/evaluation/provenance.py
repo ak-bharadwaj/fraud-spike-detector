@@ -133,13 +133,13 @@ def verify_canonical_report_provenance(
 
     # 3. Extract dual run disclosure
     dual_run = report_data.get("dual_run_disclosure")
-    if not dual_run or "run_002_corrected" not in dual_run:
-        raise ValueError("Provenance violation: Missing 'run_002_corrected' in dual_run_disclosure.")
+    if not dual_run or ("run_003_reconstructed" not in dual_run and "run_002_corrected" not in dual_run):
+        raise ValueError("Provenance violation: Missing canonical run disclosure in dual_run_disclosure.")
 
-    r2 = dual_run["run_002_corrected"]
-    exec_commit = r2.get("execution_commit")
-    declared_final = r2.get("artifact_finalization_commit")
-    chain = r2.get("historical_artifact_chain")
+    r_active = dual_run.get("run_003_reconstructed") or dual_run.get("run_002_corrected")
+    exec_commit = r_active.get("execution_commit")
+    declared_final = r_active.get("artifact_finalization_commit")
+    chain = r_active.get("historical_artifact_chain")
 
     if not exec_commit or not isinstance(exec_commit, str) or len(exec_commit) < 7:
         raise ValueError(f"Provenance violation: Invalid execution_commit '{exec_commit}'.")

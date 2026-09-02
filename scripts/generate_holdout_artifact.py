@@ -18,8 +18,25 @@ def generate_and_save_holdout_artifact():
         clock=VirtualClock(initial_time=st),
     )
 
-    spec = AnomalySpec("volume_spike", st + timedelta(minutes=10), 300.0, 4.0, {"rate_multiplier": 3.0})
-    gen.schedule_anomaly("HOLDOUT_M1", spec, "EVT-HOLDOUT-001")
+    # 1. Primary volume spike
+    spec1 = AnomalySpec("volume_spike", st + timedelta(minutes=10), 300.0, 4.0, {"rate_multiplier": 3.0})
+    gen.schedule_anomaly("HOLDOUT_M1", spec1, "EVT-HOLDOUT-001")
+
+    # 2. Threshold hugging evasion
+    spec2 = AnomalySpec("threshold_hugging_evasion", st + timedelta(minutes=20), 240.0, 4.8, {"rate_multiplier": 1.75})
+    gen.schedule_anomaly("HOLDOUT_M1", spec2, "EVT-HOLDOUT-002")
+
+    # 3. Persistence evasion
+    spec3 = AnomalySpec("persistence_evasion", st + timedelta(minutes=30), 240.0, 5.6, {"rate_multiplier": 2.10})
+    gen.schedule_anomaly("HOLDOUT_M1", spec3, "EVT-HOLDOUT-003")
+
+    # 4. Staircase ramp
+    spec4 = AnomalySpec("staircase_ramp", st + timedelta(minutes=40), 240.0, 6.5, {"rate_multiplier": 7.5})
+    gen.schedule_anomaly("HOLDOUT_M1", spec4, "EVT-HOLDOUT-004")
+
+    # 5. Oscillating sub-threshold
+    spec5 = AnomalySpec("oscillating_sub_threshold", st + timedelta(minutes=50), 240.0, 4.2, {"amplitude": 0.8, "rate_multiplier": 1.2})
+    gen.schedule_anomaly("HOLDOUT_M1", spec5, "EVT-HOLDOUT-005")
 
     txs, gt_events = gen.generate_window(120.0)
 

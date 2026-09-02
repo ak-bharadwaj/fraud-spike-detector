@@ -2680,214 +2680,614 @@
     "d_id": "DEV-4136"
   },
   {
-    "id": "TX-HOLDOUT_M1-12f6dd8ffe",
-    "ts": "2026-01-01T12:20:01.210626+00:00",
+    "id": "TX-HOLDOUT_M1-dd355ff3ee",
+    "ts": "2026-01-01T12:20:01.879303+00:00",
     "m_id": "HOLDOUT_M1",
-    "c_id": "CUST-4362",
-    "amt": 73.71,
+    "c_id": "CUST-1781",
+    "amt": 61.46,
     "pm": "CREDIT_CARD",
     "country": "US",
-    "d_id": "DEV-2371"
+    "d_id": "DEV-3726"
   },
   {
-    "id": "TX-HOLDOUT_M1-50f07b9e37",
-    "ts": "2026-01-01T12:20:14.465958+00:00",
+    "id": "TX-HOLDOUT_M1-b1d9c985b1",
+    "ts": "2026-01-01T12:20:03.978106+00:00",
     "m_id": "HOLDOUT_M1",
-    "c_id": "CUST-4495",
-    "amt": 54.27,
+    "c_id": "CUST-661",
+    "amt": 66.89,
     "pm": "CREDIT_CARD",
     "country": "US",
-    "d_id": "DEV-2399"
+    "d_id": "DEV-2752"
   },
   {
-    "id": "TX-HOLDOUT_M1-5d29bf3c91",
-    "ts": "2026-01-01T12:20:23.022111+00:00",
+    "id": "TX-HOLDOUT_M1-2ff1a1f935",
+    "ts": "2026-01-01T12:20:13.320863+00:00",
     "m_id": "HOLDOUT_M1",
-    "c_id": "CUST-3476",
-    "amt": 69.75,
+    "c_id": "CUST-4385",
+    "amt": 78.47,
     "pm": "CREDIT_CARD",
     "country": "US",
-    "d_id": "DEV-3641"
+    "d_id": "DEV-90"
   },
   {
-    "id": "TX-HOLDOUT_M1-da20c51bf9",
-    "ts": "2026-01-01T12:20:24.544104+00:00",
+    "id": "TX-HOLDOUT_M1-bc291416c6",
+    "ts": "2026-01-01T12:20:17.617645+00:00",
     "m_id": "HOLDOUT_M1",
-    "c_id": "CUST-3218",
-    "amt": 61.81,
+    "c_id": "CUST-2766",
+    "amt": 86.17,
+    "pm": "DEBIT_CARD",
+    "country": "US",
+    "d_id": "DEV-658"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-6c65fb3c63",
+    "ts": "2026-01-01T12:20:18.535923+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-1546",
+    "amt": 65.03,
     "pm": "CREDIT_CARD",
     "country": "US",
-    "d_id": "DEV-4456"
+    "d_id": "DEV-122"
   },
   {
-    "id": "TX-HOLDOUT_M1-0e9c1ffb58",
-    "ts": "2026-01-01T12:20:25.242355+00:00",
+    "id": "TX-HOLDOUT_M1-b716cb162a",
+    "ts": "2026-01-01T12:20:18.562430+00:00",
     "m_id": "HOLDOUT_M1",
-    "c_id": "CUST-369",
+    "c_id": "CUST-3477",
+    "amt": 86.43,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-276"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-a13d843724",
+    "ts": "2026-01-01T12:20:21.209228+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-4303",
+    "amt": 84.17,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-3026"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-aba2f90d45",
+    "ts": "2026-01-01T12:20:22.220807+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-4129",
+    "amt": 86.16,
+    "pm": "DEBIT_CARD",
+    "country": "US",
+    "d_id": "DEV-4554"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-88f3e38980",
+    "ts": "2026-01-01T12:20:23.408038+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-975",
+    "amt": 54.36,
+    "pm": "DEBIT_CARD",
+    "country": "US",
+    "d_id": "DEV-3828"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-d7d8b836ab",
+    "ts": "2026-01-01T12:20:24.248285+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-4098",
+    "amt": 60.07,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-257"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-d30a1c94ef",
+    "ts": "2026-01-01T12:20:26.429305+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-185",
+    "amt": 87.75,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-4526"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-259339914c",
+    "ts": "2026-01-01T12:20:32.561296+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-4839",
+    "amt": 74.68,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-482"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-3142ad9842",
+    "ts": "2026-01-01T12:20:36.238725+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-3264",
+    "amt": 69.52,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-4292"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-db077c4fd9",
+    "ts": "2026-01-01T12:20:37.861962+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-438",
+    "amt": 70.43,
+    "pm": "DEBIT_CARD",
+    "country": "US",
+    "d_id": "DEV-1297"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-ea0ca2bcfc",
+    "ts": "2026-01-01T12:20:42.840085+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-852",
+    "amt": 64.22,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-242"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-4205538191",
+    "ts": "2026-01-01T12:20:46.106582+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-4241",
+    "amt": 75.27,
+    "pm": "PREPAID_CARD",
+    "country": "US",
+    "d_id": "DEV-4518"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-5c5333762d",
+    "ts": "2026-01-01T12:20:52.847248+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-326",
+    "amt": 58.54,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-4841"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-3704ade0bd",
+    "ts": "2026-01-01T12:20:55.238560+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-2160",
+    "amt": 50.37,
+    "pm": "DEBIT_CARD",
+    "country": "US",
+    "d_id": "DEV-877"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-8b7a4bdb4b",
+    "ts": "2026-01-01T12:21:05.434846+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-172",
+    "amt": 77.74,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-567"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-e19af5b8f4",
+    "ts": "2026-01-01T12:21:05.943614+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-1752",
+    "amt": 89.06,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-4430"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-5e490bc803",
+    "ts": "2026-01-01T12:21:07.463773+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-3492",
+    "amt": 50.01,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-2329"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-dfed3f7165",
+    "ts": "2026-01-01T12:21:12.042315+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-3356",
+    "amt": 81.67,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-2342"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-b416a3aa81",
+    "ts": "2026-01-01T12:21:12.101964+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-2890",
+    "amt": 79.75,
+    "pm": "PREPAID_CARD",
+    "country": "US",
+    "d_id": "DEV-4849"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-f3ca1012cb",
+    "ts": "2026-01-01T12:21:20.396948+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-3335",
+    "amt": 88.95,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-4046"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-f2201e154c",
+    "ts": "2026-01-01T12:21:21.336394+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-605",
+    "amt": 48.98,
+    "pm": "DEBIT_CARD",
+    "country": "US",
+    "d_id": "DEV-999"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-350549b488",
+    "ts": "2026-01-01T12:21:24.006379+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-825",
+    "amt": 66.5,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-2582"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-babbff41de",
+    "ts": "2026-01-01T12:21:30.120951+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-2042",
+    "amt": 64.6,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-665"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-772ec4037b",
+    "ts": "2026-01-01T12:21:37.756764+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-4911",
+    "amt": 72.57,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-623"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-b22b5c406c",
+    "ts": "2026-01-01T12:21:39.632516+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-4621",
+    "amt": 63.63,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-1021"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-678cad8928",
+    "ts": "2026-01-01T12:21:41.393189+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-2411",
+    "amt": 77.33,
+    "pm": "DEBIT_CARD",
+    "country": "US",
+    "d_id": "DEV-3681"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-c9c8c8697a",
+    "ts": "2026-01-01T12:21:41.894633+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-2679",
+    "amt": 79.58,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-169"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-6abf193ac4",
+    "ts": "2026-01-01T12:21:42.623144+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-670",
+    "amt": 89.39,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-29"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-8a013b22a2",
+    "ts": "2026-01-01T12:21:43.432901+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-2813",
+    "amt": 77.32,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-4750"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-f9d668f31f",
+    "ts": "2026-01-01T12:21:45.887786+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-3",
     "amt": 71.31,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-692"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-38331c8341",
+    "ts": "2026-01-01T12:21:50.197754+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-4272",
+    "amt": 72.27,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-1846"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-a4ac603aad",
+    "ts": "2026-01-01T12:21:53.601020+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-1988",
+    "amt": 68.97,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-3856"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-6a44a12586",
+    "ts": "2026-01-01T12:21:53.886619+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-1037",
+    "amt": 79.4,
+    "pm": "CREDIT_CARD",
+    "country": "HIGH_RISK_GEO",
+    "d_id": "DEV-2853"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-b8d17ac15f",
+    "ts": "2026-01-01T12:21:57.024544+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-3243",
+    "amt": 72.52,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-3963"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-bf18d685b7",
+    "ts": "2026-01-01T12:22:11.107262+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-850",
+    "amt": 70.67,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-2851"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-56a234bfa0",
+    "ts": "2026-01-01T12:22:13.491388+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-3441",
+    "amt": 78.04,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-3522"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-d88b921d03",
+    "ts": "2026-01-01T12:22:16.445010+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-3866",
+    "amt": 49.82,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-297"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-900bc20a9e",
+    "ts": "2026-01-01T12:22:16.559709+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-595",
+    "amt": 58.59,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-1068"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-4a554e22c2",
+    "ts": "2026-01-01T12:22:18.770486+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-3786",
+    "amt": 62.82,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-1031"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-b7bb9806a4",
+    "ts": "2026-01-01T12:22:19.573354+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-3715",
+    "amt": 57.11,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-358"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-fa2b4c496c",
+    "ts": "2026-01-01T12:22:21.687868+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-3783",
+    "amt": 75.67,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-4779"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-c1fce109d5",
+    "ts": "2026-01-01T12:22:23.594964+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-4981",
+    "amt": 78.14,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-1713"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-4212109159",
+    "ts": "2026-01-01T12:22:25.859723+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-483",
+    "amt": 62.15,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-1718"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-1498e7f5d0",
+    "ts": "2026-01-01T12:22:25.899840+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-1276",
+    "amt": 68.59,
     "pm": "PREPAID_CARD",
     "country": "US",
-    "d_id": "DEV-1634"
+    "d_id": "DEV-4675"
   },
   {
-    "id": "TX-HOLDOUT_M1-51dfb8719b",
-    "ts": "2026-01-01T12:20:28.799314+00:00",
+    "id": "TX-HOLDOUT_M1-dbbc1e69ba",
+    "ts": "2026-01-01T12:22:28.554361+00:00",
     "m_id": "HOLDOUT_M1",
-    "c_id": "CUST-2119",
-    "amt": 74.69,
-    "pm": "CREDIT_CARD",
-    "country": "US",
-    "d_id": "DEV-3204"
-  },
-  {
-    "id": "TX-HOLDOUT_M1-c5fce36b98",
-    "ts": "2026-01-01T12:20:52.004987+00:00",
-    "m_id": "HOLDOUT_M1",
-    "c_id": "CUST-1253",
-    "amt": 63.09,
-    "pm": "CREDIT_CARD",
-    "country": "US",
-    "d_id": "DEV-2246"
-  },
-  {
-    "id": "TX-HOLDOUT_M1-c8754dc36a",
-    "ts": "2026-01-01T12:21:00.629921+00:00",
-    "m_id": "HOLDOUT_M1",
-    "c_id": "CUST-3206",
-    "amt": 60.65,
+    "c_id": "CUST-1484",
+    "amt": 70.66,
     "pm": "DEBIT_CARD",
     "country": "US",
-    "d_id": "DEV-2002"
+    "d_id": "DEV-4527"
   },
   {
-    "id": "TX-HOLDOUT_M1-90c34a9b91",
-    "ts": "2026-01-01T12:21:02.919034+00:00",
+    "id": "TX-HOLDOUT_M1-ff9e65ba9e",
+    "ts": "2026-01-01T12:22:30.048497+00:00",
     "m_id": "HOLDOUT_M1",
-    "c_id": "CUST-2855",
-    "amt": 79.13,
+    "c_id": "CUST-3494",
+    "amt": 70.27,
     "pm": "CREDIT_CARD",
     "country": "US",
-    "d_id": "DEV-4575"
+    "d_id": "DEV-4651"
   },
   {
-    "id": "TX-HOLDOUT_M1-846786e6ff",
-    "ts": "2026-01-01T12:21:14.304231+00:00",
+    "id": "TX-HOLDOUT_M1-1b686152c9",
+    "ts": "2026-01-01T12:22:31.785994+00:00",
     "m_id": "HOLDOUT_M1",
-    "c_id": "CUST-2098",
-    "amt": 92.64,
+    "c_id": "CUST-444",
+    "amt": 75.14,
     "pm": "CREDIT_CARD",
     "country": "US",
-    "d_id": "DEV-4576"
+    "d_id": "DEV-2280"
   },
   {
-    "id": "TX-HOLDOUT_M1-0628d625f5",
-    "ts": "2026-01-01T12:21:20.411060+00:00",
+    "id": "TX-HOLDOUT_M1-b8e083e53b",
+    "ts": "2026-01-01T12:22:33.279513+00:00",
     "m_id": "HOLDOUT_M1",
-    "c_id": "CUST-1175",
-    "amt": 73.07,
-    "pm": "CREDIT_CARD",
-    "country": "US",
-    "d_id": "DEV-4094"
-  },
-  {
-    "id": "TX-HOLDOUT_M1-f9350196a8",
-    "ts": "2026-01-01T12:21:23.144125+00:00",
-    "m_id": "HOLDOUT_M1",
-    "c_id": "CUST-3892",
-    "amt": 81.4,
-    "pm": "CREDIT_CARD",
-    "country": "US",
-    "d_id": "DEV-1075"
-  },
-  {
-    "id": "TX-HOLDOUT_M1-1ec2fd4ee1",
-    "ts": "2026-01-01T12:21:23.363972+00:00",
-    "m_id": "HOLDOUT_M1",
-    "c_id": "CUST-1959",
-    "amt": 57.02,
-    "pm": "CREDIT_CARD",
-    "country": "US",
-    "d_id": "DEV-1977"
-  },
-  {
-    "id": "TX-HOLDOUT_M1-799f62feb6",
-    "ts": "2026-01-01T12:21:23.842726+00:00",
-    "m_id": "HOLDOUT_M1",
-    "c_id": "CUST-3158",
-    "amt": 69.97,
-    "pm": "CREDIT_CARD",
-    "country": "US",
-    "d_id": "DEV-1307"
-  },
-  {
-    "id": "TX-HOLDOUT_M1-d76f3a7aa9",
-    "ts": "2026-01-01T12:21:50.561312+00:00",
-    "m_id": "HOLDOUT_M1",
-    "c_id": "CUST-875",
-    "amt": 66.27,
+    "c_id": "CUST-3421",
+    "amt": 72.54,
     "pm": "DEBIT_CARD",
     "country": "US",
-    "d_id": "DEV-3220"
+    "d_id": "DEV-2916"
   },
   {
-    "id": "TX-HOLDOUT_M1-cf01663722",
-    "ts": "2026-01-01T12:21:55.017749+00:00",
+    "id": "TX-HOLDOUT_M1-e6d66371db",
+    "ts": "2026-01-01T12:22:33.891836+00:00",
     "m_id": "HOLDOUT_M1",
-    "c_id": "CUST-1507",
-    "amt": 74.71,
-    "pm": "CREDIT_CARD",
-    "country": "US",
-    "d_id": "DEV-712"
-  },
-  {
-    "id": "TX-HOLDOUT_M1-8cb3ef66e0",
-    "ts": "2026-01-01T12:22:15.311935+00:00",
-    "m_id": "HOLDOUT_M1",
-    "c_id": "CUST-2760",
-    "amt": 55.13,
-    "pm": "CREDIT_CARD",
-    "country": "US",
-    "d_id": "DEV-2376"
-  },
-  {
-    "id": "TX-HOLDOUT_M1-c66e3be56d",
-    "ts": "2026-01-01T12:22:22.965335+00:00",
-    "m_id": "HOLDOUT_M1",
-    "c_id": "CUST-1937",
-    "amt": 62.39,
+    "c_id": "CUST-807",
+    "amt": 71.48,
     "pm": "DEBIT_CARD",
     "country": "US",
-    "d_id": "DEV-875"
+    "d_id": "DEV-918"
   },
   {
-    "id": "TX-HOLDOUT_M1-1832826d88",
-    "ts": "2026-01-01T12:22:41.919522+00:00",
+    "id": "TX-HOLDOUT_M1-864b045dd1",
+    "ts": "2026-01-01T12:22:38.068847+00:00",
     "m_id": "HOLDOUT_M1",
-    "c_id": "CUST-2224",
-    "amt": 57.05,
+    "c_id": "CUST-1914",
+    "amt": 60.76,
     "pm": "CREDIT_CARD",
     "country": "US",
-    "d_id": "DEV-2731"
+    "d_id": "DEV-1239"
   },
   {
-    "id": "TX-HOLDOUT_M1-fcc64a9c4b",
-    "ts": "2026-01-01T12:22:45.391491+00:00",
+    "id": "TX-HOLDOUT_M1-8238532e33",
+    "ts": "2026-01-01T12:22:41.108722+00:00",
     "m_id": "HOLDOUT_M1",
-    "c_id": "CUST-4203",
-    "amt": 65.28,
+    "c_id": "CUST-4148",
+    "amt": 58.61,
     "pm": "CREDIT_CARD",
     "country": "US",
-    "d_id": "DEV-2388"
+    "d_id": "DEV-741"
   },
   {
-    "id": "TX-HOLDOUT_M1-8fcc81a19d",
-    "ts": "2026-01-01T12:22:45.422481+00:00",
+    "id": "TX-HOLDOUT_M1-957455ba7b",
+    "ts": "2026-01-01T12:22:43.702286+00:00",
     "m_id": "HOLDOUT_M1",
-    "c_id": "CUST-217",
-    "amt": 88.41,
+    "c_id": "CUST-1657",
+    "amt": 87.67,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-4844"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-eebd82a01d",
+    "ts": "2026-01-01T12:22:50.746135+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-2406",
+    "amt": 66.97,
     "pm": "PREPAID_CARD",
     "country": "US",
-    "d_id": "DEV-2204"
+    "d_id": "DEV-4502"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-d6e0b3a1c2",
+    "ts": "2026-01-01T12:22:52.358139+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-2164",
+    "amt": 67.07,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-263"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-eb3b72f0bd",
+    "ts": "2026-01-01T12:22:52.570539+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-759",
+    "amt": 79.47,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-2347"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-67cbd015a1",
+    "ts": "2026-01-01T12:22:56.958926+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-569",
+    "amt": 62.25,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-2799"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-b354c0e54d",
+    "ts": "2026-01-01T12:22:58.059635+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-2425",
+    "amt": 55.33,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-3668"
   },
   {
     "id": "TX-HOLDOUT_M1-e7dbcce154",
@@ -2900,6 +3300,26 @@
     "d_id": "DEV-392"
   },
   {
+    "id": "TX-HOLDOUT_M1-542a34dbb0",
+    "ts": "2026-01-01T12:23:08.253164+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-4001",
+    "amt": 74.43,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-1952"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-919a781003",
+    "ts": "2026-01-01T12:23:10.164734+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-3823",
+    "amt": 97.77,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-1976"
+  },
+  {
     "id": "TX-HOLDOUT_M1-d0206a5a7f",
     "ts": "2026-01-01T12:23:16.025165+00:00",
     "m_id": "HOLDOUT_M1",
@@ -2908,16 +3328,6 @@
     "pm": "DEBIT_CARD",
     "country": "US",
     "d_id": "DEV-2476"
-  },
-  {
-    "id": "TX-HOLDOUT_M1-ccc288f294",
-    "ts": "2026-01-01T12:23:22.459045+00:00",
-    "m_id": "HOLDOUT_M1",
-    "c_id": "CUST-4258",
-    "amt": 66.83,
-    "pm": "CREDIT_CARD",
-    "country": "US",
-    "d_id": "DEV-1052"
   },
   {
     "id": "TX-HOLDOUT_M1-250b0a6db9",
@@ -2930,6 +3340,36 @@
     "d_id": "DEV-2727"
   },
   {
+    "id": "TX-HOLDOUT_M1-ccc288f294",
+    "ts": "2026-01-01T12:23:41.942594+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-4258",
+    "amt": 80.36,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-1052"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-a8bd798108",
+    "ts": "2026-01-01T12:23:42.789769+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-687",
+    "amt": 78.38,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-3485"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-437016d3b7",
+    "ts": "2026-01-01T12:23:44.601493+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-2893",
+    "amt": 74.48,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-2599"
+  },
+  {
     "id": "TX-HOLDOUT_M1-f273b38da3",
     "ts": "2026-01-01T12:23:48.235221+00:00",
     "m_id": "HOLDOUT_M1",
@@ -2938,6 +3378,16 @@
     "pm": "CREDIT_CARD",
     "country": "US",
     "d_id": "DEV-180"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-d59ab4f508",
+    "ts": "2026-01-01T12:23:48.252452+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-4128",
+    "amt": 68.5,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-2273"
   },
   {
     "id": "TX-HOLDOUT_M1-4cbf7be3ec",
@@ -2950,14 +3400,14 @@
     "d_id": "DEV-2166"
   },
   {
-    "id": "TX-HOLDOUT_M1-f3169ce973",
-    "ts": "2026-01-01T12:23:49.491542+00:00",
+    "id": "TX-HOLDOUT_M1-fa5cb9c80c",
+    "ts": "2026-01-01T12:23:49.309974+00:00",
     "m_id": "HOLDOUT_M1",
-    "c_id": "CUST-1824",
-    "amt": 76.94,
-    "pm": "CREDIT_CARD",
+    "c_id": "CUST-1261",
+    "amt": 65.02,
+    "pm": "DEBIT_CARD",
     "country": "US",
-    "d_id": "DEV-1874"
+    "d_id": "DEV-4975"
   },
   {
     "id": "TX-HOLDOUT_M1-23ecf6fd36",
@@ -2978,16 +3428,6 @@
     "pm": "DEBIT_CARD",
     "country": "US",
     "d_id": "DEV-3255"
-  },
-  {
-    "id": "TX-HOLDOUT_M1-ab5ce3ab1d",
-    "ts": "2026-01-01T12:23:55.879163+00:00",
-    "m_id": "HOLDOUT_M1",
-    "c_id": "CUST-4849",
-    "amt": 53.31,
-    "pm": "CREDIT_CARD",
-    "country": "US",
-    "d_id": "DEV-4543"
   },
   {
     "id": "TX-HOLDOUT_M1-b4e38e496c",
@@ -3620,94 +4060,264 @@
     "d_id": "DEV-3676"
   },
   {
-    "id": "TX-HOLDOUT_M1-3ebd45d332",
-    "ts": "2026-01-01T12:30:02.138283+00:00",
+    "id": "TX-HOLDOUT_M1-ad5a02a826",
+    "ts": "2026-01-01T12:30:02.169100+00:00",
     "m_id": "HOLDOUT_M1",
-    "c_id": "CUST-2554",
-    "amt": 57.13,
+    "c_id": "CUST-553",
+    "amt": 76.33,
     "pm": "CREDIT_CARD",
     "country": "US",
-    "d_id": "DEV-4995"
+    "d_id": "DEV-3532"
   },
   {
-    "id": "TX-HOLDOUT_M1-abe155b697",
-    "ts": "2026-01-01T12:30:16.887052+00:00",
+    "id": "TX-HOLDOUT_M1-ee89990bf2",
+    "ts": "2026-01-01T12:30:03.486265+00:00",
     "m_id": "HOLDOUT_M1",
-    "c_id": "CUST-3155",
-    "amt": 57.02,
+    "c_id": "CUST-3209",
+    "amt": 68.02,
+    "pm": "DEBIT_CARD",
+    "country": "HIGH_RISK_GEO",
+    "d_id": "DEV-578"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-4e59d0730a",
+    "ts": "2026-01-01T12:30:03.641662+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-3215",
+    "amt": 68.04,
     "pm": "CREDIT_CARD",
     "country": "US",
-    "d_id": "DEV-4422"
+    "d_id": "DEV-1946"
   },
   {
-    "id": "TX-HOLDOUT_M1-ad520d85da",
-    "ts": "2026-01-01T12:30:21.474551+00:00",
+    "id": "TX-HOLDOUT_M1-db2fccc69d",
+    "ts": "2026-01-01T12:30:06.932691+00:00",
     "m_id": "HOLDOUT_M1",
-    "c_id": "CUST-1772",
-    "amt": 63.39,
+    "c_id": "CUST-718",
+    "amt": 76.33,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-4316"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-3a6acf8b6a",
+    "ts": "2026-01-01T12:30:07.458649+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-1889",
+    "amt": 68.72,
     "pm": "DEBIT_CARD",
     "country": "US",
-    "d_id": "DEV-3641"
+    "d_id": "DEV-2827"
   },
   {
-    "id": "TX-HOLDOUT_M1-f5f21d55e2",
-    "ts": "2026-01-01T12:30:30.695493+00:00",
+    "id": "TX-HOLDOUT_M1-f1b8f6fe3f",
+    "ts": "2026-01-01T12:30:09.177207+00:00",
     "m_id": "HOLDOUT_M1",
-    "c_id": "CUST-2625",
-    "amt": 86.94,
+    "c_id": "CUST-230",
+    "amt": 62.29,
     "pm": "CREDIT_CARD",
     "country": "US",
-    "d_id": "DEV-1709"
+    "d_id": "DEV-1386"
   },
   {
-    "id": "TX-HOLDOUT_M1-7678d61c4a",
-    "ts": "2026-01-01T12:30:35.890296+00:00",
+    "id": "TX-HOLDOUT_M1-5064dc8c5f",
+    "ts": "2026-01-01T12:30:09.659299+00:00",
     "m_id": "HOLDOUT_M1",
-    "c_id": "CUST-3824",
-    "amt": 109.09,
-    "pm": "CREDIT_CARD",
+    "c_id": "CUST-390",
+    "amt": 71.8,
+    "pm": "DEBIT_CARD",
     "country": "US",
-    "d_id": "DEV-4192"
+    "d_id": "DEV-4002"
   },
   {
-    "id": "TX-HOLDOUT_M1-613e7a4d47",
-    "ts": "2026-01-01T12:30:36.059204+00:00",
+    "id": "TX-HOLDOUT_M1-894fb740ab",
+    "ts": "2026-01-01T12:30:10.860918+00:00",
     "m_id": "HOLDOUT_M1",
-    "c_id": "CUST-2484",
-    "amt": 63.03,
+    "c_id": "CUST-1798",
+    "amt": 83.65,
     "pm": "CREDIT_CARD",
     "country": "US",
-    "d_id": "DEV-4300"
+    "d_id": "DEV-2415"
   },
   {
-    "id": "TX-HOLDOUT_M1-888b5f19b0",
-    "ts": "2026-01-01T12:30:46.560523+00:00",
+    "id": "TX-HOLDOUT_M1-96d51d0ada",
+    "ts": "2026-01-01T12:30:13.317249+00:00",
     "m_id": "HOLDOUT_M1",
-    "c_id": "CUST-1784",
-    "amt": 66.53,
+    "c_id": "CUST-592",
+    "amt": 79.74,
     "pm": "CREDIT_CARD",
     "country": "US",
-    "d_id": "DEV-2941"
+    "d_id": "DEV-4384"
   },
   {
-    "id": "TX-HOLDOUT_M1-762d3b93f4",
-    "ts": "2026-01-01T12:30:51.371908+00:00",
+    "id": "TX-HOLDOUT_M1-c3febded53",
+    "ts": "2026-01-01T12:30:13.875251+00:00",
     "m_id": "HOLDOUT_M1",
-    "c_id": "CUST-3397",
-    "amt": 69.51,
+    "c_id": "CUST-4532",
+    "amt": 76.25,
     "pm": "CREDIT_CARD",
     "country": "US",
-    "d_id": "DEV-4091"
+    "d_id": "DEV-504"
   },
   {
-    "id": "TX-HOLDOUT_M1-ed709148a8",
-    "ts": "2026-01-01T12:30:54.627843+00:00",
+    "id": "TX-HOLDOUT_M1-4fa4c67b40",
+    "ts": "2026-01-01T12:30:16.297538+00:00",
     "m_id": "HOLDOUT_M1",
-    "c_id": "CUST-4697",
-    "amt": 79.2,
+    "c_id": "CUST-3116",
+    "amt": 68.15,
     "pm": "CREDIT_CARD",
     "country": "US",
-    "d_id": "DEV-1917"
+    "d_id": "DEV-4504"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-8fe3eb8c43",
+    "ts": "2026-01-01T12:30:16.712205+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-4740",
+    "amt": 60.39,
+    "pm": "PREPAID_CARD",
+    "country": "US",
+    "d_id": "DEV-2216"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-7c378c784d",
+    "ts": "2026-01-01T12:30:16.788597+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-3268",
+    "amt": 66.35,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-2762"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-15b683e94b",
+    "ts": "2026-01-01T12:30:17.220983+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-3103",
+    "amt": 75.4,
+    "pm": "PREPAID_CARD",
+    "country": "US",
+    "d_id": "DEV-4940"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-ff12371827",
+    "ts": "2026-01-01T12:30:26.020921+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-1957",
+    "amt": 73.3,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-767"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-380d5e111b",
+    "ts": "2026-01-01T12:30:28.409555+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-1723",
+    "amt": 68.72,
+    "pm": "DEBIT_CARD",
+    "country": "US",
+    "d_id": "DEV-2169"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-b4f9c49ed6",
+    "ts": "2026-01-01T12:30:29.747729+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-1680",
+    "amt": 62.05,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-1022"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-a7e3e2f7fa",
+    "ts": "2026-01-01T12:30:32.825950+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-374",
+    "amt": 60.67,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-1715"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-f0e7a154bd",
+    "ts": "2026-01-01T12:30:37.929740+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-781",
+    "amt": 72.28,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-3224"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-7fde33fa15",
+    "ts": "2026-01-01T12:30:39.771064+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-1767",
+    "amt": 84.0,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-3833"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-7b1dac6d55",
+    "ts": "2026-01-01T12:30:40.863932+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-3088",
+    "amt": 72.47,
+    "pm": "DEBIT_CARD",
+    "country": "US",
+    "d_id": "DEV-2723"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-ed4f37671f",
+    "ts": "2026-01-01T12:30:41.979985+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-12",
+    "amt": 66.45,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-2834"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-feb0537d70",
+    "ts": "2026-01-01T12:30:46.944184+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-179",
+    "amt": 71.74,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-2492"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-00669317e6",
+    "ts": "2026-01-01T12:30:54.133705+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-3729",
+    "amt": 84.2,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-1758"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-2e31e3a003",
+    "ts": "2026-01-01T12:30:56.230336+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-3451",
+    "amt": 64.76,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-2198"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-a0a9183bbb",
+    "ts": "2026-01-01T12:30:57.747821+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-1386",
+    "amt": 89.53,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-3029"
   },
   {
     "id": "TX-HOLDOUT_M1-4f66e53f46",
@@ -3800,104 +4410,224 @@
     "d_id": "DEV-315"
   },
   {
-    "id": "TX-HOLDOUT_M1-9486557c41",
-    "ts": "2026-01-01T12:32:02.449168+00:00",
+    "id": "TX-HOLDOUT_M1-97debc4497",
+    "ts": "2026-01-01T12:32:00.917625+00:00",
     "m_id": "HOLDOUT_M1",
-    "c_id": "CUST-1250",
-    "amt": 78.46,
+    "c_id": "CUST-4333",
+    "amt": 88.62,
     "pm": "CREDIT_CARD",
     "country": "US",
-    "d_id": "DEV-2282"
+    "d_id": "DEV-565"
   },
   {
-    "id": "TX-HOLDOUT_M1-a29b1c22d7",
-    "ts": "2026-01-01T12:32:12.199959+00:00",
+    "id": "TX-HOLDOUT_M1-485048528c",
+    "ts": "2026-01-01T12:32:02.093507+00:00",
     "m_id": "HOLDOUT_M1",
-    "c_id": "CUST-3745",
-    "amt": 84.13,
-    "pm": "CREDIT_CARD",
-    "country": "US",
-    "d_id": "DEV-1353"
-  },
-  {
-    "id": "TX-HOLDOUT_M1-3d54d40793",
-    "ts": "2026-01-01T12:32:15.534958+00:00",
-    "m_id": "HOLDOUT_M1",
-    "c_id": "CUST-1797",
-    "amt": 74.35,
-    "pm": "CREDIT_CARD",
-    "country": "US",
-    "d_id": "DEV-3742"
-  },
-  {
-    "id": "TX-HOLDOUT_M1-5037706166",
-    "ts": "2026-01-01T12:32:28.507245+00:00",
-    "m_id": "HOLDOUT_M1",
-    "c_id": "CUST-1948",
-    "amt": 70.94,
-    "pm": "CREDIT_CARD",
-    "country": "HIGH_RISK_GEO",
-    "d_id": "DEV-2894"
-  },
-  {
-    "id": "TX-HOLDOUT_M1-c3b4e21c3b",
-    "ts": "2026-01-01T12:32:34.295023+00:00",
-    "m_id": "HOLDOUT_M1",
-    "c_id": "CUST-2864",
-    "amt": 84.93,
-    "pm": "CREDIT_CARD",
-    "country": "US",
-    "d_id": "DEV-911"
-  },
-  {
-    "id": "TX-HOLDOUT_M1-9d13708223",
-    "ts": "2026-01-01T12:32:36.759250+00:00",
-    "m_id": "HOLDOUT_M1",
-    "c_id": "CUST-1244",
-    "amt": 62.54,
-    "pm": "PREPAID_CARD",
-    "country": "US",
-    "d_id": "DEV-2496"
-  },
-  {
-    "id": "TX-HOLDOUT_M1-44f01bf38d",
-    "ts": "2026-01-01T12:32:47.632492+00:00",
-    "m_id": "HOLDOUT_M1",
-    "c_id": "CUST-4929",
-    "amt": 85.24,
-    "pm": "CREDIT_CARD",
-    "country": "US",
-    "d_id": "DEV-691"
-  },
-  {
-    "id": "TX-HOLDOUT_M1-3410249f83",
-    "ts": "2026-01-01T12:32:48.240636+00:00",
-    "m_id": "HOLDOUT_M1",
-    "c_id": "CUST-1635",
-    "amt": 70.14,
+    "c_id": "CUST-2717",
+    "amt": 72.29,
     "pm": "DEBIT_CARD",
     "country": "US",
-    "d_id": "DEV-3414"
+    "d_id": "DEV-2156"
   },
   {
-    "id": "TX-HOLDOUT_M1-c45b53f092",
-    "ts": "2026-01-01T12:32:48.568757+00:00",
+    "id": "TX-HOLDOUT_M1-1ed526cfea",
+    "ts": "2026-01-01T12:32:02.752425+00:00",
     "m_id": "HOLDOUT_M1",
-    "c_id": "CUST-4131",
-    "amt": 69.56,
+    "c_id": "CUST-2507",
+    "amt": 89.54,
     "pm": "CREDIT_CARD",
     "country": "US",
-    "d_id": "DEV-545"
+    "d_id": "DEV-810"
   },
   {
-    "id": "TX-HOLDOUT_M1-1895dea4d2",
-    "ts": "2026-01-01T12:32:49.743958+00:00",
+    "id": "TX-HOLDOUT_M1-0debe19cd6",
+    "ts": "2026-01-01T12:32:03.220198+00:00",
     "m_id": "HOLDOUT_M1",
-    "c_id": "CUST-4673",
-    "amt": 73.84,
+    "c_id": "CUST-3012",
+    "amt": 71.32,
     "pm": "CREDIT_CARD",
     "country": "US",
-    "d_id": "DEV-2158"
+    "d_id": "DEV-3352"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-53a806f48f",
+    "ts": "2026-01-01T12:32:09.229047+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-316",
+    "amt": 80.13,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-766"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-12d25aba90",
+    "ts": "2026-01-01T12:32:24.671083+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-3910",
+    "amt": 89.81,
+    "pm": "CREDIT_CARD",
+    "country": "HIGH_RISK_GEO",
+    "d_id": "DEV-1904"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-32f99fe9cb",
+    "ts": "2026-01-01T12:32:26.295384+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-756",
+    "amt": 38.96,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-1482"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-a3e582b6ab",
+    "ts": "2026-01-01T12:32:29.044610+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-2114",
+    "amt": 68.8,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-4694"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-de4dd9f754",
+    "ts": "2026-01-01T12:32:33.049219+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-2021",
+    "amt": 52.34,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-1716"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-e1338129ed",
+    "ts": "2026-01-01T12:32:34.614586+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-2725",
+    "amt": 75.15,
+    "pm": "DEBIT_CARD",
+    "country": "US",
+    "d_id": "DEV-4452"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-9ca3952125",
+    "ts": "2026-01-01T12:32:37.825733+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-2988",
+    "amt": 75.62,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-4749"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-48554e5ec3",
+    "ts": "2026-01-01T12:32:40.193929+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-4440",
+    "amt": 72.33,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-2086"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-ba9ed622b4",
+    "ts": "2026-01-01T12:32:40.827781+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-4007",
+    "amt": 62.14,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-667"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-feb05ef708",
+    "ts": "2026-01-01T12:32:41.722925+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-2600",
+    "amt": 64.65,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-153"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-8316ea68e9",
+    "ts": "2026-01-01T12:32:43.741373+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-3529",
+    "amt": 74.73,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-2429"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-c6e80e96ea",
+    "ts": "2026-01-01T12:32:46.413387+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-4071",
+    "amt": 82.05,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-3835"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-2bc876596f",
+    "ts": "2026-01-01T12:32:48.531799+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-3745",
+    "amt": 71.03,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-3109"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-8b9ea9ee30",
+    "ts": "2026-01-01T12:32:49.943604+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-2313",
+    "amt": 73.1,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-2548"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-644b6bc27f",
+    "ts": "2026-01-01T12:32:52.090675+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-3021",
+    "amt": 61.14,
+    "pm": "CREDIT_CARD",
+    "country": "HIGH_RISK_GEO",
+    "d_id": "DEV-4572"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-ae23201730",
+    "ts": "2026-01-01T12:32:54.307655+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-1079",
+    "amt": 62.14,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-4211"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-72c9010dec",
+    "ts": "2026-01-01T12:32:55.193474+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-496",
+    "amt": 46.97,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-2411"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-8ca973c3ad",
+    "ts": "2026-01-01T12:32:55.391080+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-3449",
+    "amt": 50.18,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-3221"
   },
   {
     "id": "TX-HOLDOUT_M1-1760904ff8",
@@ -4470,214 +5200,1154 @@
     "d_id": "DEV-1359"
   },
   {
-    "id": "TX-HOLDOUT_M1-2dd26bcc90",
-    "ts": "2026-01-01T12:40:16.928415+00:00",
+    "id": "TX-HOLDOUT_M1-306a56c2ea",
+    "ts": "2026-01-01T12:40:02.958821+00:00",
     "m_id": "HOLDOUT_M1",
-    "c_id": "CUST-2132",
-    "amt": 54.16,
+    "c_id": "CUST-1630",
+    "amt": 70.13,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-51"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-be794913f2",
+    "ts": "2026-01-01T12:40:06.610156+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-3264",
+    "amt": 67.75,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-1654"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-9a9fb8604d",
+    "ts": "2026-01-01T12:40:06.929506+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-4043",
+    "amt": 70.97,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-1111"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-221e4e1bbe",
+    "ts": "2026-01-01T12:40:09.588162+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-2884",
+    "amt": 70.51,
+    "pm": "DEBIT_CARD",
+    "country": "US",
+    "d_id": "DEV-489"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-a486857260",
+    "ts": "2026-01-01T12:40:11.824678+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-3188",
+    "amt": 67.12,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-4936"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-eabd321d81",
+    "ts": "2026-01-01T12:40:12.430170+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-1609",
+    "amt": 70.35,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-2906"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-1d2310d86e",
+    "ts": "2026-01-01T12:40:14.875246+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-4347",
+    "amt": 73.14,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-1038"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-f851947b3b",
+    "ts": "2026-01-01T12:40:15.881703+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-981",
+    "amt": 74.3,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-1067"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-dcbabee3c8",
+    "ts": "2026-01-01T12:40:18.172044+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-2250",
+    "amt": 75.49,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-3595"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-e663f50f1a",
+    "ts": "2026-01-01T12:40:23.243417+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-1599",
+    "amt": 74.34,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-2994"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-1ac46ce678",
+    "ts": "2026-01-01T12:40:27.464269+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-998",
+    "amt": 73.68,
+    "pm": "DEBIT_CARD",
+    "country": "US",
+    "d_id": "DEV-4868"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-c5ac9444df",
+    "ts": "2026-01-01T12:40:27.501718+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-1343",
+    "amt": 56.0,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-3312"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-7dfa2b1d18",
+    "ts": "2026-01-01T12:40:29.523077+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-4534",
+    "amt": 80.32,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-2530"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-360abffe76",
+    "ts": "2026-01-01T12:40:32.701238+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-1197",
+    "amt": 54.91,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-401"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-450292faaf",
+    "ts": "2026-01-01T12:40:32.993794+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-2962",
+    "amt": 75.64,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-2958"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-53683e4357",
+    "ts": "2026-01-01T12:40:34.474976+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-3398",
+    "amt": 67.38,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-4033"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-2b9e98ef09",
+    "ts": "2026-01-01T12:40:37.538130+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-3883",
+    "amt": 68.54,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-3709"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-eea46854e1",
+    "ts": "2026-01-01T12:40:39.649322+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-2674",
+    "amt": 70.69,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-1189"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-d9f02cb872",
+    "ts": "2026-01-01T12:40:39.729888+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-541",
+    "amt": 71.49,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-2233"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-d458fc1b8a",
+    "ts": "2026-01-01T12:40:42.396742+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-2546",
+    "amt": 78.47,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-4182"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-f744ebe9e3",
+    "ts": "2026-01-01T12:40:43.826184+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-320",
+    "amt": 71.46,
     "pm": "PREPAID_CARD",
     "country": "US",
-    "d_id": "DEV-4880"
+    "d_id": "DEV-2961"
   },
   {
-    "id": "TX-HOLDOUT_M1-20486f6e6a",
-    "ts": "2026-01-01T12:40:23.893656+00:00",
+    "id": "TX-HOLDOUT_M1-bd9b6113b9",
+    "ts": "2026-01-01T12:40:47.918105+00:00",
     "m_id": "HOLDOUT_M1",
-    "c_id": "CUST-1454",
-    "amt": 75.12,
+    "c_id": "CUST-21",
+    "amt": 59.38,
     "pm": "CREDIT_CARD",
     "country": "US",
-    "d_id": "DEV-833"
+    "d_id": "DEV-85"
   },
   {
-    "id": "TX-HOLDOUT_M1-0e6ff034e6",
-    "ts": "2026-01-01T12:40:37.533262+00:00",
+    "id": "TX-HOLDOUT_M1-aa7bb6f325",
+    "ts": "2026-01-01T12:40:48.736149+00:00",
     "m_id": "HOLDOUT_M1",
-    "c_id": "CUST-4232",
-    "amt": 59.6,
+    "c_id": "CUST-468",
+    "amt": 81.44,
+    "pm": "DEBIT_CARD",
+    "country": "US",
+    "d_id": "DEV-4872"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-095eb3c2d5",
+    "ts": "2026-01-01T12:40:51.044832+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-2768",
+    "amt": 57.56,
+    "pm": "DEBIT_CARD",
+    "country": "US",
+    "d_id": "DEV-3405"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-07ac45a572",
+    "ts": "2026-01-01T12:40:51.901778+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-191",
+    "amt": 60.55,
     "pm": "CREDIT_CARD",
     "country": "US",
-    "d_id": "DEV-476"
+    "d_id": "DEV-1594"
   },
   {
-    "id": "TX-HOLDOUT_M1-d0c0701ad6",
-    "ts": "2026-01-01T12:40:39.387927+00:00",
+    "id": "TX-HOLDOUT_M1-0d7e65a17e",
+    "ts": "2026-01-01T12:40:53.531197+00:00",
     "m_id": "HOLDOUT_M1",
-    "c_id": "CUST-2527",
-    "amt": 69.21,
+    "c_id": "CUST-2037",
+    "amt": 67.68,
     "pm": "CREDIT_CARD",
     "country": "US",
-    "d_id": "DEV-3440"
+    "d_id": "DEV-431"
   },
   {
-    "id": "TX-HOLDOUT_M1-270b35926d",
-    "ts": "2026-01-01T12:40:47.244102+00:00",
+    "id": "TX-HOLDOUT_M1-71f3261c68",
+    "ts": "2026-01-01T12:40:56.654428+00:00",
     "m_id": "HOLDOUT_M1",
-    "c_id": "CUST-2300",
-    "amt": 75.53,
+    "c_id": "CUST-4945",
+    "amt": 81.59,
     "pm": "CREDIT_CARD",
     "country": "US",
-    "d_id": "DEV-1727"
+    "d_id": "DEV-2575"
   },
   {
-    "id": "TX-HOLDOUT_M1-5676b3aaa5",
-    "ts": "2026-01-01T12:40:58.956058+00:00",
+    "id": "TX-HOLDOUT_M1-08f3334365",
+    "ts": "2026-01-01T12:40:57.384839+00:00",
     "m_id": "HOLDOUT_M1",
-    "c_id": "CUST-4412",
-    "amt": 41.96,
+    "c_id": "CUST-4713",
+    "amt": 63.36,
+    "pm": "DEBIT_CARD",
+    "country": "US",
+    "d_id": "DEV-2924"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-3eb95b5767",
+    "ts": "2026-01-01T12:41:03.678014+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-1624",
+    "amt": 75.96,
     "pm": "CREDIT_CARD",
     "country": "US",
-    "d_id": "DEV-1842"
+    "d_id": "DEV-3278"
   },
   {
-    "id": "TX-HOLDOUT_M1-8911f98741",
-    "ts": "2026-01-01T12:40:59.482456+00:00",
+    "id": "TX-HOLDOUT_M1-a014993090",
+    "ts": "2026-01-01T12:41:05.768147+00:00",
     "m_id": "HOLDOUT_M1",
-    "c_id": "CUST-2977",
-    "amt": 85.75,
+    "c_id": "CUST-1317",
+    "amt": 62.28,
     "pm": "CREDIT_CARD",
     "country": "US",
-    "d_id": "DEV-2825"
+    "d_id": "DEV-362"
   },
   {
-    "id": "TX-HOLDOUT_M1-a147b69674",
-    "ts": "2026-01-01T12:41:01.422385+00:00",
+    "id": "TX-HOLDOUT_M1-09b196b808",
+    "ts": "2026-01-01T12:41:07.969431+00:00",
     "m_id": "HOLDOUT_M1",
-    "c_id": "CUST-2361",
-    "amt": 71.29,
+    "c_id": "CUST-1634",
+    "amt": 67.37,
+    "pm": "DEBIT_CARD",
+    "country": "US",
+    "d_id": "DEV-1783"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-8555bcad57",
+    "ts": "2026-01-01T12:41:08.294629+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-2423",
+    "amt": 71.6,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-4342"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-7c1afcbb4d",
+    "ts": "2026-01-01T12:41:10.902814+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-3624",
+    "amt": 98.32,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-2964"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-8bb11ceb03",
+    "ts": "2026-01-01T12:41:11.032609+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-3855",
+    "amt": 77.52,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-2304"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-62a1e2d437",
+    "ts": "2026-01-01T12:41:12.089105+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-4314",
+    "amt": 77.03,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-3804"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-21d5546743",
+    "ts": "2026-01-01T12:41:12.857179+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-4910",
+    "amt": 60.21,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-2014"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-1b59e666c3",
+    "ts": "2026-01-01T12:41:15.113473+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-963",
+    "amt": 57.89,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-3668"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-b188442b44",
+    "ts": "2026-01-01T12:41:16.337199+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-636",
+    "amt": 79.23,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-1265"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-f1be7bb67a",
+    "ts": "2026-01-01T12:41:18.556153+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-4041",
+    "amt": 63.78,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-166"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-49ffc8353d",
+    "ts": "2026-01-01T12:41:20.168551+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-3181",
+    "amt": 63.77,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-3422"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-7c77823ac0",
+    "ts": "2026-01-01T12:41:20.921566+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-4875",
+    "amt": 90.95,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-950"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-9d83d6af62",
+    "ts": "2026-01-01T12:41:21.812554+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-924",
+    "amt": 69.99,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-1283"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-6c40e358df",
+    "ts": "2026-01-01T12:41:24.565725+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-533",
+    "amt": 62.44,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-1574"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-26d41412f2",
+    "ts": "2026-01-01T12:41:27.735732+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-2437",
+    "amt": 70.29,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-624"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-0638e3637f",
+    "ts": "2026-01-01T12:41:28.084484+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-991",
+    "amt": 42.51,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-2480"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-21ac01cc6e",
+    "ts": "2026-01-01T12:41:28.322307+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-2142",
+    "amt": 68.09,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-2481"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-fc692f61ae",
+    "ts": "2026-01-01T12:41:28.576406+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-1506",
+    "amt": 93.76,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-4956"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-90fab305bb",
+    "ts": "2026-01-01T12:41:29.748037+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-4246",
+    "amt": 61.24,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-3531"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-b1650c6ac8",
+    "ts": "2026-01-01T12:41:31.848961+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-2741",
+    "amt": 58.0,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-1555"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-a3cbad196c",
+    "ts": "2026-01-01T12:41:36.290835+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-2432",
+    "amt": 72.64,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-4254"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-776f834b83",
+    "ts": "2026-01-01T12:41:36.408042+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-744",
+    "amt": 63.73,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-4725"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-c556feacda",
+    "ts": "2026-01-01T12:41:36.573503+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-1607",
+    "amt": 62.74,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-666"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-2228dc0875",
+    "ts": "2026-01-01T12:41:37.343194+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-4966",
+    "amt": 62.08,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-1886"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-a0ac6d069b",
+    "ts": "2026-01-01T12:41:37.486808+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-3835",
+    "amt": 56.84,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-1153"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-5abb69204c",
+    "ts": "2026-01-01T12:41:37.943814+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-3581",
+    "amt": 58.89,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-2947"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-55d6a07cea",
+    "ts": "2026-01-01T12:41:39.029538+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-617",
+    "amt": 85.95,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-4342"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-74217f56f0",
+    "ts": "2026-01-01T12:41:39.359978+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-3270",
+    "amt": 65.44,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-3284"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-fc2dfaa18d",
+    "ts": "2026-01-01T12:41:39.742129+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-2180",
+    "amt": 83.25,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-3566"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-3e30598e4c",
+    "ts": "2026-01-01T12:41:41.557698+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-4244",
+    "amt": 52.42,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-2459"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-7537415144",
+    "ts": "2026-01-01T12:41:46.927340+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-4830",
+    "amt": 66.25,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-2706"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-0cfdb6ab6d",
+    "ts": "2026-01-01T12:41:47.542132+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-2533",
+    "amt": 71.93,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-1825"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-0781143dae",
+    "ts": "2026-01-01T12:41:47.577898+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-3988",
+    "amt": 88.8,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-486"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-cab0de5bca",
+    "ts": "2026-01-01T12:41:47.866731+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-4725",
+    "amt": 59.59,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-4018"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-b9184f70ec",
+    "ts": "2026-01-01T12:41:47.971169+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-4742",
+    "amt": 69.42,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-3519"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-52593d49e7",
+    "ts": "2026-01-01T12:41:48.057571+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-447",
+    "amt": 74.82,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-3695"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-e6037e95da",
+    "ts": "2026-01-01T12:41:48.096327+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-223",
+    "amt": 92.77,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-1206"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-a3ca41b40c",
+    "ts": "2026-01-01T12:41:52.176679+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-4995",
+    "amt": 62.1,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-2564"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-127bb0120e",
+    "ts": "2026-01-01T12:41:56.192932+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-4917",
+    "amt": 64.43,
+    "pm": "DEBIT_CARD",
+    "country": "US",
+    "d_id": "DEV-1305"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-0568d70a4c",
+    "ts": "2026-01-01T12:42:00.434212+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-1847",
+    "amt": 76.42,
+    "pm": "CREDIT_CARD",
+    "country": "HIGH_RISK_GEO",
+    "d_id": "DEV-3811"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-5a6c004358",
+    "ts": "2026-01-01T12:42:01.304763+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-2935",
+    "amt": 67.61,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-3743"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-11e5a140d7",
+    "ts": "2026-01-01T12:42:02.496616+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-2437",
+    "amt": 92.36,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-537"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-72aaf406ea",
+    "ts": "2026-01-01T12:42:02.796648+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-742",
+    "amt": 60.39,
+    "pm": "DEBIT_CARD",
+    "country": "US",
+    "d_id": "DEV-4674"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-b28a7daa47",
+    "ts": "2026-01-01T12:42:03.153750+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-2409",
+    "amt": 50.67,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-3133"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-4cf781a01d",
+    "ts": "2026-01-01T12:42:03.901624+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-1365",
+    "amt": 68.53,
+    "pm": "DEBIT_CARD",
+    "country": "US",
+    "d_id": "DEV-4276"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-450bfbe6b4",
+    "ts": "2026-01-01T12:42:04.616012+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-2644",
+    "amt": 78.35,
+    "pm": "DEBIT_CARD",
+    "country": "US",
+    "d_id": "DEV-1100"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-2860936d58",
+    "ts": "2026-01-01T12:42:04.965619+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-3183",
+    "amt": 71.47,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-875"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-3688de9eaa",
+    "ts": "2026-01-01T12:42:07.426413+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-1431",
+    "amt": 72.49,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-2191"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-7ba2f1b3f1",
+    "ts": "2026-01-01T12:42:09.154374+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-3528",
+    "amt": 76.98,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-1725"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-8ef060bd3b",
+    "ts": "2026-01-01T12:42:09.187109+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-1254",
+    "amt": 67.84,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-2228"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-88ea79aacc",
+    "ts": "2026-01-01T12:42:11.836003+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-801",
+    "amt": 76.29,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-2296"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-2eb61159a7",
+    "ts": "2026-01-01T12:42:11.902364+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-1745",
+    "amt": 74.16,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-945"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-9ad34ac267",
+    "ts": "2026-01-01T12:42:12.164467+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-3661",
+    "amt": 92.83,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-4844"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-6423241bf4",
+    "ts": "2026-01-01T12:42:16.936919+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-2700",
+    "amt": 66.31,
+    "pm": "CREDIT_CARD",
+    "country": "HIGH_RISK_GEO",
+    "d_id": "DEV-3320"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-335b6d1c9c",
+    "ts": "2026-01-01T12:42:17.919523+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-3834",
+    "amt": 78.42,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-4858"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-cb503dccf3",
+    "ts": "2026-01-01T12:42:20.249731+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-1276",
+    "amt": 78.07,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-2798"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-9387458a91",
+    "ts": "2026-01-01T12:42:21.423607+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-2461",
+    "amt": 59.55,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-935"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-1b57236d92",
+    "ts": "2026-01-01T12:42:21.623351+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-3337",
+    "amt": 47.55,
+    "pm": "DEBIT_CARD",
+    "country": "US",
+    "d_id": "DEV-4199"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-9db5cb4096",
+    "ts": "2026-01-01T12:42:23.122552+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-3952",
+    "amt": 65.93,
     "pm": "PREPAID_CARD",
     "country": "US",
-    "d_id": "DEV-1325"
+    "d_id": "DEV-4226"
   },
   {
-    "id": "TX-HOLDOUT_M1-7f7daf789e",
-    "ts": "2026-01-01T12:41:17.032376+00:00",
+    "id": "TX-HOLDOUT_M1-c814025cff",
+    "ts": "2026-01-01T12:42:25.749093+00:00",
     "m_id": "HOLDOUT_M1",
-    "c_id": "CUST-3253",
-    "amt": 73.55,
+    "c_id": "CUST-4794",
+    "amt": 82.27,
     "pm": "CREDIT_CARD",
     "country": "US",
-    "d_id": "DEV-2678"
+    "d_id": "DEV-4189"
   },
   {
-    "id": "TX-HOLDOUT_M1-10916dd6b7",
-    "ts": "2026-01-01T12:41:17.751167+00:00",
+    "id": "TX-HOLDOUT_M1-5639b91cc9",
+    "ts": "2026-01-01T12:42:28.198054+00:00",
     "m_id": "HOLDOUT_M1",
-    "c_id": "CUST-3048",
-    "amt": 93.27,
+    "c_id": "CUST-3915",
+    "amt": 55.79,
     "pm": "CREDIT_CARD",
     "country": "US",
-    "d_id": "DEV-4205"
+    "d_id": "DEV-1219"
   },
   {
-    "id": "TX-HOLDOUT_M1-ffaba0cc11",
-    "ts": "2026-01-01T12:41:18.681999+00:00",
+    "id": "TX-HOLDOUT_M1-b2d68f9e55",
+    "ts": "2026-01-01T12:42:29.994166+00:00",
     "m_id": "HOLDOUT_M1",
-    "c_id": "CUST-4683",
-    "amt": 64.09,
+    "c_id": "CUST-3321",
+    "amt": 72.88,
     "pm": "CREDIT_CARD",
     "country": "US",
-    "d_id": "DEV-1684"
+    "d_id": "DEV-2829"
   },
   {
-    "id": "TX-HOLDOUT_M1-a0352f6c53",
-    "ts": "2026-01-01T12:41:25.985334+00:00",
+    "id": "TX-HOLDOUT_M1-cfcc0ce55b",
+    "ts": "2026-01-01T12:42:31.937505+00:00",
     "m_id": "HOLDOUT_M1",
-    "c_id": "CUST-3035",
-    "amt": 68.78,
+    "c_id": "CUST-1068",
+    "amt": 65.02,
     "pm": "CREDIT_CARD",
     "country": "US",
-    "d_id": "DEV-745"
+    "d_id": "DEV-2433"
   },
   {
-    "id": "TX-HOLDOUT_M1-7ba259199f",
-    "ts": "2026-01-01T12:41:26.207370+00:00",
+    "id": "TX-HOLDOUT_M1-53d62b5dfc",
+    "ts": "2026-01-01T12:42:38.712045+00:00",
     "m_id": "HOLDOUT_M1",
-    "c_id": "CUST-2480",
-    "amt": 78.39,
+    "c_id": "CUST-975",
+    "amt": 60.82,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-4755"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-e5caa21822",
+    "ts": "2026-01-01T12:42:39.112251+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-3349",
+    "amt": 65.36,
     "pm": "DEBIT_CARD",
     "country": "US",
-    "d_id": "DEV-4913"
+    "d_id": "DEV-3147"
   },
   {
-    "id": "TX-HOLDOUT_M1-3c36e42d46",
-    "ts": "2026-01-01T12:41:26.573806+00:00",
+    "id": "TX-HOLDOUT_M1-e065a6cbdf",
+    "ts": "2026-01-01T12:42:39.569445+00:00",
     "m_id": "HOLDOUT_M1",
-    "c_id": "CUST-920",
-    "amt": 76.97,
+    "c_id": "CUST-1465",
+    "amt": 67.49,
     "pm": "CREDIT_CARD",
     "country": "US",
-    "d_id": "DEV-98"
+    "d_id": "DEV-4934"
   },
   {
-    "id": "TX-HOLDOUT_M1-f445b27c6f",
-    "ts": "2026-01-01T12:41:41.624320+00:00",
+    "id": "TX-HOLDOUT_M1-00b16d7be0",
+    "ts": "2026-01-01T12:42:39.930984+00:00",
     "m_id": "HOLDOUT_M1",
-    "c_id": "CUST-3312",
-    "amt": 57.16,
+    "c_id": "CUST-67",
+    "amt": 79.91,
     "pm": "CREDIT_CARD",
     "country": "US",
-    "d_id": "DEV-4586"
+    "d_id": "DEV-4070"
   },
   {
-    "id": "TX-HOLDOUT_M1-b72e45b2ec",
-    "ts": "2026-01-01T12:41:43.055726+00:00",
+    "id": "TX-HOLDOUT_M1-b91e61a7b4",
+    "ts": "2026-01-01T12:42:41.650224+00:00",
     "m_id": "HOLDOUT_M1",
-    "c_id": "CUST-3464",
-    "amt": 82.31,
-    "pm": "CREDIT_CARD",
-    "country": "US",
-    "d_id": "DEV-1328"
-  },
-  {
-    "id": "TX-HOLDOUT_M1-17765b0b49",
-    "ts": "2026-01-01T12:41:49.489576+00:00",
-    "m_id": "HOLDOUT_M1",
-    "c_id": "CUST-4005",
-    "amt": 80.85,
-    "pm": "CREDIT_CARD",
-    "country": "US",
-    "d_id": "DEV-714"
-  },
-  {
-    "id": "TX-HOLDOUT_M1-afa69001dd",
-    "ts": "2026-01-01T12:41:57.582320+00:00",
-    "m_id": "HOLDOUT_M1",
-    "c_id": "CUST-692",
-    "amt": 84.99,
-    "pm": "CREDIT_CARD",
-    "country": "US",
-    "d_id": "DEV-4848"
-  },
-  {
-    "id": "TX-HOLDOUT_M1-38c547588e",
-    "ts": "2026-01-01T12:42:14.516419+00:00",
-    "m_id": "HOLDOUT_M1",
-    "c_id": "CUST-3027",
-    "amt": 63.04,
-    "pm": "CREDIT_CARD",
-    "country": "US",
-    "d_id": "DEV-1324"
-  },
-  {
-    "id": "TX-HOLDOUT_M1-9b18e99029",
-    "ts": "2026-01-01T12:42:17.907896+00:00",
-    "m_id": "HOLDOUT_M1",
-    "c_id": "CUST-3208",
-    "amt": 56.44,
+    "c_id": "CUST-4990",
+    "amt": 72.44,
     "pm": "DEBIT_CARD",
     "country": "US",
-    "d_id": "DEV-301"
+    "d_id": "DEV-2680"
   },
   {
-    "id": "TX-HOLDOUT_M1-430e82752b",
-    "ts": "2026-01-01T12:42:23.803674+00:00",
+    "id": "TX-HOLDOUT_M1-563bc3cc0d",
+    "ts": "2026-01-01T12:42:43.094067+00:00",
     "m_id": "HOLDOUT_M1",
-    "c_id": "CUST-2252",
-    "amt": 75.99,
+    "c_id": "CUST-2829",
+    "amt": 58.97,
     "pm": "DEBIT_CARD",
     "country": "US",
-    "d_id": "DEV-328"
+    "d_id": "DEV-3213"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-c21c02200d",
+    "ts": "2026-01-01T12:42:44.424624+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-4582",
+    "amt": 89.42,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-788"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-b172797c18",
+    "ts": "2026-01-01T12:42:44.676059+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-712",
+    "amt": 63.18,
+    "pm": "DEBIT_CARD",
+    "country": "US",
+    "d_id": "DEV-1148"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-10def35ec5",
+    "ts": "2026-01-01T12:42:44.780622+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-909",
+    "amt": 65.61,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-511"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-0227bbd974",
+    "ts": "2026-01-01T12:42:46.509979+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-573",
+    "amt": 60.58,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-4607"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-a457bad29e",
+    "ts": "2026-01-01T12:42:46.622237+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-2523",
+    "amt": 71.28,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-3642"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-8dfd1e5d95",
+    "ts": "2026-01-01T12:42:46.659386+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-3584",
+    "amt": 66.46,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-3216"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-c1998e5298",
+    "ts": "2026-01-01T12:42:47.690592+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-4365",
+    "amt": 84.83,
+    "pm": "CREDIT_CARD",
+    "country": "HIGH_RISK_GEO",
+    "d_id": "DEV-1776"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-816c0a4b50",
+    "ts": "2026-01-01T12:42:49.323470+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-2224",
+    "amt": 70.53,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-2810"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-ec2ad66ae1",
+    "ts": "2026-01-01T12:42:50.061900+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-1984",
+    "amt": 61.53,
+    "pm": "PREPAID_CARD",
+    "country": "US",
+    "d_id": "DEV-4243"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-0b02c34e7f",
+    "ts": "2026-01-01T12:42:51.071384+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-4102",
+    "amt": 74.71,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-4303"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-a8c21e983c",
+    "ts": "2026-01-01T12:42:56.694243+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-2946",
+    "amt": 64.6,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-3491"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-c99be0ca94",
+    "ts": "2026-01-01T12:42:56.848003+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-3759",
+    "amt": 67.83,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-3425"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-002660b98f",
+    "ts": "2026-01-01T12:42:57.305673+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-3890",
+    "amt": 67.04,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-173"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-f2f1269a05",
+    "ts": "2026-01-01T12:42:57.576037+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-3818",
+    "amt": 64.02,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-4594"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-b3bd635227",
+    "ts": "2026-01-01T12:42:57.809107+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-2027",
+    "amt": 51.67,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-2357"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-62f7416cbf",
+    "ts": "2026-01-01T12:42:58.089173+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-963",
+    "amt": 63.53,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-2831"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-13d9932467",
+    "ts": "2026-01-01T12:42:59.988770+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-3726",
+    "amt": 95.83,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-2681"
   },
   {
     "id": "TX-HOLDOUT_M1-c345988bc9",
@@ -4690,6 +6360,46 @@
     "d_id": "DEV-1975"
   },
   {
+    "id": "TX-HOLDOUT_M1-93b0e7e01b",
+    "ts": "2026-01-01T12:43:00.788200+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-3027",
+    "amt": 79.46,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-514"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-9a0d37810e",
+    "ts": "2026-01-01T12:43:01.213638+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-1052",
+    "amt": 78.29,
+    "pm": "DEBIT_CARD",
+    "country": "US",
+    "d_id": "DEV-2048"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-58593aa4c2",
+    "ts": "2026-01-01T12:43:02.767538+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-2564",
+    "amt": 76.86,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-2496"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-56cd90d553",
+    "ts": "2026-01-01T12:43:02.913581+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-3508",
+    "amt": 77.78,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-979"
+  },
+  {
     "id": "TX-HOLDOUT_M1-530ad4ae81",
     "ts": "2026-01-01T12:43:03.564862+00:00",
     "m_id": "HOLDOUT_M1",
@@ -4698,6 +6408,56 @@
     "pm": "CREDIT_CARD",
     "country": "US",
     "d_id": "DEV-3253"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-634be9c214",
+    "ts": "2026-01-01T12:43:04.324070+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-4518",
+    "amt": 55.92,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-193"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-1a049ebdf0",
+    "ts": "2026-01-01T12:43:07.753495+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-1311",
+    "amt": 69.65,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-2821"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-12eddf4ffb",
+    "ts": "2026-01-01T12:43:07.892140+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-668",
+    "amt": 76.68,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-1782"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-964231eaa1",
+    "ts": "2026-01-01T12:43:08.077597+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-3029",
+    "amt": 62.93,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-4521"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-e7da574a2f",
+    "ts": "2026-01-01T12:43:08.359677+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-2188",
+    "amt": 86.09,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-1553"
   },
   {
     "id": "TX-HOLDOUT_M1-5108751d89",
@@ -4710,6 +6470,86 @@
     "d_id": "DEV-2740"
   },
   {
+    "id": "TX-HOLDOUT_M1-7736c16f30",
+    "ts": "2026-01-01T12:43:11.975068+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-3778",
+    "amt": 68.68,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-4024"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-54a06e02df",
+    "ts": "2026-01-01T12:43:12.319275+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-784",
+    "amt": 71.02,
+    "pm": "DEBIT_CARD",
+    "country": "US",
+    "d_id": "DEV-3706"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-752ae17837",
+    "ts": "2026-01-01T12:43:12.648985+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-799",
+    "amt": 78.1,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-4454"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-d4ee246f6c",
+    "ts": "2026-01-01T12:43:13.182337+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-3157",
+    "amt": 69.39,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-2606"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-8c8d0b7cc9",
+    "ts": "2026-01-01T12:43:16.833375+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-3266",
+    "amt": 55.78,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-4013"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-55583290d7",
+    "ts": "2026-01-01T12:43:17.529943+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-2961",
+    "amt": 74.43,
+    "pm": "DEBIT_CARD",
+    "country": "US",
+    "d_id": "DEV-3185"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-6af7a2c83f",
+    "ts": "2026-01-01T12:43:17.847353+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-3001",
+    "amt": 68.05,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-800"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-20344df08e",
+    "ts": "2026-01-01T12:43:18.236345+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-1385",
+    "amt": 67.03,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-2954"
+  },
+  {
     "id": "TX-HOLDOUT_M1-b2b9c6b3c5",
     "ts": "2026-01-01T12:43:18.349694+00:00",
     "m_id": "HOLDOUT_M1",
@@ -4718,6 +6558,156 @@
     "pm": "PREPAID_CARD",
     "country": "US",
     "d_id": "DEV-795"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-8949a8c910",
+    "ts": "2026-01-01T12:43:18.511225+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-3648",
+    "amt": 84.28,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-3256"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-a8d40f3552",
+    "ts": "2026-01-01T12:43:19.419742+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-4925",
+    "amt": 67.35,
+    "pm": "DEBIT_CARD",
+    "country": "US",
+    "d_id": "DEV-4934"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-80d346b020",
+    "ts": "2026-01-01T12:43:22.475916+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-1979",
+    "amt": 48.54,
+    "pm": "DEBIT_CARD",
+    "country": "US",
+    "d_id": "DEV-4427"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-ba6f45ca35",
+    "ts": "2026-01-01T12:43:23.093546+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-1332",
+    "amt": 85.6,
+    "pm": "DEBIT_CARD",
+    "country": "US",
+    "d_id": "DEV-837"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-2aae2056b3",
+    "ts": "2026-01-01T12:43:25.561739+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-4202",
+    "amt": 60.07,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-751"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-bbd587ab27",
+    "ts": "2026-01-01T12:43:26.125188+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-1727",
+    "amt": 68.44,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-4622"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-c4af3f7a75",
+    "ts": "2026-01-01T12:43:26.717208+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-663",
+    "amt": 60.37,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-2261"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-d092a5e554",
+    "ts": "2026-01-01T12:43:26.957635+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-4569",
+    "amt": 55.54,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-4048"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-1df48d44ed",
+    "ts": "2026-01-01T12:43:27.925899+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-2677",
+    "amt": 68.02,
+    "pm": "DEBIT_CARD",
+    "country": "US",
+    "d_id": "DEV-1122"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-bb257d0ebe",
+    "ts": "2026-01-01T12:43:28.460393+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-2266",
+    "amt": 82.5,
+    "pm": "DEBIT_CARD",
+    "country": "US",
+    "d_id": "DEV-4194"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-3f894e744f",
+    "ts": "2026-01-01T12:43:29.657308+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-1136",
+    "amt": 62.6,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-3917"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-f565c2eeef",
+    "ts": "2026-01-01T12:43:30.845649+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-4291",
+    "amt": 73.38,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-3505"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-52138936e5",
+    "ts": "2026-01-01T12:43:32.791300+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-362",
+    "amt": 63.74,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-3965"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-4db8655ef4",
+    "ts": "2026-01-01T12:43:33.113441+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-570",
+    "amt": 60.32,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-4887"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-b4f0fe6122",
+    "ts": "2026-01-01T12:43:34.862982+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-2313",
+    "amt": 55.19,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-687"
   },
   {
     "id": "TX-HOLDOUT_M1-af19ccc865",
@@ -4730,6 +6720,66 @@
     "d_id": "DEV-3917"
   },
   {
+    "id": "TX-HOLDOUT_M1-faf9756fbf",
+    "ts": "2026-01-01T12:43:35.616266+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-2521",
+    "amt": 83.35,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-3017"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-8d0935f1f3",
+    "ts": "2026-01-01T12:43:39.603324+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-1798",
+    "amt": 57.75,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-1531"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-4cccbf3a7d",
+    "ts": "2026-01-01T12:43:39.756998+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-1629",
+    "amt": 71.98,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-857"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-b711c7c657",
+    "ts": "2026-01-01T12:43:40.220465+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-242",
+    "amt": 68.67,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-516"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-20db3062cf",
+    "ts": "2026-01-01T12:43:40.766007+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-3099",
+    "amt": 79.88,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-3175"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-d69e66e2c9",
+    "ts": "2026-01-01T12:43:41.500187+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-231",
+    "amt": 85.72,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-3738"
+  },
+  {
     "id": "TX-HOLDOUT_M1-b99e71a7b0",
     "ts": "2026-01-01T12:43:42.998929+00:00",
     "m_id": "HOLDOUT_M1",
@@ -4738,6 +6788,16 @@
     "pm": "CREDIT_CARD",
     "country": "US",
     "d_id": "DEV-4288"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-e1a56b6db9",
+    "ts": "2026-01-01T12:43:49.473771+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-452",
+    "amt": 73.26,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-105"
   },
   {
     "id": "TX-HOLDOUT_M1-c199e8b7c2",
@@ -4750,6 +6810,36 @@
     "d_id": "DEV-4825"
   },
   {
+    "id": "TX-HOLDOUT_M1-19b29e2b34",
+    "ts": "2026-01-01T12:43:50.375674+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-2804",
+    "amt": 59.8,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-1955"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-ca56a8cbc0",
+    "ts": "2026-01-01T12:43:50.437600+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-2820",
+    "amt": 57.68,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-274"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-0f0e987b65",
+    "ts": "2026-01-01T12:43:51.600827+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-2910",
+    "amt": 58.63,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-631"
+  },
+  {
     "id": "TX-HOLDOUT_M1-b30f515e39",
     "ts": "2026-01-01T12:43:53.116988+00:00",
     "m_id": "HOLDOUT_M1",
@@ -4758,6 +6848,56 @@
     "pm": "CREDIT_CARD",
     "country": "US",
     "d_id": "DEV-3279"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-af6960c938",
+    "ts": "2026-01-01T12:43:54.651609+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-3891",
+    "amt": 72.04,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-1088"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-3f12c5d6bd",
+    "ts": "2026-01-01T12:43:55.707210+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-1238",
+    "amt": 66.43,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-1507"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-4dcd62ca8d",
+    "ts": "2026-01-01T12:43:57.111367+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-1995",
+    "amt": 80.14,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-4120"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-ed1f03ce78",
+    "ts": "2026-01-01T12:43:58.805941+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-3864",
+    "amt": 82.29,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-2783"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-41287a3e5f",
+    "ts": "2026-01-01T12:43:58.878204+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-888",
+    "amt": 71.51,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-4099"
   },
   {
     "id": "TX-HOLDOUT_M1-7b79949e3b",
@@ -5420,104 +7560,204 @@
     "d_id": "DEV-1507"
   },
   {
-    "id": "TX-HOLDOUT_M1-5ae0fba690",
-    "ts": "2026-01-01T12:51:02.605077+00:00",
+    "id": "TX-HOLDOUT_M1-8305e393c9",
+    "ts": "2026-01-01T12:51:11.198964+00:00",
     "m_id": "HOLDOUT_M1",
-    "c_id": "CUST-4532",
-    "amt": 59.13,
-    "pm": "CREDIT_CARD",
+    "c_id": "CUST-378",
+    "amt": 62.57,
+    "pm": "PREPAID_CARD",
     "country": "US",
-    "d_id": "DEV-1367"
+    "d_id": "DEV-3743"
   },
   {
-    "id": "TX-HOLDOUT_M1-4d13a1bfbe",
-    "ts": "2026-01-01T12:51:02.697872+00:00",
+    "id": "TX-HOLDOUT_M1-8877444a5e",
+    "ts": "2026-01-01T12:51:11.785465+00:00",
     "m_id": "HOLDOUT_M1",
-    "c_id": "CUST-97",
-    "amt": 74.71,
+    "c_id": "CUST-3222",
+    "amt": 69.92,
     "pm": "CREDIT_CARD",
     "country": "US",
-    "d_id": "DEV-2448"
+    "d_id": "DEV-3638"
   },
   {
-    "id": "TX-HOLDOUT_M1-4816b45454",
-    "ts": "2026-01-01T12:51:11.159659+00:00",
+    "id": "TX-HOLDOUT_M1-f8e8b6a6cc",
+    "ts": "2026-01-01T12:51:19.432159+00:00",
     "m_id": "HOLDOUT_M1",
-    "c_id": "CUST-4038",
-    "amt": 73.63,
+    "c_id": "CUST-818",
+    "amt": 54.88,
     "pm": "CREDIT_CARD",
     "country": "US",
-    "d_id": "DEV-4137"
+    "d_id": "DEV-4009"
   },
   {
-    "id": "TX-HOLDOUT_M1-3023608e10",
-    "ts": "2026-01-01T12:51:15.909276+00:00",
+    "id": "TX-HOLDOUT_M1-f47ea7d3ff",
+    "ts": "2026-01-01T12:51:25.120144+00:00",
     "m_id": "HOLDOUT_M1",
-    "c_id": "CUST-616",
-    "amt": 79.86,
+    "c_id": "CUST-2479",
+    "amt": 77.27,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-2907"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-c86aa9c449",
+    "ts": "2026-01-01T12:51:30.867370+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-2948",
+    "amt": 72.87,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-2108"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-f8c1f3314c",
+    "ts": "2026-01-01T12:51:32.152569+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-571",
+    "amt": 88.83,
     "pm": "DEBIT_CARD",
     "country": "US",
-    "d_id": "DEV-1796"
+    "d_id": "DEV-786"
   },
   {
-    "id": "TX-HOLDOUT_M1-034c6e81e5",
-    "ts": "2026-01-01T12:51:19.426255+00:00",
+    "id": "TX-HOLDOUT_M1-7928dd074f",
+    "ts": "2026-01-01T12:51:41.464570+00:00",
     "m_id": "HOLDOUT_M1",
-    "c_id": "CUST-4037",
-    "amt": 67.46,
-    "pm": "DEBIT_CARD",
-    "country": "US",
-    "d_id": "DEV-1874"
-  },
-  {
-    "id": "TX-HOLDOUT_M1-dd5b91ca8a",
-    "ts": "2026-01-01T12:51:30.536992+00:00",
-    "m_id": "HOLDOUT_M1",
-    "c_id": "CUST-1291",
-    "amt": 68.42,
+    "c_id": "CUST-1549",
+    "amt": 64.01,
     "pm": "CREDIT_CARD",
     "country": "US",
-    "d_id": "DEV-4355"
+    "d_id": "DEV-434"
   },
   {
-    "id": "TX-HOLDOUT_M1-4ecb3a28ae",
-    "ts": "2026-01-01T12:51:33.141347+00:00",
+    "id": "TX-HOLDOUT_M1-67bdc65601",
+    "ts": "2026-01-01T12:51:42.888753+00:00",
     "m_id": "HOLDOUT_M1",
-    "c_id": "CUST-277",
-    "amt": 81.69,
-    "pm": "DEBIT_CARD",
-    "country": "US",
-    "d_id": "DEV-3423"
+    "c_id": "CUST-4288",
+    "amt": 88.81,
+    "pm": "CREDIT_CARD",
+    "country": "HIGH_RISK_GEO",
+    "d_id": "DEV-3435"
   },
   {
-    "id": "TX-HOLDOUT_M1-5db2e079b2",
-    "ts": "2026-01-01T12:51:47.242757+00:00",
+    "id": "TX-HOLDOUT_M1-cffb621e96",
+    "ts": "2026-01-01T12:51:44.371368+00:00",
     "m_id": "HOLDOUT_M1",
-    "c_id": "CUST-1553",
-    "amt": 64.92,
+    "c_id": "CUST-1589",
+    "amt": 64.24,
     "pm": "CREDIT_CARD",
     "country": "US",
-    "d_id": "DEV-18"
+    "d_id": "DEV-2528"
   },
   {
-    "id": "TX-HOLDOUT_M1-d70c35c33f",
-    "ts": "2026-01-01T12:51:47.455704+00:00",
+    "id": "TX-HOLDOUT_M1-0ecb8a723e",
+    "ts": "2026-01-01T12:51:44.615901+00:00",
     "m_id": "HOLDOUT_M1",
-    "c_id": "CUST-847",
-    "amt": 64.21,
+    "c_id": "CUST-4179",
+    "amt": 60.51,
     "pm": "CREDIT_CARD",
     "country": "US",
-    "d_id": "DEV-3517"
+    "d_id": "DEV-3262"
   },
   {
-    "id": "TX-HOLDOUT_M1-ed873bcdda",
-    "ts": "2026-01-01T12:51:57.724066+00:00",
+    "id": "TX-HOLDOUT_M1-0da95d7e65",
+    "ts": "2026-01-01T12:51:45.396176+00:00",
     "m_id": "HOLDOUT_M1",
-    "c_id": "CUST-3052",
-    "amt": 89.31,
+    "c_id": "CUST-1106",
+    "amt": 73.78,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-2381"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-885a744772",
+    "ts": "2026-01-01T12:51:46.717481+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-4236",
+    "amt": 73.43,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-1024"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-8cf0e42912",
+    "ts": "2026-01-01T12:51:47.896394+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-702",
+    "amt": 82.81,
     "pm": "DEBIT_CARD",
     "country": "US",
-    "d_id": "DEV-4757"
+    "d_id": "DEV-2781"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-bd09ec29d7",
+    "ts": "2026-01-01T12:51:49.210820+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-4574",
+    "amt": 66.78,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-1655"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-a841ffbfa0",
+    "ts": "2026-01-01T12:51:54.257671+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-2800",
+    "amt": 80.79,
+    "pm": "DEBIT_CARD",
+    "country": "US",
+    "d_id": "DEV-3813"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-ca5ea82836",
+    "ts": "2026-01-01T12:51:55.590910+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-4915",
+    "amt": 72.47,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-1744"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-b2c91f06ee",
+    "ts": "2026-01-01T12:51:58.344391+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-2457",
+    "amt": 84.44,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-3957"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-dad46293ed",
+    "ts": "2026-01-01T12:51:58.396130+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-1527",
+    "amt": 61.26,
+    "pm": "PREPAID_CARD",
+    "country": "US",
+    "d_id": "DEV-4460"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-f889c82397",
+    "ts": "2026-01-01T12:51:59.083206+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-3149",
+    "amt": 71.47,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-840"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-2c38b9906d",
+    "ts": "2026-01-01T12:51:59.852011+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-4854",
+    "amt": 55.51,
+    "pm": "DEBIT_CARD",
+    "country": "US",
+    "d_id": "DEV-4412"
   },
   {
     "id": "TX-HOLDOUT_M1-7aac1d72e3",
@@ -5560,74 +7800,184 @@
     "d_id": "DEV-4511"
   },
   {
-    "id": "TX-HOLDOUT_M1-c882df4169",
-    "ts": "2026-01-01T12:53:03.300871+00:00",
+    "id": "TX-HOLDOUT_M1-109cef92f5",
+    "ts": "2026-01-01T12:53:00.915444+00:00",
     "m_id": "HOLDOUT_M1",
-    "c_id": "CUST-3380",
-    "amt": 79.04,
+    "c_id": "CUST-1204",
+    "amt": 77.18,
     "pm": "CREDIT_CARD",
     "country": "US",
-    "d_id": "DEV-124"
+    "d_id": "DEV-1613"
   },
   {
-    "id": "TX-HOLDOUT_M1-21a651b7f2",
-    "ts": "2026-01-01T12:53:12.177511+00:00",
+    "id": "TX-HOLDOUT_M1-d396861772",
+    "ts": "2026-01-01T12:53:01.339321+00:00",
     "m_id": "HOLDOUT_M1",
-    "c_id": "CUST-2413",
-    "amt": 77.8,
+    "c_id": "CUST-157",
+    "amt": 71.78,
     "pm": "CREDIT_CARD",
     "country": "US",
-    "d_id": "DEV-1253"
+    "d_id": "DEV-2028"
   },
   {
-    "id": "TX-HOLDOUT_M1-05763c7eb0",
-    "ts": "2026-01-01T12:53:14.815666+00:00",
+    "id": "TX-HOLDOUT_M1-870230180a",
+    "ts": "2026-01-01T12:53:04.919418+00:00",
     "m_id": "HOLDOUT_M1",
-    "c_id": "CUST-4639",
-    "amt": 68.62,
+    "c_id": "CUST-573",
+    "amt": 76.72,
     "pm": "CREDIT_CARD",
     "country": "US",
-    "d_id": "DEV-152"
+    "d_id": "DEV-3714"
   },
   {
-    "id": "TX-HOLDOUT_M1-d14a1ff79e",
-    "ts": "2026-01-01T12:53:30.056450+00:00",
+    "id": "TX-HOLDOUT_M1-e85353d15a",
+    "ts": "2026-01-01T12:53:07.067849+00:00",
     "m_id": "HOLDOUT_M1",
-    "c_id": "CUST-3687",
-    "amt": 63.53,
+    "c_id": "CUST-2793",
+    "amt": 87.76,
     "pm": "CREDIT_CARD",
     "country": "US",
-    "d_id": "DEV-4352"
+    "d_id": "DEV-3959"
   },
   {
-    "id": "TX-HOLDOUT_M1-4b35324d3e",
-    "ts": "2026-01-01T12:53:33.135050+00:00",
+    "id": "TX-HOLDOUT_M1-b0cc4f63f0",
+    "ts": "2026-01-01T12:53:08.071196+00:00",
     "m_id": "HOLDOUT_M1",
-    "c_id": "CUST-4527",
-    "amt": 73.68,
+    "c_id": "CUST-3266",
+    "amt": 74.26,
     "pm": "CREDIT_CARD",
     "country": "US",
-    "d_id": "DEV-2391"
+    "d_id": "DEV-285"
   },
   {
-    "id": "TX-HOLDOUT_M1-6cf7639806",
-    "ts": "2026-01-01T12:53:35.027847+00:00",
+    "id": "TX-HOLDOUT_M1-fca8749d99",
+    "ts": "2026-01-01T12:53:08.405871+00:00",
     "m_id": "HOLDOUT_M1",
-    "c_id": "CUST-1898",
-    "amt": 46.75,
-    "pm": "CREDIT_CARD",
+    "c_id": "CUST-924",
+    "amt": 59.48,
+    "pm": "DEBIT_CARD",
     "country": "US",
-    "d_id": "DEV-20"
+    "d_id": "DEV-1511"
   },
   {
-    "id": "TX-HOLDOUT_M1-9c44644e7d",
-    "ts": "2026-01-01T12:53:59.415581+00:00",
+    "id": "TX-HOLDOUT_M1-c54665ada6",
+    "ts": "2026-01-01T12:53:11.061579+00:00",
     "m_id": "HOLDOUT_M1",
-    "c_id": "CUST-3653",
-    "amt": 61.66,
+    "c_id": "CUST-1196",
+    "amt": 93.52,
     "pm": "CREDIT_CARD",
     "country": "US",
-    "d_id": "DEV-1494"
+    "d_id": "DEV-1120"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-38bd9f97bb",
+    "ts": "2026-01-01T12:53:12.745380+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-4482",
+    "amt": 66.87,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-782"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-953f7209f5",
+    "ts": "2026-01-01T12:53:21.343971+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-1182",
+    "amt": 96.16,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-3936"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-0db058c476",
+    "ts": "2026-01-01T12:53:30.538909+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-3366",
+    "amt": 86.75,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-41"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-dda699214a",
+    "ts": "2026-01-01T12:53:32.823319+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-3464",
+    "amt": 80.14,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-4100"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-636ea50d76",
+    "ts": "2026-01-01T12:53:35.415777+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-155",
+    "amt": 75.93,
+    "pm": "DEBIT_CARD",
+    "country": "US",
+    "d_id": "DEV-4694"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-75b5305bfd",
+    "ts": "2026-01-01T12:53:36.418562+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-3366",
+    "amt": 87.27,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-415"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-1cdd98175f",
+    "ts": "2026-01-01T12:53:41.560969+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-4865",
+    "amt": 75.55,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-1033"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-d2e4410e73",
+    "ts": "2026-01-01T12:53:51.140118+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-4278",
+    "amt": 88.14,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-3084"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-041e37ce6b",
+    "ts": "2026-01-01T12:53:54.675128+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-1388",
+    "amt": 65.82,
+    "pm": "DEBIT_CARD",
+    "country": "US",
+    "d_id": "DEV-424"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-40961bf88c",
+    "ts": "2026-01-01T12:53:55.632361+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-4383",
+    "amt": 77.82,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-1939"
+  },
+  {
+    "id": "TX-HOLDOUT_M1-d051d57b55",
+    "ts": "2026-01-01T12:53:58.990989+00:00",
+    "m_id": "HOLDOUT_M1",
+    "c_id": "CUST-2930",
+    "amt": 60.11,
+    "pm": "CREDIT_CARD",
+    "country": "US",
+    "d_id": "DEV-4403"
   },
   {
     "id": "TX-HOLDOUT_M1-364df20b7f",

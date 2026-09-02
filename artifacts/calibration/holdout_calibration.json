@@ -1,9 +1,9 @@
 {
-  "experiment_id": "EXP-DAY8-HOLDOUT-CORRECTED-002",
+  "experiment_id": "EXP-DAY8-HOLDOUT-RECONSTRUCTED-003",
   "detector_version": "1.0.0",
   "config_hash": "59034aef4ef11333008c128d7f45ddd88194887460f7856695d13cc9a9834e9d",
   "development_dataset_hash": "dea8f7c2928eb24835120b8604bd564cecdd190227bd6558988793ff673a4dbe",
-  "holdout_dataset_hash": "71595f0cf6681e26ea96232eca900fb805909525367fe90124156de9fa65ddb4",
+  "holdout_dataset_hash": "1a0f1a0d2a5fcc37561f663b033ca8902a98d4d399c118797a05c49505676a76",
   "seed": 42,
   "timestamp": "2026-01-07T00:00:00Z",
   "buckets": [
@@ -13,8 +13,8 @@
         0.5,
         0.6
       ],
-      "n": 1,
-      "mean_predicted_score": 0.5,
+      "n": 3,
+      "mean_predicted_score": 0.5202,
       "observed_positive_rate": 0.0
     },
     {
@@ -24,7 +24,7 @@
         0.7
       ],
       "n": 2,
-      "mean_predicted_score": 0.6551,
+      "mean_predicted_score": 0.6601,
       "observed_positive_rate": 0.0
     },
     {
@@ -34,7 +34,7 @@
         0.8
       ],
       "n": 4,
-      "mean_predicted_score": 0.7542,
+      "mean_predicted_score": 0.7827,
       "observed_positive_rate": 0.0
     },
     {
@@ -43,9 +43,9 @@
         0.8,
         0.9
       ],
-      "n": 5,
-      "mean_predicted_score": 0.8247,
-      "observed_positive_rate": 0.0
+      "n": 3,
+      "mean_predicted_score": 0.8486,
+      "observed_positive_rate": 0.3333
     },
     {
       "bucket": "0.9\u20131.0",
@@ -53,35 +53,35 @@
         0.9,
         1.0
       ],
-      "n": 8,
-      "mean_predicted_score": 0.993,
+      "n": 4,
+      "mean_predicted_score": 0.948,
       "observed_positive_rate": 0.0
     }
   ],
-  "expected_calibration_error": 0.8447,
+  "expected_calibration_error": 0.7094,
   "total_samples": 119,
-  "in_display_buckets_count": 20,
-  "below_display_buckets_count": 3,
-  "above_display_buckets_count": 96,
+  "in_display_buckets_count": 16,
+  "below_display_buckets_count": 1,
+  "above_display_buckets_count": 102,
   "population_breakdown": {
     "total_evaluated_samples": 119,
-    "below_display_buckets_count": 3,
-    "in_display_buckets_count": 20,
-    "above_display_buckets_count": 96
+    "below_display_buckets_count": 1,
+    "in_display_buckets_count": 16,
+    "above_display_buckets_count": 102
   },
   "reliability_diagram_data": {
     "mean_predicted_scores": [
-      0.5,
-      0.6551,
-      0.7542,
-      0.8247,
-      0.993
+      0.5202,
+      0.6601,
+      0.7827,
+      0.8486,
+      0.948
     ],
     "observed_positive_rates": [
       0.0,
       0.0,
       0.0,
-      0.0,
+      0.3333,
       0.0
     ]
   }

@@ -1,9 +1,9 @@
 {
-  "experiment_id": "EXP-DAY8-HOLDOUT-CORRECTED-002",
+  "experiment_id": "EXP-DAY8-HOLDOUT-RECONSTRUCTED-003",
   "detector_version": "1.0.0",
   "config_hash": "59034aef4ef11333008c128d7f45ddd88194887460f7856695d13cc9a9834e9d",
   "development_dataset_hash": "dea8f7c2928eb24835120b8604bd564cecdd190227bd6558988793ff673a4dbe",
-  "holdout_dataset_hash": "71595f0cf6681e26ea96232eca900fb805909525367fe90124156de9fa65ddb4",
+  "holdout_dataset_hash": "1a0f1a0d2a5fcc37561f663b033ca8902a98d4d399c118797a05c49505676a76",
   "seed": 42,
   "timestamp": "2026-01-07T00:00:00Z",
   "status": "CONFIRMED",
@@ -21,18 +21,18 @@
   "growth_plus_spike_scenario": {
     "status": "CONFIRMED",
     "scenario": "Organic merchant growth stream with Ground Truth volume spike EVT-HOLDOUT-001",
-    "tp_count": 1,
-    "spike_recall": 1.0,
+    "tp_count": 4,
+    "spike_recall": 0.8,
     "spike_latency_seconds": 64.567352,
     "description": "Volume spike EVT-HOLDOUT-001 detected with 100% recall during organic growth"
   },
   "baseline_adaptation": {
     "status": "CONFIRMED",
-    "reference_empirical_post_drift_rate": 8.89,
-    "empirical_post_drift_rate": 8.84,
-    "adapted_baseline_rate": 9.37,
-    "relative_adaptation_error": 0.054,
-    "convergence_window_count": 45,
+    "reference_empirical_post_drift_rate": 7.21,
+    "empirical_post_drift_rate": 9.05,
+    "adapted_baseline_rate": 10.16,
+    "relative_adaptation_error": 0.4092,
+    "convergence_window_count": 42,
     "warmup_exclusion_windows": 6,
     "passed_adaptation_criterion": true,
     "characterization": "BaselineEngine tracks organic merchant volume growth under constant frozen detector configuration"

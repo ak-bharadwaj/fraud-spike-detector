@@ -378,101 +378,74 @@ def build_canonical_holdout_evasion_results(
     freeze_record: FreezeRecord,
     holdout_manifest: HoldoutManifest,
 ) -> Dict[str, Any]:
-    """Construct structured holdout evasion evidence derived from execution of representative trajectories (Master Plan §32)."""
+    """Construct structured holdout evasion evidence evaluated directly on the locked holdout dataset (Master Plan §32)."""
     frozen_th = float(freeze_record.all_selected_parameters.get("static_threshold", 5.0))
     frozen_p = int(freeze_record.all_selected_parameters.get("persistence", 1))
 
-    scenarios_def = {
+    # Load and execute locked holdout dataset containing all 5 ground truth events
+    manifest, txs, gts = load_locked_holdout_data("data/holdout")
+    metrics, alerts, all_scores = execute_single_pass_holdout(
+        transactions=txs,
+        ground_truth_events=gts,
+        freeze_record=freeze_record,
+        explicit_evaluation_mode=True,
+    )
+
+    scenarios_meta = {
         "threshold_hugging_evasion": {
+            "event_id": "EVT-HOLDOUT-002",
             "description": "Crafted anomaly hovering right near/below decision threshold without breaching",
-            "anomaly_type": "threshold_hugging_evasion",
             "holdout_params": {"target_magnitude": 4.8, "rate_multiplier": 1.75, "decision_threshold": frozen_th},
             "dev_params": {"target_magnitude": 3.3, "rate_multiplier": 1.55, "decision_threshold": 3.5},
-            "duration_minutes": 4,
-            "seed_offset": 100,
+            "start_time": datetime(2026, 1, 1, 12, 20, tzinfo=timezone.utc),
+            "end_time": datetime(2026, 1, 1, 12, 24, tzinfo=timezone.utc),
         },
         "persistence_evasion": {
+            "event_id": "EVT-HOLDOUT-003",
             "description": "Alternating 1-minute bursts intentionally failing window aggregation or multi-window persistence",
-            "anomaly_type": "persistence_evasion",
             "holdout_params": {"target_magnitude": 5.6, "rate_multiplier": 2.10, "persistence": frozen_p, "decision_threshold": frozen_th},
             "dev_params": {"target_magnitude": 4.0, "rate_multiplier": 1.85, "persistence": 2, "decision_threshold": 3.5},
-            "duration_minutes": 4,
-            "seed_offset": 200,
+            "start_time": datetime(2026, 1, 1, 12, 30, tzinfo=timezone.utc),
+            "end_time": datetime(2026, 1, 1, 12, 34, tzinfo=timezone.utc),
         },
         "staircase_ramp": {
+            "event_id": "EVT-HOLDOUT-004",
             "description": "Monotonically increasing step progression across consecutive windows breaching decision threshold",
-            "anomaly_type": "staircase_ramp",
             "holdout_params": {"target_magnitude": 6.5, "rate_multiplier": 7.5, "decision_threshold": frozen_th},
             "dev_params": {"target_magnitude": 5.0, "rate_multiplier": 6.0, "decision_threshold": 3.5},
-            "duration_minutes": 4,
-            "seed_offset": 300,
+            "start_time": datetime(2026, 1, 1, 12, 40, tzinfo=timezone.utc),
+            "end_time": datetime(2026, 1, 1, 12, 44, tzinfo=timezone.utc),
         },
         "oscillating_sub_threshold": {
+            "event_id": "EVT-HOLDOUT-005",
             "description": "Sub-threshold sine/harmonic oscillation staying below decision threshold",
-            "anomaly_type": "oscillating_sub_threshold",
             "holdout_params": {"target_magnitude": 4.2, "amplitude": 0.8, "rate_multiplier": 1.2, "decision_threshold": frozen_th},
             "dev_params": {"target_magnitude": 2.5, "amplitude": 0.5, "rate_multiplier": 1.0, "decision_threshold": 3.5},
-            "duration_minutes": 4,
-            "seed_offset": 400,
+            "start_time": datetime(2026, 1, 1, 12, 50, tzinfo=timezone.utc),
+            "end_time": datetime(2026, 1, 1, 12, 54, tzinfo=timezone.utc),
         },
     }
 
     scenarios_results = {}
 
-    for sc_key, sc_info in scenarios_def.items():
-        sim_start = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
-        clock = VirtualClock(initial_time=sim_start)
-        gen_seed = freeze_record.seed + sc_info["seed_offset"]
-        gen = SyntheticStreamGenerator(
-            global_seed=gen_seed,
-            merchant_configs=[{"id": "EVASION_M1", "archetype": "stable"}],
-            clock=clock,
-        )
+    for sc_key, meta in scenarios_meta.items():
+        st = meta["start_time"]
+        et = meta["end_time"]
 
-        warmup_minutes = 6
-        dur_min = sc_info["duration_minutes"]
-        anom_start = sim_start + timedelta(minutes=warmup_minutes)
-
-        spec_params = dict(sc_info["holdout_params"])
-        spec_params.pop("decision_threshold", None)
-        spec_params.pop("persistence", None)
-
-        spec = AnomalySpec(
-            anomaly_type=sc_info["anomaly_type"],
-            start_time=anom_start,
-            duration_seconds=float(dur_min * 60),
-            target_magnitude=float(sc_info["holdout_params"]["target_magnitude"]),
-            parameters=spec_params,
-        )
-        gen.schedule_anomaly("EVASION_M1", spec)
-
-        all_txs = []
-        all_gts = []
-        for _ in range(warmup_minutes + dur_min + 2):
-            w_txs, w_gts = gen.generate_window(duration_minutes=1.0)
-            all_txs.extend(w_txs)
-            all_gts.extend(w_gts)
-
-        # Run single pass holdout evaluation on this generated stream using exact frozen configuration
-        metrics, alerts, scores_with_ts = execute_single_pass_holdout(
-            transactions=all_txs,
-            ground_truth_events=all_gts,
-            freeze_record=freeze_record,
-            explicit_evaluation_mode=True,
-        )
-
-        # Extract actual observed scores during anomaly windows [anom_start, anom_end)
-        anom_end = anom_start + timedelta(minutes=dur_min)
+        # Extract actual observed scores for this anomaly window from holdout execution
         anom_scores = [
             round(score_obj.score, 4)
-            for m_id, win_end, score_obj in scores_with_ts
-            if anom_start < win_end <= anom_end and score_obj.score is not None
+            for m_id, win_end, score_obj in all_scores
+            if st < win_end <= et and score_obj.score is not None
         ]
+
+        # Extract alerts emitted during this anomaly window
+        emitted_in_window = [a for a in alerts if st <= a.timestamp < et]
+        n_alerts = len(emitted_in_window)
 
         max_score = round(max(anom_scores), 4) if anom_scores else 0.0
         breached = bool(max_score >= frozen_th)
-        n_alerts = len(alerts)
-        outcome = "TP" if metrics.tp > 0 else ("FP" if metrics.fp > 0 else "FN")
+        outcome = "TP" if n_alerts > 0 else "FN"
 
         if outcome == "TP":
             causal = f"Monotonic score progression {anom_scores}. Step score >= {frozen_th} -> Alert emitted -> True Positive = 1"
@@ -483,9 +456,10 @@ def build_canonical_holdout_evasion_results(
 
         scenarios_results[sc_key] = {
             "scenario_name": sc_key,
-            "description": sc_info["description"],
-            "holdout_parameters": sc_info["holdout_params"],
-            "development_parameters": sc_info["dev_params"],
+            "event_id": meta["event_id"],
+            "description": meta["description"],
+            "holdout_parameters": meta["holdout_params"],
+            "development_parameters": meta["dev_params"],
             "parameters_distinct": True,
             "measurements": {
                 "observed_score_sequence": anom_scores,
@@ -500,7 +474,7 @@ def build_canonical_holdout_evasion_results(
 
     return {
         "status": "CONFIRMED",
-        "details": "Locked holdout evasion confirmation evaluated with frozen detector.",
+        "details": "Locked holdout evasion confirmation evaluated directly on reconstructed locked dataset data/holdout/.",
         "holdout_parameters_distinct_from_development": True,
         "frozen_detector_threshold": frozen_th,
         "scenarios": scenarios_results,
@@ -526,10 +500,12 @@ def build_canonical_holdout_drift_results(
     recall = metrics_spike.recall
     latency = metrics_spike.median_latency_seconds or 120.0
 
-    # Growth-only FP count: alerts emitted outside the ground truth event interval [12:10, 12:15)
-    anom_st = datetime(2026, 1, 1, 12, 10, tzinfo=timezone.utc)
-    anom_et = datetime(2026, 1, 1, 12, 15, tzinfo=timezone.utc)
-    unperturbed_alerts = [a for a in alerts_spike if not (anom_st <= a.timestamp < anom_et)]
+    # Growth-only FP count: alerts emitted outside ground truth event intervals
+    gt_intervals = [(e.start_time, e.end_time) for e in gts]
+    unperturbed_alerts = [
+        a for a in alerts_spike
+        if not any(st <= a.timestamp < et for st, et in gt_intervals)
+    ]
 
     unperturbed_wins = 24
     fp_cnt = len(unperturbed_alerts)
@@ -541,7 +517,7 @@ def build_canonical_holdout_drift_results(
     unperturbed_end = datetime(2026, 1, 1, 12, 30, tzinfo=timezone.utc)
     unperturbed_txs = [
         t for t in txs
-        if unperturbed_start <= t.timestamp < unperturbed_end and not (datetime(2026, 1, 1, 12, 10, tzinfo=timezone.utc) <= t.timestamp < datetime(2026, 1, 1, 12, 15, tzinfo=timezone.utc))
+        if unperturbed_start <= t.timestamp < unperturbed_end and not any(st <= t.timestamp < et for st, et in gt_intervals)
     ]
     ref_emp_rate = round(len(unperturbed_txs) / 19.0, 2)
     
@@ -570,7 +546,7 @@ def build_canonical_holdout_drift_results(
         baseline_engine.update(feat_snap)
 
         is_warmup = win_idx < warmup_exclusion
-        is_spike = datetime(2026, 1, 1, 12, 10, tzinfo=timezone.utc) <= curr_window_start < datetime(2026, 1, 1, 12, 15, tzinfo=timezone.utc)
+        is_spike = any(st <= curr_window_start < et for st, et in gt_intervals)
 
         if not is_warmup and not is_spike and feat_snap.data_quality != "EMPTY":
             emp_v = float(feat_snap.volume)
@@ -635,7 +611,7 @@ def save_day8_research_artifacts(
     portfolio_results: List[Dict[str, Any]],
     evasion_results: Dict[str, Any],
     drift_results: Dict[str, Any],
-    experiment_id: str = "EXP-DAY8-HOLDOUT-CORRECTED-002",
+    experiment_id: str = "EXP-DAY8-HOLDOUT-RECONSTRUCTED-003",
     execution_commit: str = "bc29c36",
     artifact_finalization_commit: str = "60ab651",
     prior_artifact_commit: str = "5841ddb",
@@ -737,7 +713,7 @@ def save_day8_research_artifacts(
         writer.writerows(csv_rows)
     saved_paths["final_metrics_csv"] = p_fin_csv
 
-    # 9. Final Report JSON with unambiguous dual run disclosure and deterministic artifact SHA-256
+    # 9. Final Report JSON with unambiguous multi-run disclosure and deterministic artifact SHA-256
     p_fin_rep = dirs["final"] / "report.json"
     dual_run_disclosure = {
         "run_001_original": {
@@ -759,13 +735,32 @@ def save_day8_research_artifacts(
             },
         },
         "run_002_corrected": {
+            "experiment_id": "EXP-DAY8-HOLDOUT-CORRECTED-002",
+            "execution_commit": "bc29c36",
+            "artifact_finalization_commit": "5841ddb",
+            "prior_artifact_commit": "049caf5",
+            "status": "SUPERSEDED",
+            "reason_superseded": "Missing physical representative evasion scenarios in locked holdout dataset.",
+            "detector_parameters": freeze_record.all_selected_parameters,
+            "holdout_dataset_hash": "71595f0cf6681e26ea96232eca900fb805909525367fe90124156de9fa65ddb4",
+            "core_metrics": {
+                "tp": 1,
+                "fp": 1,
+                "fn": 0,
+                "precision": 0.5,
+                "recall": 1.0,
+                "f1_score": 0.6667,
+                "total_cost": 50.0,
+            },
+        },
+        "run_003_reconstructed": {
             "experiment_id": experiment_id,
             "execution_commit": execution_commit,
             "artifact_finalization_commit": artifact_finalization_commit,
             "prior_artifact_commit": prior_artifact_commit,
             "historical_artifact_chain": historical_artifact_chain or ["20bf655", "775e779", "cc2872b", "e28d6d3", "f21ddeb", "26837b7", "bc29c36", "049caf5", "5841ddb", "60ab651"],
             "status": "ACCEPTED_CANONICAL",
-            "reason": "Corrected post-holdout descriptive calibration (direct RiskScore bucketing, explicit population accounting), complete bootstrap uncertainty reporting contract with raw counts, and INR '₹' units.",
+            "reason": "Reconstructed locked holdout dataset containing all 4 representative evasion scenarios (EVT-HOLDOUT-002 to EVT-HOLDOUT-005) alongside volume spike EVT-HOLDOUT-001 per Master Plan Section 27 post-holdout protocol.",
             "detector_parameters": freeze_record.all_selected_parameters,
             "holdout_dataset_hash": holdout_manifest.dataset_hash,
             "core_metrics": {
