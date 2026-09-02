@@ -1,0 +1,44 @@
+{
+  "timestamp": "2026-01-07T00:00:00Z",
+  "detector_version": "1.0.0",
+  "config_hash": "59034aef4ef11333008c128d7f45ddd88194887460f7856695d13cc9a9834e9d",
+  "seed": 42,
+  "scenarios": {
+    "missing_device_identifier": {
+      "status": "PASS",
+      "injected_degraded_transactions": 10,
+      "degraded_audit_windows": 7,
+      "stream_crashed": false,
+      "alert_count": 1,
+      "description": "Missing device_id mapped to DEGRADED data quality and lower confidence without crash."
+    },
+    "invalid_amount": {
+      "status": "PASS",
+      "injected_invalid_transactions": 10,
+      "degraded_audit_windows": 7,
+      "stream_crashed": false,
+      "alert_count": 2,
+      "description": "Invalid amount=0.0 handled safely with DEGRADED status."
+    },
+    "duplicate_transactions": {
+      "status": "PASS",
+      "injected_duplicates": 20,
+      "volume_preserved_identical": true,
+      "stream_crashed": false,
+      "description": "Exact duplicate transactions deduplicated deterministically without volume inflation."
+    },
+    "delayed_events": {
+      "status": "PASS",
+      "delayed_transactions": 10,
+      "stream_crashed": false,
+      "description": "Delayed transactions processed across chronological virtual windows without wall-clock dependence."
+    },
+    "out_of_order_arrival": {
+      "status": "PASS",
+      "stream_shuffled": true,
+      "in_order_equivalence": true,
+      "stream_crashed": false,
+      "description": "Out-of-order transactions ordered chronologically by TimeOrderedEventBus matching in-order replay."
+    }
+  }
+}

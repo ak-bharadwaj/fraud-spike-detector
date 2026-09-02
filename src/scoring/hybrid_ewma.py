@@ -157,13 +157,16 @@ class HybridEWMAScorer(AnomalyScorer):
 
         self._ewma_states[m_id] = s_ewma
 
-        # 4. Map evidence state confidence and data_quality
-        if baseline_snapshot.evidence_state == "DEGRADED" or feature_snapshot.data_quality == "DEGRADED":
-            confidence = 0.5
-            dq = "DEGRADED"
-        else:
-            confidence = 1.0
-            dq = "GOOD"
+        # 4. Map evidence state composite confidence and data_quality
+        from src.scoring.confidence import compute_composite_confidence
+        confidence = compute_composite_confidence(
+            feature_snapshot=feature_snapshot,
+            baseline_snapshot=baseline_snapshot,
+            magnitudes=m_magnitudes,
+            static_threshold=self.static_threshold,
+            signal_mask=signal_mask,
+        )
+        dq = "DEGRADED" if (baseline_snapshot.evidence_state == "DEGRADED" or feature_snapshot.data_quality == "DEGRADED") else "GOOD"
 
         return RiskScore(
             score=s_ewma,

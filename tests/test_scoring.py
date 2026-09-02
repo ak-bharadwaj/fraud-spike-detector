@@ -38,15 +38,16 @@ def make_dummy_feature(
     merchant_id: str,
     ts: datetime,
     volume: float = 10.0,
-    velocity: float = 2.0,
+    velocity: Optional[float] = None,
     mean_amount: float = 100.0,
     data_quality: str = "GOOD",
 ) -> FeatureSnapshot:
+    vel = velocity if velocity is not None else (volume / 5.0)
     return FeatureSnapshot(
         merchant_id=merchant_id,
         timestamp=ts,
         volume=volume,
-        velocity=velocity,
+        velocity=vel,
         amount_statistics={
             "total_amount": volume * mean_amount,
             "mean_amount": mean_amount,
@@ -364,3 +365,65 @@ def test_risk_score_pydantic_schema_compliance():
     assert reconstructed.score == risk.score
     assert reconstructed.confidence == 1.0
     assert reconstructed.data_quality == "GOOD"
+
+
+# =====================================================================
+# 12. Composite Confidence Contract Tests (Master Plan §17/§19)
+# =====================================================================
+
+def test_confidence_varies_independently_of_risk():
+    """Verify confidence can vary independently of risk score (e.g. High Risk with Low Confidence)."""
+    st = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
+    scorer = StatisticalDeviationScorer(static_threshold=3.5)
+
+    base_suff = make_dummy_baseline("M1", st, evidence_state="SUFFICIENT", exp_volume=10.0, scale_volume=2.0)
+    base_deg = make_dummy_baseline("M1", st, evidence_state="DEGRADED", exp_volume=10.0, scale_volume=2.0)
+
+    # 1. High Risk + High Confidence: true volume spike with good data quality, all signals agreeing
+    feat_high_conf = make_dummy_feature("M1", st, volume=30.0, data_quality="GOOD")
+    r1 = scorer.calculate_score(feat_high_conf, base_suff)
+    assert r1.score == 10.0
+    assert r1.confidence == 1.0
+
+    # 2. High Risk + Low Confidence: same volume spike but degraded data quality
+    feat_deg_quality = make_dummy_feature("M1", st, volume=30.0, data_quality="DEGRADED")
+    r2 = scorer.calculate_score(feat_deg_quality, base_suff)
+    assert r2.score == 10.0
+    assert r2.confidence == 0.5
+
+    # 3. High Risk + Partial Feature Availability: masked signals (1 of 4 groups active)
+    r3 = scorer.calculate_score(feat_high_conf, base_suff, signal_mask=["volume"])
+    assert r3.score == 10.0
+    assert r3.confidence < 1.0  # Feature availability reduced!
+    assert r3.confidence == pytest.approx(0.70, abs=1e-2)
+
+    # 4. High Risk + Weak Signal Agreement: isolated single-signal spike without corroboration
+    # Only volume spikes, velocity and behavioral remain at expected baseline
+    feat_isolated = FeatureSnapshot(
+        merchant_id="M1",
+        timestamp=st,
+        volume=30.0,
+        velocity=2.0,  # nominal
+        amount_statistics={
+            "total_amount": 1000.0,
+            "mean_amount": 100.0,
+            "std_amount": 10.0,
+            "median_amount": 100.0,
+            "mad_amount": 5.0,
+            "min_amount": 85.0,
+            "max_amount": 115.0,
+        },
+        unique_customers=8,  # nominal
+        unique_devices=5,  # nominal
+        data_quality="GOOD",
+    )
+    r4 = scorer.calculate_score(feat_isolated, base_suff)
+    assert r4.score == 10.0
+    assert r4.confidence < 1.0  # Lower confidence due to lack of multi-signal agreement!
+    assert r4.confidence == pytest.approx(0.775, abs=1e-2)
+
+    # 5. Low Risk + High Confidence: nominal unperturbed window
+    feat_nominal = make_dummy_feature("M1", st, volume=10.0, data_quality="GOOD")
+    r5 = scorer.calculate_score(feat_nominal, base_suff)
+    assert r5.score == 0.0
+    assert r5.confidence == 1.0

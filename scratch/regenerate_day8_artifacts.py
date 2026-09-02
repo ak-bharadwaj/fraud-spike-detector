@@ -47,4 +47,8 @@ save_day8_research_artifacts(
     prior_artifact_commit="049caf5",
     historical_artifact_chain=["20bf655", "775e779", "cc2872b", "e28d6d3", "f21ddeb", "26837b7", "bc29c36", "049caf5", "5841ddb"],
 )
+
+from src.generator.degradation import execute_data_quality_characterization
+execute_data_quality_characterization(base_artifact_dir="artifacts", seed=42)
+
 print("Artifacts successfully regenerated!")

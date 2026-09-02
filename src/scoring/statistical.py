@@ -130,13 +130,16 @@ class StatisticalDeviationScorer(AnomalyScorer):
             if mag >= self.static_threshold
         ]
 
-        # 5. Evidence state and confidence mapping
-        if baseline_snapshot.evidence_state == "DEGRADED" or feature_snapshot.data_quality == "DEGRADED":
-            confidence = 0.5
-            data_quality = "DEGRADED"
-        else:
-            confidence = 1.0
-            data_quality = "GOOD"
+        # 5. Evidence state and composite confidence calculation
+        from src.scoring.confidence import compute_composite_confidence
+        confidence = compute_composite_confidence(
+            feature_snapshot=feature_snapshot,
+            baseline_snapshot=baseline_snapshot,
+            magnitudes=m_magnitudes,
+            static_threshold=self.static_threshold,
+            signal_mask=signal_mask,
+        )
+        data_quality = "DEGRADED" if (baseline_snapshot.evidence_state == "DEGRADED" or feature_snapshot.data_quality == "DEGRADED") else "GOOD"
 
         return RiskScore(
             score=raw_score,

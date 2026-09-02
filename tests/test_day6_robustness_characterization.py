@@ -224,6 +224,48 @@ def test_out_of_order_transaction_arrival_through_pipeline():
     assert audits[1]["features"]["volume"] == 1.0
 
 
+def test_deterministic_data_quality_injection_and_characterization_scenarios():
+    """Verify reproducible data quality degradation scenarios (missing device, invalid amount, duplicates, delays, out-of-order) and artifact creation."""
+    from src.generator.degradation import DataQualityInjector, execute_data_quality_characterization
+
+    st = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
+    gen = SyntheticStreamGenerator(42, [{"id": "M_DQ_TEST", "archetype": "stable"}], VirtualClock(initial_time=st))
+    txs, _ = gen.generate_window(10.0)
+
+    # 1. Missing Device ID
+    deg_dev = DataQualityInjector.inject_missing_device(txs, count=5, seed=42)
+    assert sum(1 for t in deg_dev if t.device_id == "") == 5
+
+    # 2. Invalid Amount
+    deg_amt = DataQualityInjector.inject_invalid_amount(txs, count=5, seed=42)
+    assert sum(1 for t in deg_amt if t.amount == 0.0) == 5
+
+    # 3. Duplicates
+    deg_dup = DataQualityInjector.inject_duplicates(txs, duplicate_count=10, seed=42)
+    assert len(deg_dup) == len(txs) + 10
+
+    # 4. Delayed Events
+    deg_del = DataQualityInjector.inject_delayed_events(txs, delay_seconds=60.0, count=5, seed=42)
+    delayed_cnt = sum(1 for t1, t2 in zip(txs, deg_del) if t2.timestamp > t1.timestamp)
+    assert delayed_cnt == 5
+
+    # 5. Out-of-order Arrival
+    deg_ooo = DataQualityInjector.inject_out_of_order(txs, seed=42)
+    assert len(deg_ooo) == len(txs)
+
+    # Execute full characterization pipeline and verify artifact
+    res = execute_data_quality_characterization(base_artifact_dir="artifacts", seed=42)
+    assert "scenarios" in res
+    assert res["scenarios"]["missing_device_identifier"]["status"] == "PASS"
+    assert res["scenarios"]["invalid_amount"]["status"] == "PASS"
+    assert res["scenarios"]["duplicate_transactions"]["status"] == "PASS"
+    assert res["scenarios"]["delayed_events"]["status"] == "PASS"
+    assert res["scenarios"]["out_of_order_arrival"]["status"] == "PASS"
+
+    art_file = Path("artifacts/robustness/data_quality_characterization.json")
+    assert art_file.exists()
+
+
 def test_reusable_drift_runner_and_artifact_generation():
     """Verify reusable DriftRunner executes paired experiment and produces DriftResult with valid adaptation metrics."""
     from src.evaluation.drift import DriftRunner, DriftResult
