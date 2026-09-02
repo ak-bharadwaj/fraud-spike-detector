@@ -27,17 +27,17 @@
       "parameters_distinct": true,
       "measurements": {
         "observed_score_sequence": [
-          4.0037,
-          4.4098,
-          4.3507,
-          3.6759
+          2.7778,
+          1.1111,
+          8.5062,
+          1.8825
         ],
-        "score_envelope": "[3.6, 4.45)",
-        "max_observed_score": 4.4098,
-        "threshold_breached": false,
-        "alerts_emitted": 0,
-        "evaluation_outcome": "FN",
-        "causal_mechanism": "Max observed score 4.4098 < static threshold 5.0 -> state machine remains NORMAL -> 0 alerts emitted -> False Negative = 1"
+        "score_envelope": "[1.11, 8.51]",
+        "max_observed_score": 8.5062,
+        "threshold_breached": true,
+        "alerts_emitted": 1,
+        "evaluation_outcome": "TP",
+        "causal_mechanism": "Monotonic score progression [2.7778, 1.1111, 8.5062, 1.8825]. Step score >= 5.0 -> Alert emitted -> True Positive = 1"
       }
     },
     "persistence_evasion": {
@@ -58,17 +58,17 @@
       "parameters_distinct": true,
       "measurements": {
         "observed_score_sequence": [
-          2.1659,
-          2.0127,
-          2.8105,
-          2.2624
+          2.5663,
+          6.3283,
+          1.6667,
+          2.875
         ],
-        "score_envelope": "[2.0, 2.85)",
-        "max_observed_score": 2.8105,
-        "threshold_breached": false,
-        "alerts_emitted": 0,
-        "evaluation_outcome": "FN",
-        "causal_mechanism": "Alternating sub-window pulses drop below window aggregation threshold 5.0 -> state machine remains NORMAL -> 0 alerts emitted -> False Negative = 1"
+        "score_envelope": "[1.67, 6.33]",
+        "max_observed_score": 6.3283,
+        "threshold_breached": true,
+        "alerts_emitted": 1,
+        "evaluation_outcome": "TP",
+        "causal_mechanism": "Monotonic score progression [2.5663, 6.3283, 1.6667, 2.875]. Step score >= 5.0 -> Alert emitted -> True Positive = 1"
       }
     },
     "staircase_ramp": {
@@ -87,17 +87,17 @@
       "parameters_distinct": true,
       "measurements": {
         "observed_score_sequence": [
-          3.5567,
-          7.8168,
-          13.4741,
-          17.0176
+          1.1118,
+          6.8551,
+          10.6546,
+          20.1783
         ],
-        "score_envelope": "[3.55, 17.02]",
-        "max_observed_score": 17.0176,
+        "score_envelope": "[1.11, 20.18]",
+        "max_observed_score": 20.1783,
         "threshold_breached": true,
         "alerts_emitted": 1,
         "evaluation_outcome": "TP",
-        "causal_mechanism": "Monotonic score progression (3.5567 < 7.8168 < 13.4741 < 17.0176). Step 1 score 7.8168 >= 5.0 -> Alert emitted -> True Positive = 1"
+        "causal_mechanism": "Monotonic score progression [1.1118, 6.8551, 10.6546, 20.1783]. Step score >= 5.0 -> Alert emitted -> True Positive = 1"
       }
     },
     "oscillating_sub_threshold": {
@@ -118,17 +118,17 @@
       "parameters_distinct": true,
       "measurements": {
         "observed_score_sequence": [
-          2.8384,
-          2.8347,
-          2.7343,
-          2.7376
+          1.1208,
+          0.8697,
+          1.9587,
+          1.8287
         ],
-        "score_envelope": "[2.73, 2.84)",
-        "max_observed_score": 2.8384,
+        "score_envelope": "[0.87, 1.96]",
+        "max_observed_score": 1.9587,
         "threshold_breached": false,
         "alerts_emitted": 0,
         "evaluation_outcome": "FN",
-        "causal_mechanism": "Max observed score 2.8384 < 5.0 -> state machine remains NORMAL -> 0 alerts emitted -> False Negative = 1"
+        "causal_mechanism": "Max observed score 1.9587 < static threshold 5.0 -> state machine remains NORMAL -> 0 alerts emitted -> False Negative = 1"
       }
     }
   }

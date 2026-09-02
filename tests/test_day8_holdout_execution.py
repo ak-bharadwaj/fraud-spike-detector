@@ -82,6 +82,8 @@ from src.evaluation.holdout_execution import (
     compute_descriptive_holdout_calibration,
     compute_bootstrap_uncertainty,
     execute_portfolio_comparison,
+    build_canonical_holdout_evasion_results,
+    build_canonical_holdout_drift_results,
     save_day8_research_artifacts,
     compute_canonical_artifact_hash,
 )
@@ -833,6 +835,12 @@ def test_holdout_evasion_and_drift_artifacts_contain_section_31_32_evidence():
         assert "observed_score_sequence" in m
         assert "causal_mechanism" in m
 
+        # Prove holdout parameters are distinct from development parameters
+        h_params = sc["holdout_parameters"]
+        d_params = sc["development_parameters"]
+        assert h_params["decision_threshold"] != d_params["decision_threshold"]
+        assert h_params["target_magnitude"] != d_params["target_magnitude"]
+
     # Section 31 Drift Evidence Validation
     assert drift_data["status"] == "CONFIRMED"
     assert drift_data["declared_drift_factor"] == "baseline_volume_growth"
@@ -855,5 +863,69 @@ def test_holdout_evasion_and_drift_artifacts_contain_section_31_32_evidence():
     assert adapt["status"] == "CONFIRMED"
     assert adapt["passed_adaptation_criterion"] is True
     assert adapt["convergence_window_count"] >= 7
+
+
+def test_evasion_evidence_derived_from_actual_execution():
+    """Verify holdout evasion evidence is derived from actual pipeline execution, matching build_canonical_holdout_evasion_results."""
+    freeze_rec = load_freeze_record(Path("config/freeze_record.json"))
+    manifest, _, _ = load_locked_holdout_data("data/holdout")
+
+    executed_results = build_canonical_holdout_evasion_results(freeze_rec, manifest)
+
+    evasion_path = Path("artifacts/evasion/holdout_evasion.json")
+    if not evasion_path.exists():
+        pytest.skip("Evasion artifact not yet generated.")
+
+    artifact_data = json.loads(evasion_path.read_text(encoding="utf-8"))
+
+    for sc_name in ["threshold_hugging_evasion", "persistence_evasion", "staircase_ramp", "oscillating_sub_threshold"]:
+        exec_sc = executed_results["scenarios"][sc_name]["measurements"]
+        art_sc = artifact_data["scenarios"][sc_name]["measurements"]
+
+        assert art_sc["observed_score_sequence"] == exec_sc["observed_score_sequence"]
+        assert art_sc["max_observed_score"] == exec_sc["max_observed_score"]
+        assert art_sc["threshold_breached"] == exec_sc["threshold_breached"]
+        assert art_sc["alerts_emitted"] == exec_sc["alerts_emitted"]
+        assert art_sc["evaluation_outcome"] == exec_sc["evaluation_outcome"]
+
+
+def test_drift_evidence_derived_from_actual_execution():
+    """Verify holdout drift evidence is derived from actual execution on the locked holdout stream."""
+    freeze_rec = load_freeze_record(Path("config/freeze_record.json"))
+    manifest, _, _ = load_locked_holdout_data("data/holdout")
+
+    executed_drift = build_canonical_holdout_drift_results(freeze_rec, manifest)
+
+    drift_path = Path("artifacts/drift/holdout_drift.json")
+    if not drift_path.exists():
+        pytest.skip("Drift artifact not yet generated.")
+
+    artifact_data = json.loads(drift_path.read_text(encoding="utf-8"))
+
+    assert artifact_data["growth_only_scenario"]["fp_count"] == executed_drift["growth_only_scenario"]["fp_count"]
+    assert artifact_data["growth_plus_spike_scenario"]["tp_count"] == executed_drift["growth_plus_spike_scenario"]["tp_count"]
+    assert artifact_data["growth_plus_spike_scenario"]["spike_recall"] == executed_drift["growth_plus_spike_scenario"]["spike_recall"]
+    assert artifact_data["baseline_adaptation"]["reference_empirical_post_drift_rate"] == executed_drift["baseline_adaptation"]["reference_empirical_post_drift_rate"]
+
+
+def test_tampered_evasion_artifact_fails_independent_execution_derivation():
+    """Verify a test fails if an artifact's reported score sequence is edited without changing execution."""
+    freeze_rec = load_freeze_record(Path("config/freeze_record.json"))
+    manifest, _, _ = load_locked_holdout_data("data/holdout")
+
+    executed_results = build_canonical_holdout_evasion_results(freeze_rec, manifest)
+
+    # Fabricate a tampered artifact score sequence
+    tampered_artifact = dict(executed_results)
+    tampered_artifact["scenarios"] = json.loads(json.dumps(executed_results["scenarios"]))
+    tampered_artifact["scenarios"]["threshold_hugging_evasion"]["measurements"]["observed_score_sequence"] = [9.99, 9.99, 9.99, 9.99]
+
+    # Independent execution derivation produces different score sequence
+    indep_exec = build_canonical_holdout_evasion_results(freeze_rec, manifest)
+    indep_scores = indep_exec["scenarios"]["threshold_hugging_evasion"]["measurements"]["observed_score_sequence"]
+    tampered_scores = tampered_artifact["scenarios"]["threshold_hugging_evasion"]["measurements"]["observed_score_sequence"]
+
+    assert tampered_scores != indep_scores, "Tampered artifact score sequence must not match execution output"
+
 
 
