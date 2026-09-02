@@ -61,6 +61,11 @@ from src.contracts.contracts import (
 )
 from src.evaluation.freeze import load_freeze_record, compute_config_hash, FreezeRecord
 from src.baseline.baseline_engine import BaselineEngine
+from src.evaluation.provenance import (
+    verify_canonical_report_provenance,
+    git_commit_exists,
+    git_is_ancestor,
+)
 from src.evaluation.holdout import (
     HoldoutManifest,
     HoldoutProtection,
@@ -533,27 +538,82 @@ def test_published_canonical_report_provenance_and_artifact_sha():
     assert data["detector_version"] == "1.0.0"
     assert data["config_hash"] == "59034aef4ef11333008c128d7f45ddd88194887460f7856695d13cc9a9834e9d"
     assert data["holdout_dataset_hash"] == "71595f0cf6681e26ea96232eca900fb805909525367fe90124156de9fa65ddb4"
-    assert compute_canonical_artifact_hash(data) == data["artifact_sha256"]
 
-    r2 = data["dual_run_disclosure"]["run_002_corrected"]
-    assert r2["execution_commit"] == "bc29c36"
-    assert r2["status"] == "ACCEPTED_CANONICAL"
+    # Strictly verify provenance against actual git repository state
+    prov_result = verify_canonical_report_provenance(data)
+    assert prov_result["status"] == "PROVENANCE_VERIFIED"
+    assert prov_result["execution_commit"] == "bc29c36"
+    assert prov_result["artifact_finalization_commit"] == "5841ddb"
+    assert prov_result["chain_length"] >= 8
 
-    # Verify provenance structure:
-    # 1. artifact_finalization_commit is a non-empty, non-placeholder git hex SHA
-    assert r2["artifact_finalization_commit"]
-    assert all(c in "0123456789abcdef" for c in r2["artifact_finalization_commit"].lower())
-    assert len(r2["artifact_finalization_commit"]) in (7, 40)
-    assert "pending" not in r2["artifact_finalization_commit"].lower()
-    assert "placeholder" not in r2["artifact_finalization_commit"].lower()
 
-    # 2. historical_artifact_chain is valid non-empty list of commit SHAs ending in artifact_finalization_commit
-    chain = r2["historical_artifact_chain"]
-    assert isinstance(chain, list) and len(chain) > 0
-    for commit_sha in chain:
-        assert all(c in "0123456789abcdef" for c in commit_sha.lower())
-        assert len(commit_sha) in (7, 40)
-    assert chain[-1] == r2["artifact_finalization_commit"]
+def test_tampered_artifact_content_fails_provenance_verification():
+    """Verify modifying any content in report.json without updating artifact_sha256 raises ValueError."""
+    report_path = Path("artifacts/final/report.json")
+    if not report_path.exists():
+        pytest.skip("Artifacts not yet generated.")
+
+    data = json.loads(report_path.read_text(encoding="utf-8"))
+    
+    # Tamper with precision metric
+    tampered_data = dict(data)
+    tampered_data["executive_summary"] = dict(data["executive_summary"])
+    tampered_data["executive_summary"]["precision"] = 0.9999
+
+    with pytest.raises(ValueError, match="Artifact integrity violation.*tampered"):
+        verify_canonical_report_provenance(tampered_data)
+
+
+def test_unrelated_commit_fails_provenance_verification():
+    """Verify setting artifact_finalization_commit to an unrelated commit raises ValueError."""
+    report_path = Path("artifacts/final/report.json")
+    if not report_path.exists():
+        pytest.skip("Artifacts not yet generated.")
+
+    data = json.loads(report_path.read_text(encoding="utf-8"))
+    
+    # Mutate finalization commit to an unrelated commit (e.g. Day 6 baseline commit)
+    bad_data = json.loads(json.dumps(data))
+    bad_data["dual_run_disclosure"]["run_002_corrected"]["artifact_finalization_commit"] = "4e3283b"
+    # Recompute SHA to isolate finalization commit check
+    bad_data["artifact_sha256"] = compute_canonical_artifact_hash(bad_data)
+
+    with pytest.raises(ValueError, match="Provenance violation"):
+        verify_canonical_report_provenance(bad_data)
+
+
+def test_fabricated_commit_in_chain_fails_provenance_verification():
+    """Verify introducing a fabricated non-existent commit into historical_artifact_chain raises ValueError."""
+    report_path = Path("artifacts/final/report.json")
+    if not report_path.exists():
+        pytest.skip("Artifacts not yet generated.")
+
+    data = json.loads(report_path.read_text(encoding="utf-8"))
+    
+    bad_data = json.loads(json.dumps(data))
+    bad_data["dual_run_disclosure"]["run_002_corrected"]["historical_artifact_chain"].insert(2, "deadbeef00")
+    bad_data["artifact_sha256"] = compute_canonical_artifact_hash(bad_data)
+
+    with pytest.raises(ValueError, match="does not exist in git repository"):
+        verify_canonical_report_provenance(bad_data)
+
+
+def test_out_of_order_chain_fails_provenance_verification():
+    """Verify an out-of-order or topologically disconnected chain raises ValueError."""
+    report_path = Path("artifacts/final/report.json")
+    if not report_path.exists():
+        pytest.skip("Artifacts not yet generated.")
+
+    data = json.loads(report_path.read_text(encoding="utf-8"))
+    
+    bad_data = json.loads(json.dumps(data))
+    chain = bad_data["dual_run_disclosure"]["run_002_corrected"]["historical_artifact_chain"]
+    # Swap two elements to break topological ancestry
+    chain[1], chain[3] = chain[3], chain[1]
+    bad_data["artifact_sha256"] = compute_canonical_artifact_hash(bad_data)
+
+    with pytest.raises(ValueError, match="is not an ancestor of"):
+        verify_canonical_report_provenance(bad_data)
 
 
 # =====================================================================
