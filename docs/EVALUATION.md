@@ -15,13 +15,21 @@ To guarantee rigorous scientific validity and zero benchmark contamination:
 
 ## 🎯 Matching Rules & Latency Horizons
 
-Event matching strictly follows Sections 21–22 of the Master Build Plan:
-* An emitted `Alert` at time $t_a$ matches Ground Truth event $E_i = [t_{\text{start}}, t_{\text{end}}]$ iff:
-  $$t_{\text{start}} \le t_a \le t_{\text{end}} + H$$
-  where temporal horizon $H = \max(60\text{s}, 2 \times \text{duration}(E_i))$.
+Event matching strictly follows Sections 21–22 of the Master Build Plan and `config/evaluation.yaml`:
+* **Valid Event Match:** An emitted `Alert` at time $t_a$ matches Ground Truth event $E_i$ starting at $t_{\text{start}}$ iff:
+  $$t_{\text{start}} \le t_a \le t_{\text{start}} + H_{\text{type}}$$
+  where $H_{\text{type}}$ is the configured anomaly-specific evaluation horizon from `config/evaluation.yaml`:
+  * `velocity_burst`: **60s**
+  * `volume_spike`: **120s**
+  * `amount_shift`: **180s**
+  * `behavioral_anomaly`: **180s**
+  * `attribute_shift`: **180s**
+  * `sustained_spike`: **300s**
+  * `compound_anomaly`: **300s**
+  * `evasive_patterns`: **300s**
 * **Detection Latency:** $\text{Latency} = \max(0\text{s}, t_a - t_{\text{start}})$.
-* **Duplicate Alert Rule:** First matching alert within horizon scores True Positive ($\text{TP}=1$); subsequent alerts within the same event window are marked duplicate and do not increment $\text{FP}$.
-* **Unmatched Alert Rule:** Any alert emitted outside all ground truth event horizons scores False Positive ($\text{FP}=1$).
+* **Strict One-to-One Matching:** The first valid alert within the horizon $[t_{\text{start}}, t_{\text{start}} + H_{\text{type}}]$ matches the ground truth event ($\text{TP}=1$). Subsequent alerts matching an already matched event do not increment $\text{TP}$ or $\text{FP}$.
+* **Pre-Onset & Unmatched FP Rule:** Any alert emitted prior to event onset ($t_a < t_{\text{start}}$) or outside all valid event horizons scores a False Positive ($\text{FP}=1$).
 
 ---
 

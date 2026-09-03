@@ -61,7 +61,7 @@ StreamingDetectorPipeline
 
 ## 📊 Measured Locked Holdout Benchmark Results
 
-Evaluated on the locked holdout dataset (`data/holdout/`) under canonical experiment `EXP-DAY9-HOLDOUT-CORRECTED-CONFIDENCE-004` (Commit SHA `808358f`):
+Evaluated on the locked holdout dataset (`data/holdout/`) under canonical experiment `EXP-DAY9-HOLDOUT-CORRECTED-CONFIDENCE-004` (Execution Commit SHA `2f860e8`):
 
 | Benchmark Metric | Canonical Value | Unit |
 |---|---|---|
@@ -88,7 +88,7 @@ Evaluated on the locked holdout dataset (`data/holdout/`) under canonical experi
 3. **Descriptive Holdout Calibration:**
    Generates Reliability Diagrams and Expected Calibration Error ($\text{ECE} = 0.7094$, total samples $= 119$).
 4. **Non-Parametric Bootstrap Uncertainty:**
-   Derives 95% confidence intervals over $N = 1000$ resamples ($\text{F1} \in [0.2000, 0.8000]$).
+   Derives 95% confidence intervals over $N = 1000$ resamples: Precision point `0.8000`, 95% CI `[0.2000, 0.8000]` (raw 4 TP / 5 alerts); Recall point `0.8000`, 95% CI `[0.2000, 0.8000]` (raw 4 TP / 5 events).
 
 ---
 

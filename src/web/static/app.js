@@ -115,8 +115,10 @@ function populateEvaluationSummary(report) {
   const canonicalScorer = port.find(p => p.is_frozen_canonical) || {};
   const p95Lat = canonicalScorer.p95_latency_seconds !== undefined && canonicalScorer.p95_latency_seconds !== null
     ? `${canonicalScorer.p95_latency_seconds.toFixed(2)}s`
-    : "N/A";
+    : (m.p95_latency_seconds !== undefined ? `${m.p95_latency_seconds.toFixed(2)}s` : "N/A");
   
+  document.getElementById("evalP95").textContent = p95Lat;
+
   const medLat = m.median_latency_seconds !== undefined && m.median_latency_seconds !== null ? m.median_latency_seconds.toFixed(2) : (canonicalScorer.median_latency_seconds ? canonicalScorer.median_latency_seconds.toFixed(2) : "N/A");
   document.getElementById("evalLatency").innerHTML = `${medLat} <span class="metric-unit">s</span>`;
 
