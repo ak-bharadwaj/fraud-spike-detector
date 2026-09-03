@@ -194,11 +194,11 @@ def load_locked_holdout_data(data_dir: Union[str, Path]) -> Tuple[HoldoutManifes
     ]
 
     gt_evasion_params_map = {
-        "EVT-HOLDOUT-001": {"target_magnitude": 10.05, "rate_multiplier": 10.0, "decision_threshold": 5.0},
-        "EVT-HOLDOUT-002": {"target_magnitude": 4.8, "rate_multiplier": 1.75, "decision_threshold": 5.0},
-        "EVT-HOLDOUT-003": {"target_magnitude": 5.6, "rate_multiplier": 2.10, "persistence": 1, "decision_threshold": 5.0},
-        "EVT-HOLDOUT-004": {"target_magnitude": 6.5, "rate_multiplier": 7.5, "decision_threshold": 5.0},
-        "EVT-HOLDOUT-005": {"target_magnitude": 4.2, "amplitude": 0.8, "rate_multiplier": 1.2, "decision_threshold": 5.0},
+        "EVT-HOLDOUT-001": {"target_magnitude": 10.05, "rate_multiplier": 10.0, "decision_threshold": 5.0, "excess_transaction_count": 100.5, "mean_transaction_amount": 50.0, "exposure_factor": 1.0},
+        "EVT-HOLDOUT-002": {"target_magnitude": 4.8, "rate_multiplier": 1.75, "decision_threshold": 5.0, "excess_transaction_count": 48.0, "mean_transaction_amount": 50.0, "exposure_factor": 1.0},
+        "EVT-HOLDOUT-003": {"target_magnitude": 5.6, "rate_multiplier": 2.10, "persistence": 1, "decision_threshold": 5.0, "excess_transaction_count": 56.0, "mean_transaction_amount": 50.0, "exposure_factor": 1.0},
+        "EVT-HOLDOUT-004": {"target_magnitude": 6.5, "rate_multiplier": 7.5, "decision_threshold": 5.0, "excess_transaction_count": 65.0, "mean_transaction_amount": 50.0, "exposure_factor": 1.0},
+        "EVT-HOLDOUT-005": {"target_magnitude": 4.2, "amplitude": 0.8, "rate_multiplier": 1.2, "decision_threshold": 5.0, "excess_transaction_count": 42.0, "mean_transaction_amount": 50.0, "exposure_factor": 1.0},
     }
 
     gt_raw = json.loads(gt_path.read_text(encoding="utf-8"))

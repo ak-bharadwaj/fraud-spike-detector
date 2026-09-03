@@ -19,8 +19,8 @@
     "median_latency_seconds": 64.567352,
     "p95_latency_seconds": 64.567352,
     "fp_cost": 50.0,
-    "fn_exposure": 800.0,
-    "total_cost": 850.0,
+    "fn_exposure": 2100.0,
+    "total_cost": 2150.0,
     "matched_events": [
       {
         "event_id": "EVT-HOLDOUT-001",
@@ -191,7 +191,89 @@
       "delta_f1": 0.0,
       "delta_precision": 0.0,
       "delta_recall": 0.0,
-      "delta_latency_seconds": 0.0
+      "delta_latency_seconds": 0.0,
+      "per_anomaly": {
+        "volume_spike": {
+          "anomaly_type": "volume_spike",
+          "events_detected": 1,
+          "total_events": 1,
+          "precision": 0.5,
+          "recall": 1.0,
+          "f1": 0.6667,
+          "median_latency_seconds": 60.0,
+          "status": "VALIDATED"
+        },
+        "velocity_burst": {
+          "anomaly_type": "velocity_burst",
+          "events_detected": 1,
+          "total_events": 1,
+          "precision": 0.5,
+          "recall": 1.0,
+          "f1": 0.6667,
+          "median_latency_seconds": 60.0,
+          "status": "VALIDATED"
+        },
+        "sustained_spike": {
+          "anomaly_type": "sustained_spike",
+          "events_detected": 0,
+          "total_events": 0,
+          "precision": null,
+          "recall": null,
+          "f1": null,
+          "median_latency_seconds": null,
+          "status": "NO_EVENTS_IN_DATASET"
+        },
+        "amount_shift": {
+          "anomaly_type": "amount_shift",
+          "events_detected": 0,
+          "total_events": 0,
+          "precision": null,
+          "recall": null,
+          "f1": null,
+          "median_latency_seconds": null,
+          "status": "NO_EVENTS_IN_DATASET"
+        },
+        "behavioral_anomaly": {
+          "anomaly_type": "behavioral_anomaly",
+          "events_detected": 0,
+          "total_events": 0,
+          "precision": null,
+          "recall": null,
+          "f1": null,
+          "median_latency_seconds": null,
+          "status": "NO_EVENTS_IN_DATASET"
+        },
+        "attribute_shift": {
+          "anomaly_type": "attribute_shift",
+          "events_detected": 0,
+          "total_events": 0,
+          "precision": null,
+          "recall": null,
+          "f1": null,
+          "median_latency_seconds": null,
+          "status": "NO_EVENTS_IN_DATASET"
+        },
+        "compound_anomaly": {
+          "anomaly_type": "compound_anomaly",
+          "events_detected": 0,
+          "total_events": 0,
+          "precision": null,
+          "recall": null,
+          "f1": null,
+          "median_latency_seconds": null,
+          "status": "NO_EVENTS_IN_DATASET"
+        },
+        "evasive_patterns": {
+          "anomaly_type": "evasive_patterns",
+          "events_detected": 0,
+          "total_events": 0,
+          "precision": null,
+          "recall": null,
+          "f1": null,
+          "median_latency_seconds": null,
+          "status": "NO_EVENTS_IN_DATASET"
+        }
+      }
     },
     {
       "variant_id": "-VOLUME",
@@ -235,7 +317,89 @@
       "delta_f1": 0.0,
       "delta_precision": 0.0,
       "delta_recall": 0.0,
-      "delta_latency_seconds": 0.0
+      "delta_latency_seconds": 0.0,
+      "per_anomaly": {
+        "volume_spike": {
+          "anomaly_type": "volume_spike",
+          "events_detected": 1,
+          "total_events": 1,
+          "precision": 0.5,
+          "recall": 1.0,
+          "f1": 0.6667,
+          "median_latency_seconds": 60.0,
+          "status": "VALIDATED"
+        },
+        "velocity_burst": {
+          "anomaly_type": "velocity_burst",
+          "events_detected": 1,
+          "total_events": 1,
+          "precision": 0.5,
+          "recall": 1.0,
+          "f1": 0.6667,
+          "median_latency_seconds": 60.0,
+          "status": "VALIDATED"
+        },
+        "sustained_spike": {
+          "anomaly_type": "sustained_spike",
+          "events_detected": 0,
+          "total_events": 0,
+          "precision": null,
+          "recall": null,
+          "f1": null,
+          "median_latency_seconds": null,
+          "status": "NO_EVENTS_IN_DATASET"
+        },
+        "amount_shift": {
+          "anomaly_type": "amount_shift",
+          "events_detected": 0,
+          "total_events": 0,
+          "precision": null,
+          "recall": null,
+          "f1": null,
+          "median_latency_seconds": null,
+          "status": "NO_EVENTS_IN_DATASET"
+        },
+        "behavioral_anomaly": {
+          "anomaly_type": "behavioral_anomaly",
+          "events_detected": 0,
+          "total_events": 0,
+          "precision": null,
+          "recall": null,
+          "f1": null,
+          "median_latency_seconds": null,
+          "status": "NO_EVENTS_IN_DATASET"
+        },
+        "attribute_shift": {
+          "anomaly_type": "attribute_shift",
+          "events_detected": 0,
+          "total_events": 0,
+          "precision": null,
+          "recall": null,
+          "f1": null,
+          "median_latency_seconds": null,
+          "status": "NO_EVENTS_IN_DATASET"
+        },
+        "compound_anomaly": {
+          "anomaly_type": "compound_anomaly",
+          "events_detected": 0,
+          "total_events": 0,
+          "precision": null,
+          "recall": null,
+          "f1": null,
+          "median_latency_seconds": null,
+          "status": "NO_EVENTS_IN_DATASET"
+        },
+        "evasive_patterns": {
+          "anomaly_type": "evasive_patterns",
+          "events_detected": 0,
+          "total_events": 0,
+          "precision": null,
+          "recall": null,
+          "f1": null,
+          "median_latency_seconds": null,
+          "status": "NO_EVENTS_IN_DATASET"
+        }
+      }
     },
     {
       "variant_id": "-VELOCITY",
@@ -279,7 +443,89 @@
       "delta_f1": 0.0,
       "delta_precision": 0.0,
       "delta_recall": 0.0,
-      "delta_latency_seconds": 0.0
+      "delta_latency_seconds": 0.0,
+      "per_anomaly": {
+        "volume_spike": {
+          "anomaly_type": "volume_spike",
+          "events_detected": 1,
+          "total_events": 1,
+          "precision": 0.5,
+          "recall": 1.0,
+          "f1": 0.6667,
+          "median_latency_seconds": 60.0,
+          "status": "VALIDATED"
+        },
+        "velocity_burst": {
+          "anomaly_type": "velocity_burst",
+          "events_detected": 1,
+          "total_events": 1,
+          "precision": 0.5,
+          "recall": 1.0,
+          "f1": 0.6667,
+          "median_latency_seconds": 60.0,
+          "status": "VALIDATED"
+        },
+        "sustained_spike": {
+          "anomaly_type": "sustained_spike",
+          "events_detected": 0,
+          "total_events": 0,
+          "precision": null,
+          "recall": null,
+          "f1": null,
+          "median_latency_seconds": null,
+          "status": "NO_EVENTS_IN_DATASET"
+        },
+        "amount_shift": {
+          "anomaly_type": "amount_shift",
+          "events_detected": 0,
+          "total_events": 0,
+          "precision": null,
+          "recall": null,
+          "f1": null,
+          "median_latency_seconds": null,
+          "status": "NO_EVENTS_IN_DATASET"
+        },
+        "behavioral_anomaly": {
+          "anomaly_type": "behavioral_anomaly",
+          "events_detected": 0,
+          "total_events": 0,
+          "precision": null,
+          "recall": null,
+          "f1": null,
+          "median_latency_seconds": null,
+          "status": "NO_EVENTS_IN_DATASET"
+        },
+        "attribute_shift": {
+          "anomaly_type": "attribute_shift",
+          "events_detected": 0,
+          "total_events": 0,
+          "precision": null,
+          "recall": null,
+          "f1": null,
+          "median_latency_seconds": null,
+          "status": "NO_EVENTS_IN_DATASET"
+        },
+        "compound_anomaly": {
+          "anomaly_type": "compound_anomaly",
+          "events_detected": 0,
+          "total_events": 0,
+          "precision": null,
+          "recall": null,
+          "f1": null,
+          "median_latency_seconds": null,
+          "status": "NO_EVENTS_IN_DATASET"
+        },
+        "evasive_patterns": {
+          "anomaly_type": "evasive_patterns",
+          "events_detected": 0,
+          "total_events": 0,
+          "precision": null,
+          "recall": null,
+          "f1": null,
+          "median_latency_seconds": null,
+          "status": "NO_EVENTS_IN_DATASET"
+        }
+      }
     },
     {
       "variant_id": "-AMOUNT",
@@ -323,7 +569,89 @@
       "delta_f1": 0.0,
       "delta_precision": 0.0,
       "delta_recall": 0.0,
-      "delta_latency_seconds": 0.0
+      "delta_latency_seconds": 0.0,
+      "per_anomaly": {
+        "volume_spike": {
+          "anomaly_type": "volume_spike",
+          "events_detected": 1,
+          "total_events": 1,
+          "precision": 0.5,
+          "recall": 1.0,
+          "f1": 0.6667,
+          "median_latency_seconds": 60.0,
+          "status": "VALIDATED"
+        },
+        "velocity_burst": {
+          "anomaly_type": "velocity_burst",
+          "events_detected": 1,
+          "total_events": 1,
+          "precision": 0.5,
+          "recall": 1.0,
+          "f1": 0.6667,
+          "median_latency_seconds": 60.0,
+          "status": "VALIDATED"
+        },
+        "sustained_spike": {
+          "anomaly_type": "sustained_spike",
+          "events_detected": 0,
+          "total_events": 0,
+          "precision": null,
+          "recall": null,
+          "f1": null,
+          "median_latency_seconds": null,
+          "status": "NO_EVENTS_IN_DATASET"
+        },
+        "amount_shift": {
+          "anomaly_type": "amount_shift",
+          "events_detected": 0,
+          "total_events": 0,
+          "precision": null,
+          "recall": null,
+          "f1": null,
+          "median_latency_seconds": null,
+          "status": "NO_EVENTS_IN_DATASET"
+        },
+        "behavioral_anomaly": {
+          "anomaly_type": "behavioral_anomaly",
+          "events_detected": 0,
+          "total_events": 0,
+          "precision": null,
+          "recall": null,
+          "f1": null,
+          "median_latency_seconds": null,
+          "status": "NO_EVENTS_IN_DATASET"
+        },
+        "attribute_shift": {
+          "anomaly_type": "attribute_shift",
+          "events_detected": 0,
+          "total_events": 0,
+          "precision": null,
+          "recall": null,
+          "f1": null,
+          "median_latency_seconds": null,
+          "status": "NO_EVENTS_IN_DATASET"
+        },
+        "compound_anomaly": {
+          "anomaly_type": "compound_anomaly",
+          "events_detected": 0,
+          "total_events": 0,
+          "precision": null,
+          "recall": null,
+          "f1": null,
+          "median_latency_seconds": null,
+          "status": "NO_EVENTS_IN_DATASET"
+        },
+        "evasive_patterns": {
+          "anomaly_type": "evasive_patterns",
+          "events_detected": 0,
+          "total_events": 0,
+          "precision": null,
+          "recall": null,
+          "f1": null,
+          "median_latency_seconds": null,
+          "status": "NO_EVENTS_IN_DATASET"
+        }
+      }
     },
     {
       "variant_id": "-BEHAVIORAL",
@@ -367,7 +695,89 @@
       "delta_f1": 0.0,
       "delta_precision": 0.0,
       "delta_recall": 0.0,
-      "delta_latency_seconds": 0.0
+      "delta_latency_seconds": 0.0,
+      "per_anomaly": {
+        "volume_spike": {
+          "anomaly_type": "volume_spike",
+          "events_detected": 1,
+          "total_events": 1,
+          "precision": 0.5,
+          "recall": 1.0,
+          "f1": 0.6667,
+          "median_latency_seconds": 60.0,
+          "status": "VALIDATED"
+        },
+        "velocity_burst": {
+          "anomaly_type": "velocity_burst",
+          "events_detected": 1,
+          "total_events": 1,
+          "precision": 0.5,
+          "recall": 1.0,
+          "f1": 0.6667,
+          "median_latency_seconds": 60.0,
+          "status": "VALIDATED"
+        },
+        "sustained_spike": {
+          "anomaly_type": "sustained_spike",
+          "events_detected": 0,
+          "total_events": 0,
+          "precision": null,
+          "recall": null,
+          "f1": null,
+          "median_latency_seconds": null,
+          "status": "NO_EVENTS_IN_DATASET"
+        },
+        "amount_shift": {
+          "anomaly_type": "amount_shift",
+          "events_detected": 0,
+          "total_events": 0,
+          "precision": null,
+          "recall": null,
+          "f1": null,
+          "median_latency_seconds": null,
+          "status": "NO_EVENTS_IN_DATASET"
+        },
+        "behavioral_anomaly": {
+          "anomaly_type": "behavioral_anomaly",
+          "events_detected": 0,
+          "total_events": 0,
+          "precision": null,
+          "recall": null,
+          "f1": null,
+          "median_latency_seconds": null,
+          "status": "NO_EVENTS_IN_DATASET"
+        },
+        "attribute_shift": {
+          "anomaly_type": "attribute_shift",
+          "events_detected": 0,
+          "total_events": 0,
+          "precision": null,
+          "recall": null,
+          "f1": null,
+          "median_latency_seconds": null,
+          "status": "NO_EVENTS_IN_DATASET"
+        },
+        "compound_anomaly": {
+          "anomaly_type": "compound_anomaly",
+          "events_detected": 0,
+          "total_events": 0,
+          "precision": null,
+          "recall": null,
+          "f1": null,
+          "median_latency_seconds": null,
+          "status": "NO_EVENTS_IN_DATASET"
+        },
+        "evasive_patterns": {
+          "anomaly_type": "evasive_patterns",
+          "events_detected": 0,
+          "total_events": 0,
+          "precision": null,
+          "recall": null,
+          "f1": null,
+          "median_latency_seconds": null,
+          "status": "NO_EVENTS_IN_DATASET"
+        }
+      }
     }
   ]
 }

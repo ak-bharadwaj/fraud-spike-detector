@@ -15,7 +15,7 @@
     "precision": 0.8,
     "recall": 0.8,
     "f1_score": 0.8000000000000002,
-    "total_cost": 850.0,
+    "total_cost": 2150.0,
     "cost_unit": "\u20b9"
   },
   "dual_run_disclosure": {
@@ -131,7 +131,7 @@
         "precision": 0.8,
         "recall": 0.8,
         "f1_score": 0.8000000000000002,
-        "total_cost": 850.0
+        "total_cost": 2150.0
       }
     }
   },
@@ -365,8 +365,8 @@
       "is_descriptive_comparator": true,
       "is_frozen_canonical": true,
       "fp_cost": 50.0,
-      "fn_exposure": 800.0,
-      "total_cost": 850.0,
+      "fn_exposure": 2100.0,
+      "total_cost": 2150.0,
       "cost_unit": "\u20b9",
       "tp": 4,
       "fp": 1,
@@ -382,8 +382,8 @@
       "is_descriptive_comparator": true,
       "is_frozen_canonical": false,
       "fp_cost": 50.0,
-      "fn_exposure": 10750.0,
-      "total_cost": 10800.0,
+      "fn_exposure": 12325.0,
+      "total_cost": 12375.0,
       "cost_unit": "\u20b9",
       "tp": 1,
       "fp": 1,
@@ -408,7 +408,10 @@
         "holdout_parameters": {
           "target_magnitude": 4.8,
           "rate_multiplier": 1.75,
-          "decision_threshold": 5.0
+          "decision_threshold": 5.0,
+          "excess_transaction_count": 48.0,
+          "mean_transaction_amount": 50.0,
+          "exposure_factor": 1.0
         },
         "development_parameters": {
           "target_magnitude": 3.3,
@@ -439,7 +442,10 @@
           "target_magnitude": 5.6,
           "rate_multiplier": 2.1,
           "persistence": 1,
-          "decision_threshold": 5.0
+          "decision_threshold": 5.0,
+          "excess_transaction_count": 56.0,
+          "mean_transaction_amount": 50.0,
+          "exposure_factor": 1.0
         },
         "development_parameters": {
           "target_magnitude": 4.0,
@@ -470,7 +476,10 @@
         "holdout_parameters": {
           "target_magnitude": 6.5,
           "rate_multiplier": 7.5,
-          "decision_threshold": 5.0
+          "decision_threshold": 5.0,
+          "excess_transaction_count": 65.0,
+          "mean_transaction_amount": 50.0,
+          "exposure_factor": 1.0
         },
         "development_parameters": {
           "target_magnitude": 5.0,
@@ -501,7 +510,10 @@
           "target_magnitude": 4.2,
           "amplitude": 0.8,
           "rate_multiplier": 1.2,
-          "decision_threshold": 5.0
+          "decision_threshold": 5.0,
+          "excess_transaction_count": 42.0,
+          "mean_transaction_amount": 50.0,
+          "exposure_factor": 1.0
         },
         "development_parameters": {
           "target_magnitude": 2.5,
@@ -787,5 +799,5 @@
       "total_cost": 12950.0
     }
   ],
-  "artifact_sha256": "b12cc0f8ba7dd6a898831685b154bac0749898d42acf5cd31a8e553cd997a16c"
+  "artifact_sha256": "8985b91d414f1d5f891a369095cfe194672a9185a6cf155d72d7682128babc56"
 }

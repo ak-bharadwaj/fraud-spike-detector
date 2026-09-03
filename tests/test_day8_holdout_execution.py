@@ -957,7 +957,7 @@ def test_per_anomaly_evasion_canonicalization_and_validation():
 
 
 def test_pitch_artifact_exists_and_matches_section_41():
-    """Verify docs/PITCH.md exists and mechanically validates all 5 timed sections, 300-second sum, UI cues, and disclosures (§41)."""
+    """Verify docs/PITCH.md exists and mechanically validates all 7 SSOT timed sections, 300-second sum, UI cues, and disclosures (§41)."""
     pitch_path = Path("docs/PITCH.md")
     assert pitch_path.exists(), "docs/PITCH.md missing"
     content = pitch_path.read_text(encoding="utf-8")
@@ -966,13 +966,15 @@ def test_pitch_artifact_exists_and_matches_section_41():
     assert "5-Minute Technical Pitch Script" in content
     assert "Target Duration:** Exactly 5:00 (300 seconds)" in content
 
-    # 2. Mechanical Timing Block Verification (§41 Exact Blocks)
+    # 2. Mechanical Timing Block Verification (§41 Exact SSOT 7 Blocks)
     timed_blocks = [
-        ("0:00 - 0:45", 45),
-        ("0:45 - 1:45", 60),
-        ("1:45 - 2:45", 60),
-        ("2:45 - 3:45", 60),
-        ("3:45 - 5:00", 75),
+        ("0:00 – 0:40", 40),
+        ("0:40 – 1:20", 40),
+        ("1:20 – 2:20", 60),
+        ("2:20 – 3:10", 50),
+        ("3:10 – 3:50", 40),
+        ("3:50 – 4:30", 40),
+        ("4:30 – 5:00", 30),
     ]
     total_seconds = 0
     for block_str, block_duration in timed_blocks:
@@ -981,18 +983,22 @@ def test_pitch_artifact_exists_and_matches_section_41():
 
     assert total_seconds == 300, f"Pitch timeline total duration must equal exactly 300 seconds, got {total_seconds}"
 
-    # 3. Live Demo UI Cue Verification
+    # 3. Technical Narrative Verification for Frozen Detector
+    assert "StatisticalDeviationScorer" in content
+    assert "alpha=0.3" in content
+
+    # 4. Live Demo UI Cue Verification
     assert "Tab 1: Live Stream Monitor" in content
     assert "Tab 2: Evaluation & Evidence" in content
     assert "Tab 3: Replay & Audit Trail" in content
 
-    # 4. Mandatory Disclosures Verification
+    # 5. Mandatory Disclosures Verification
     assert "Small-N Holdout" in content or "N=5" in content
     assert "[0.2000, 0.8000]" in content
     assert "NO_EVENTS_IN_DATASET" in content
     assert "harmonic" in content.lower()
 
-    # 5. Judge Q&A Verification
+    # 6. Judge Q&A Verification
     assert "Key Questions & Answers for Judges" in content
     assert "Q: Why are your 95% Confidence Intervals so wide" in content
 

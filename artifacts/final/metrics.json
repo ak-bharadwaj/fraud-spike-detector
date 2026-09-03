@@ -20,8 +20,8 @@
     "median_latency_seconds": 64.567352,
     "p95_latency_seconds": 64.567352,
     "fp_cost": 50.0,
-    "fn_exposure": 800.0,
-    "total_cost": 850.0,
+    "fn_exposure": 2100.0,
+    "total_cost": 2150.0,
     "matched_events": [
       {
         "event_id": "EVT-HOLDOUT-001",

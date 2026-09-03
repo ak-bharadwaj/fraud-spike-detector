@@ -19,7 +19,10 @@
       "holdout_parameters": {
         "target_magnitude": 4.8,
         "rate_multiplier": 1.75,
-        "decision_threshold": 5.0
+        "decision_threshold": 5.0,
+        "excess_transaction_count": 48.0,
+        "mean_transaction_amount": 50.0,
+        "exposure_factor": 1.0
       },
       "development_parameters": {
         "target_magnitude": 3.3,
@@ -50,7 +53,10 @@
         "target_magnitude": 5.6,
         "rate_multiplier": 2.1,
         "persistence": 1,
-        "decision_threshold": 5.0
+        "decision_threshold": 5.0,
+        "excess_transaction_count": 56.0,
+        "mean_transaction_amount": 50.0,
+        "exposure_factor": 1.0
       },
       "development_parameters": {
         "target_magnitude": 4.0,
@@ -81,7 +87,10 @@
       "holdout_parameters": {
         "target_magnitude": 6.5,
         "rate_multiplier": 7.5,
-        "decision_threshold": 5.0
+        "decision_threshold": 5.0,
+        "excess_transaction_count": 65.0,
+        "mean_transaction_amount": 50.0,
+        "exposure_factor": 1.0
       },
       "development_parameters": {
         "target_magnitude": 5.0,
@@ -112,7 +121,10 @@
         "target_magnitude": 4.2,
         "amplitude": 0.8,
         "rate_multiplier": 1.2,
-        "decision_threshold": 5.0
+        "decision_threshold": 5.0,
+        "excess_transaction_count": 42.0,
+        "mean_transaction_amount": 50.0,
+        "exposure_factor": 1.0
       },
       "development_parameters": {
         "target_magnitude": 2.5,

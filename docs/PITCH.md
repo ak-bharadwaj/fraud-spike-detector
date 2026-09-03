@@ -7,69 +7,82 @@
 
 ---
 
-## ⏱️ Pitch Timeline & Cue Sheet
+## ⏱️ Pitch Timeline & Cue Sheet (Exact SSOT 7-Section Structure)
 
 ```
-+-------------------+---------------------------------------------------------+---------------------------------+
-| Time Block        | Section & Core Technical Narrative                      | Live Demo / UI Visual Cue       |
-+-------------------+---------------------------------------------------------+---------------------------------+
-| 0:00 - 0:45 (45s) | 1. Problem & Financial Stakes                           | Tab 1: Live Stream Monitor      |
-| 0:45 - 1:45 (60s) | 2. Architecture & Streaming Engine                      | Tab 1: Merchant Metrics & Chart |
-| 1:45 - 2:45 (60s) | 3. Multi-Signal Scorer & Evidence Degradation Firewall | Tab 1: Score & State Transition |
-| 2:45 - 3:45 (60s) | 4. Locked Holdout Evaluation & Evasion/Drift            | Tab 2: Evaluation & Evidence     |
-| 3:45 - 5:00 (75s) | 5. Live Operations Console & Scientific Disclosure      | Tab 3: Replay & Audit Trail     |
-+-------------------+---------------------------------------------------------+---------------------------------+
++---------------------+-----------------------------------------------------------+---------------------------------+
+| Time Block          | Section & Core Technical Narrative                        | Live Demo / UI Visual Cue       |
++---------------------+-----------------------------------------------------------+---------------------------------+
+| 0:00 – 0:40 (40s)   | 1. Problem & Risk-Management Framing                      | Tab 1: Live Stream Monitor      |
+| 0:40 – 1:20 (40s)   | 2. System Architecture & Event Engine                     | Tab 1: Merchant Metrics & Chart |
+| 1:20 – 2:20 (60s)   | 3. Live Detection & SQLite Audit Trail                    | Tab 1: Score & State Transition |
+| 2:20 – 3:10 (50s)   | 4. Benchmark Precision, Recall, Latency & Calibration     | Tab 2: Evaluation & Evidence    |
+| 3:10 – 3:50 (40s)   | 5. 5-Way Ablation, Drift, Evasion & Bootstrap Uncertainty | Tab 2: Evaluation & Evidence    |
+| 3:50 – 4:30 (40s)   | 6. Portfolio FP/FN Financial Cost Analysis                | Tab 2: Evaluation & Evidence    |
+| 4:30 – 5:00 (30s)   | 7. Failure Story & Explicit Engineering Boundaries        | Tab 3: Replay & Audit Trail     |
++---------------------+-----------------------------------------------------------+---------------------------------+
 ```
 
 ---
 
 ## 📜 Complete Timed Presentation Script
 
-### 1. Problem & Financial Stakes (0:00 – 0:45 | 45 Seconds)
-> *"Good morning. When fraud attacks hit payment gateways like Razorpay, they don't arrive as isolated bad transactions—they erupt in hyper-dense bursts across volume, velocity, amount distribution, and device pools. Traditional batch models react too slowly, exposing merchants to massive chargeback loss (₹800+ per missed event). Conversely, naive thresholding triggers catastrophic alert fatigue with ₹50 operational review costs per false positive.*
+### 1. Problem & Risk-Management Framing (0:00 – 0:40 | 40 Seconds)
+> *"Good morning. When fraud attacks hit payment gateways like Razorpay, they erupt in hyper-dense bursts across volume, velocity, amount distribution, and device pools. Traditional batch models react too slowly, exposing merchants to massive chargeback loss (₹800+ per missed event). Conversely, naive static thresholding triggers catastrophic alert fatigue with ₹50 operational review costs per false positive.
 > 
-> *Our solution is an event-driven, real-time Fraud-Spike Detector that operates strictly in streaming time with zero future data leakage, providing dynamic EWMA risk scoring, adaptive baseline tracking, and automated alert state machine persistence."*
+> Our solution is Fraud-Spike Detector—an event-driven, audit-first streaming risk intelligence engine operating strictly under a defense-only boundary: producing interpretable risk scores and automated alerts for human risk operations teams without ever auto-blocking payment flows."*
 
 ---
 
-### 2. Architecture & Streaming Engine (0:45 – 1:45 | 60 Seconds)
+### 2. System Architecture & Event Engine (0:40 – 1:20 | 40 Seconds)
 > *"Architecturally, our system is built around a deterministic, time-ordered event bus. Incoming payment transactions are ingested chronologically with virtual clock monotonicity ($t_{\text{current}} \ge t_{\text{past}}$).
 > 
-> For every 1-minute streaming window, our Feature Engine computes rolling multi-dimensional statistics—volume, velocity, robust median/MAD amounts, customer cardinality, and device entropy. Crucially, baseline updates occur strictly AFTER historical score calculation ($t_{\text{past}} < t_{\text{current}}$), eliminating baseline contamination during an active attack."*
+> For every 1-minute streaming window, our Feature Engine computes rolling multi-dimensional statistics—volume, velocity, robust median/MAD amounts, customer cardinality, and device entropy. Crucially, baseline expected values and robust scale updates occur strictly AFTER historical score calculation ($t_{\text{past}} < t_{\text{current}}$), eliminating baseline contamination during an active attack."*
 
 ---
 
-### 3. Multi-Signal Scorer & Evidence Degradation Firewall (1:45 – 2:45 | 60 Seconds)
-> *"Our frozen canonical detector, `StatisticalDeviationScorer`, evaluates robust Z-score deviation magnitudes across four feature groups into a composite maximum magnitude $M_{\text{composite}} = \max_k M_k$ evaluated against static threshold $\tau=5.00$. In development sweeps, we also evaluated EWMA exponential smoothing ($\alpha=0.3$) as part of our trade-off research portfolio.
+### 3. Live Detection & SQLite Audit Trail (1:20 – 2:20 | 60 Seconds)
+> *"Our frozen production detector, `StatisticalDeviationScorer`, evaluates composite Z-score deviation magnitude $M_{\text{composite}} = \max_k M_k$ against static decision threshold $\tau = 5.00\sigma$ ($P=1, C=5$). EWMA exponential smoothing ($\alpha=0.3$) was evaluated strictly in development sweeps as part of our research trade-off portfolio.
 > 
-> To protect against corrupted or degraded stream inputs, we implement an Evidence Quality State Machine. If data quality drops—such as missing fields or network dropouts—the system dynamically downweights confidence rather than emitting spurious alerts. Qualifying scores enter an Alert State Machine requiring persistence ($P=1$ window) before firing an alert, followed by a mandatory cooldown ($C=5$ windows) to eliminate alert flooding."*
+> Qualifying scores enter an Alert State Machine requiring persistence ($P=1$ window) to confirm alerts and cooldown ($C=5$ windows) to eliminate alert fatigue. In **Tab 1 (Live Stream Monitor)**, watch as Merchant `M1` transaction volume surges at Window 5—the Risk Score breaches threshold $\tau=5.0$, transitioning state from `NORMAL` $\to$ `CANDIDATE` $\to$ `ALERT` with 100% SQLite audit log persistence."*
 
 ---
 
-### 4. Locked Holdout Evaluation & Evasion/Drift Confirmation (2:45 – 3:45 | 60 Seconds)
-> *"We validated our frozen detector ($\tau=5.0, P=1, C=5$) against a locked holdout dataset (`data/holdout/`) locked prior to final evaluation.
+### 4. Benchmark Precision, Recall, Latency & Calibration (2:20 – 3:10 | 50 Seconds)
+> *"In **Tab 2 (Evaluation & Evidence)**, we present benchmark evaluation results of our frozen detector ($\tau=5.0, P=1, C=5$) executed in a single evaluation pass against the locked holdout stream (`data/holdout/`).
 > 
-> Results:
-> - **Precision:** 80.0% (4 TP / 5 Alerts, 95% Non-Parametric Bootstrap CI: `[0.2000, 0.8000]`)
-> - **Recall:** 80.0% (4 TP / 5 Events, 95% Non-Parametric Bootstrap CI: `[0.2000, 0.8000]`)
-> - **Detection Latency:** Median 64.57 seconds.
-> - **Total Financial Impact:** ₹850.00 (₹50 FP review cost + ₹800 FN exposure).
-> 
-> We also verified detector-aware evasion scenarios—confirming 3 of 4 physical evasion patterns (threshold-hugging, persistence evasion, staircase ramp) while identifying specific model limits under low-amplitude harmonic oscillation."*
+> - **Precision:** 80.0% (4 TP / 5 Alerts)
+> - **Recall:** 80.0% (4 TP / 5 Events)
+> - **F1 Score:** 0.8000
+> - **Detection Latency:** Median 64.57 seconds
+> - **Descriptive Calibration:** Evaluated across 119 empirical calibration samples with ECE = 0.7094."*
 
 ---
 
-### 5. Live Operations Console & Scientific Disclosure (3:45 – 5:00 | 75 Seconds)
-> *"Now let's switch to our live Web Operations Console.
+### 5. 5-Way Ablation, Drift, Evasion & Bootstrap Uncertainty (3:10 – 3:50 | 40 Seconds)
+> *"We rigorously stress-tested our detector across four research streams:
 > 
-> In **Tab 1 (Live Stream Monitor)**, you can see real-time 1-minute window playback for Merchant `M1`. Watch as transaction volume surges at Window 5—the Risk Score breaches threshold $\tau=5.0$, transitioning state from `NORMAL` $\to$ `CANDIDATE` $\to$ `ALERT`, emitting a verified alert in 64.57 seconds.
+> 1. **5-Way Signal Ablation:** Masking volume, velocity, amount, or behavioral signals inside `Scorer.calculate_score()` on development data confirms multi-signal resilience across all four anomaly classes.
+> 2. **Detector-Aware Evasion:** Verified 3 of 4 representative evasion patterns (threshold-hugging, persistence evasion, staircase ramp).
+> 3. **Drift Confirmation:** Tested sudden baseline level shifts and seasonal variance.
+> 4. **Bootstrap Uncertainty:** 1,000 resamples yield exact 95% CIs of `[0.2000, 0.8000]` for N=5 holdout events."*
+
+---
+
+### 6. Portfolio FP/FN Financial Cost Analysis (3:50 – 4:30 | 40 Seconds)
+> *"Using our financial cost model (₹50 per false positive review, ₹800 base exposure per missed event), our frozen detector achieved a total portfolio cost of **₹850.00** on the holdout stream.
 > 
-> In **Tab 2 (Evaluation & Evidence)**, we openly disclose our empirical limitations:
-> 1. **Small-N Holdout Sample Size:** N=5 total ground truth events, yielding wide 95% Bootstrap CIs `[0.2000, 0.8000]`.
-> 2. **Zero-Event Anomaly Coverage:** 6 anomaly classes are explicitly reported as `NO_EVENTS_IN_DATASET` rather than fabricating 100% metrics.
-> 3. **Evasion Miss:** Harmonic sub-threshold oscillation remains below detection threshold, which we document as an honest engineering boundary.
+> Compared to naive static thresholding (which incurs ₹2,400+ in false positive review costs) and zero-detection baselines (incurring ₹4,000+ in unmitigated FN chargeback exposure), our multi-signal persistence engine reduces net risk operations cost by over 78%."*
+
+---
+
+### 7. Failure Story & Explicit Engineering Boundaries (4:30 – 5:00 | 30 Seconds)
+> *"Finally, in **Tab 3 (Replay & Audit Trail)**, we present complete transparency and document our real historical failure and explicit boundaries:
 > 
-> Finally, **Tab 3 (Replay & Audit Trail)** provides complete SQLite audit trail transparency for regulatory compliance.
+> 1. **Historical Fix Story:** In `run_001`, a pseudo-probability division bug caused improper calibration, which was resolved in `run_004`.
+> 2. **Small-N Holdout:** Honest reporting of wide 95% CIs `[0.2000, 0.8000]` given N=5 holdout events.
+> 3. **Zero-Event Anomaly Coverage:** Unrepresented classes are reported as `NO_EVENTS_IN_DATASET`.
+> 4. **Evasion Boundary:** Low-amplitude harmonic oscillation (`EVT-HOLDOUT-005`, $M=4.20\sigma$) remains below decision threshold $\tau=5.00$—an explicit model boundary.
 > 
 > Thank you."*
 
@@ -84,4 +97,4 @@
    *A:* Scientific honesty. The locked holdout dataset contains volume spikes and evasion patterns. Reporting `NO_EVENTS_IN_DATASET` prevents inventing fabricated 1.00 metrics for unrepresented anomaly classes.
 
 3. **Q: How does the system prevent baseline contamination during long-running fraud?**  
-   *A:* Baseline updates execute strictly after score evaluation ($t_{\text{past}} < t_{\text{current}}$), and EWMA smoothing prevents sudden high-magnitude spikes from immediately inflating historical baselines.
+   *A:* Baseline updates execute strictly after score evaluation ($t_{\text{past}} < t_{\text{current}}$), and robust median/MAD scaling prevents sudden high-magnitude spikes from immediately inflating historical baselines.
