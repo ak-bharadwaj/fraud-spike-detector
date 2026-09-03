@@ -272,7 +272,7 @@ function populateBootstrap(boot) {
     if (elR) elR.textContent = `[${rLow.toFixed(4)}, ${rHigh.toFixed(4)}]`;
   }
 
-  if (!prec.point && !rec.point) {
+  if (prec.point === undefined && rec.point === undefined) {
     tbody.innerHTML = `<tr><td colspan="3" style="text-align:center; color:var(--text-muted);">Bootstrap CI data unavailable.</td></tr>`;
     return;
   }

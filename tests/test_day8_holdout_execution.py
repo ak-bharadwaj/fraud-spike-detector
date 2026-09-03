@@ -935,4 +935,22 @@ def test_tampered_evasion_artifact_fails_independent_execution_derivation():
     assert tampered_scores != indep_scores, "Tampered artifact score sequence must not match execution output"
 
 
+def test_per_anomaly_evasion_canonicalization_and_validation():
+    """Verify per-anomaly reporting correctly canonicalizes holdout evasion scenario types to 'evasive_patterns'."""
+    from src.evaluation.holdout_execution import compute_per_anomaly_holdout_metrics, execute_single_pass_holdout
+    freeze_rec = load_freeze_record(Path("config/freeze_record.json"))
+    manifest, txs, gts = load_locked_holdout_data("data/holdout")
+
+    _, alerts, _ = execute_single_pass_holdout(txs, gts, freeze_rec, explicit_evaluation_mode=True)
+    per_anomaly = compute_per_anomaly_holdout_metrics(alerts, gts)
+
+    assert "evasive_patterns" in per_anomaly
+    ev_item = per_anomaly["evasive_patterns"]
+    assert ev_item["status"] == "VALIDATED"
+    assert ev_item["total_events"] == 4
+    assert ev_item["events_detected"] == 3
+    assert ev_item["recall"] == 0.75
+
+
+
 

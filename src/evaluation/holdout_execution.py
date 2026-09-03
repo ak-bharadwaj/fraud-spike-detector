@@ -40,7 +40,7 @@ from src.scoring.static import StaticThresholdScorer
 from src.scoring.statistical import StatisticalDeviationScorer
 from src.scoring.hybrid_ewma import HybridEWMAScorer
 from src.state.alert_state_machine import AlertStateMachine
-from src.evaluation.evaluator import AnomalyEvaluator
+from src.evaluation.evaluator import AnomalyEvaluator, ANOMALY_HORIZON_MAP
 from src.evaluation.freeze import FreezeRecord, load_freeze_record, compute_config_hash
 from src.evaluation.calibration import compute_descriptive_calibration, DescriptiveCalibrationResult, DescriptiveHoldoutCalibrator
 from src.generator.stream_generator import SyntheticStreamGenerator
@@ -165,7 +165,8 @@ def compute_per_anomaly_holdout_metrics(
     eval_engine = evaluator or AnomalyEvaluator()
     events_by_type: Dict[str, List[GroundTruthEvent]] = {}
     for gt in ground_truth_events:
-        events_by_type.setdefault(gt.anomaly_type, []).append(gt)
+        canon_type = ANOMALY_HORIZON_MAP.get(gt.anomaly_type.strip().lower(), gt.anomaly_type)
+        events_by_type.setdefault(canon_type, []).append(gt)
 
     per_anomaly_results: Dict[str, Dict[str, Any]] = {}
     all_types = [
