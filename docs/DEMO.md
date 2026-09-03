@@ -54,8 +54,8 @@ This document provides a structured, step-by-step demonstration walkthrough for 
 * **Actions:**
   1. Navigate to **Tab 2: 📊 Evaluation & Evidence**.
   2. Review headline Holdout KPIs:
-     * **Precision:** `0.8000` (TP: 4, FP: 1)
-     * **Recall:** `0.8000` (FN: 1, Total Events: 5)
+     * **Precision:** `0.8000` (95% CI: `[0.2000, 0.8000]`, TP: 4, FP: 1)
+     * **Recall:** `0.8000` (95% CI: `[0.2000, 0.8000]`, FN: 1, Total Events: 5)
      * **F1 Score:** `0.8000`
      * **Median Latency:** `64.57s` (P95 Latency: `64.57s`)
      * **Total Cost:** `₹850.00`

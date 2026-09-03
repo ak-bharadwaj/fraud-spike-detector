@@ -258,6 +258,20 @@ function populateBootstrap(boot) {
   const prec = bData.precision || {};
   const rec = bData.recall || {};
 
+  const pLow = prec.ci_lower !== undefined ? prec.ci_lower : prec.ci_95_lower;
+  const pHigh = prec.ci_upper !== undefined ? prec.ci_upper : prec.ci_95_upper;
+  if (pLow !== undefined && pHigh !== undefined) {
+    const elP = document.getElementById("evalPrecisionCI");
+    if (elP) elP.textContent = `[${pLow.toFixed(4)}, ${pHigh.toFixed(4)}]`;
+  }
+
+  const rLow = rec.ci_lower !== undefined ? rec.ci_lower : rec.ci_95_lower;
+  const rHigh = rec.ci_upper !== undefined ? rec.ci_upper : rec.ci_95_upper;
+  if (rLow !== undefined && rHigh !== undefined) {
+    const elR = document.getElementById("evalRecallCI");
+    if (elR) elR.textContent = `[${rLow.toFixed(4)}, ${rHigh.toFixed(4)}]`;
+  }
+
   if (!prec.point && !rec.point) {
     tbody.innerHTML = `<tr><td colspan="3" style="text-align:center; color:var(--text-muted);">Bootstrap CI data unavailable.</td></tr>`;
     return;
