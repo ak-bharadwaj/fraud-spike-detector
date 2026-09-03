@@ -122,7 +122,7 @@
         "amplitude": 0.8,
         "rate_multiplier": 1.2,
         "decision_threshold": 5.0,
-        "excess_transaction_count": 42.0,
+        "excess_transaction_count": 16.0,
         "mean_transaction_amount": 50.0,
         "exposure_factor": 1.0
       },

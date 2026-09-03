@@ -8,5 +8,5 @@ f1_score,0.8000,score
 median_latency_seconds,64.57,seconds
 p95_latency_seconds,64.57,seconds
 fp_cost,50.00,₹
-fn_exposure,2100.00,₹
-total_cost,2150.00,₹
+fn_exposure,800.00,₹
+total_cost,850.00,₹

@@ -191,7 +191,7 @@ class AblationRunner:
             ),
         )
 
-        control_metrics, control_per_anomaly = self.evaluate_variant(control_variant, transactions, ground_truth_events)
+        control_metrics, control_per_anomaly = self.evaluate_variant(control_variant, transactions, ground_truth_events, return_per_anomaly=True)
 
         results: List[AblationResult] = []
 
@@ -213,7 +213,7 @@ class AblationRunner:
             if var.variant_id in ("FULL", "FULL_PIPELINE"):
                 continue
 
-            var_metrics, var_per_anomaly = self.evaluate_variant(var, transactions, ground_truth_events)
+            var_metrics, var_per_anomaly = self.evaluate_variant(var, transactions, ground_truth_events, return_per_anomaly=True)
 
             d_f1 = var_metrics.f1_score - control_metrics.f1_score
             d_p = var_metrics.precision - control_metrics.precision
@@ -244,7 +244,8 @@ class AblationRunner:
         variant: AblationVariantConfig,
         transactions: List[Transaction],
         ground_truth_events: List[GroundTruthEvent],
-    ) -> Tuple[EvaluationMetrics, Dict[str, Any]]:
+        return_per_anomaly: bool = False,
+    ) -> Union[EvaluationMetrics, Tuple[EvaluationMetrics, Dict[str, Any]]]:
         """Run detector evaluation pipeline for a single ablation variant using exact scorer-level signal masking."""
         eff_threshold = variant.static_threshold if variant.static_threshold is not None else self.config.static_threshold
         eff_persistence = variant.persistence if variant.persistence is not None else self.config.persistence
@@ -283,6 +284,8 @@ class AblationRunner:
 
         alerts = pipeline.process_transactions(transactions)
         metrics = self.evaluator.evaluate(alerts, ground_truth_events)
-        from src.evaluation.holdout_execution import compute_per_anomaly_holdout_metrics
-        per_anomaly = compute_per_anomaly_holdout_metrics(alerts, ground_truth_events, evaluator=self.evaluator)
-        return metrics, per_anomaly
+        if return_per_anomaly:
+            from src.evaluation.holdout_execution import compute_per_anomaly_holdout_metrics
+            per_anomaly = compute_per_anomaly_holdout_metrics(alerts, ground_truth_events, evaluator=self.evaluator)
+            return metrics, per_anomaly
+        return metrics
