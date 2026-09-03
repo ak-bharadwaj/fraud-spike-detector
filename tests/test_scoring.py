@@ -19,6 +19,7 @@ Validates all scoring behavioral dimensions:
 """
 
 import ast
+from typing import Optional, List, Dict, Any, Union
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 import math
