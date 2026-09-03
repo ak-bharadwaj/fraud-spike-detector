@@ -458,11 +458,14 @@ def build_canonical_holdout_evasion_results(
 
         envelope = f"[{min(anom_scores):.2f}, {max(anom_scores):.2f}]" if anom_scores else "N/A"
 
+        gt_match = next((g for g in ground_truth_events if g.event_id == meta["event_id"]), None)
+        h_params = gt_match.parameters if (gt_match and gt_match.parameters) else meta["holdout_params"]
+
         scenarios_results[sc_key] = {
             "scenario_name": sc_key,
             "event_id": meta["event_id"],
             "description": meta["description"],
-            "holdout_parameters": meta["holdout_params"],
+            "holdout_parameters": h_params,
             "development_parameters": meta["dev_params"],
             "parameters_distinct": True,
             "measurements": {

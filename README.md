@@ -137,7 +137,7 @@ fraud-spike-detector/
 │   ├── audit/               # SQLite audit persistence
 │   ├── evaluation/          # Benchmark metrics, ablation, evasion, drift, calibration
 │   └── web/                 # Web server & interactive single-page UI
-├── tests/                   # Complete Pytest test suite (273+ tests)
+├── tests/                   # Complete Pytest test suite (run via python -m pytest tests/ -v)
 ├── scripts/                 # Execution & UI launcher scripts
 │   └── run_ui.py            # Standalone web UI launcher
 ├── data/                    # Development & locked holdout streams

@@ -8,7 +8,7 @@ This document details the benchmark evaluation methodology, historical holdout d
 
 To guarantee rigorous scientific validity and zero benchmark contamination:
 1. **Development Phase:** All detector selection, hyperparameter tuning (alpha, static threshold $\tau$, persistence $P$, cooldown $C$), feature engineering, and baseline exploration were conducted exclusively on development datasets (`data/development/`).
-2. **Holdout Freeze:** The holdout dataset (`data/holdout/`) remained encrypted/locked until system freeze on Day 7.
+2. **Holdout Freeze:** The holdout dataset (`data/holdout/`) remained locked/protected until system freeze on Day 7.
 3. **Single Evaluation Pass:** During the locked-holdout evaluation phase, the frozen detector configuration (`StatisticalDeviationScorer` v1.1.0, $\tau=5.0$, $P=1$, $C=5$) was executed on the locked holdout stream in a single evaluation pass.
 
 ---
@@ -87,15 +87,15 @@ Financial impact is evaluated using the Master Plan Section 34 cost parameters:
 
 Evaluates the contribution of each individual feature group by masking signals strictly inside `Scorer.calculate_score()` without perturbing baseline calculation:
 
-| Variant ID | Description | Precision | Recall | F1 Score | Δ F1 vs Control |
-|---|---|---|---|---|---|
-| **FULL** | Control full pipeline (all 4 feature groups) | 1.0000 | 1.0000 | 1.0000 | 0.0000 |
-| **-VOLUME** | Ablate volume signal | 1.0000 | 1.0000 | 1.0000 | 0.0000 |
-| **-VELOCITY** | Ablate velocity signal | 1.0000 | 1.0000 | 1.0000 | 0.0000 |
-| **-AMOUNT** | Ablate amount statistics signal | 1.0000 | 1.0000 | 1.0000 | 0.0000 |
-| **-BEHAVIORAL** | Ablate device/cardinality signal | 1.0000 | 1.0000 | 1.0000 | 0.0000 |
+| Variant ID | Description | Precision | Recall | F1 Score | Median Latency | P95 Latency | FP Cost | FN Exposure | Total Cost | Volume Spike Recall | Velocity Burst Recall | Amount Shift Recall | Behavioral Recall |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| **FULL** | Control full pipeline | 1.0000 | 1.0000 | 1.0000 | 60.00s | 60.00s | ₹0.00 | ₹0.00 | ₹0.00 | 1.0000 | 1.0000 | 1.0000 | 1.0000 |
+| **-VOLUME** | Ablate volume signal | 1.0000 | 1.0000 | 1.0000 | 60.00s | 60.00s | ₹0.00 | ₹0.00 | ₹0.00 | 1.0000 | 1.0000 | 1.0000 | 1.0000 |
+| **-VELOCITY** | Ablate velocity signal | 1.0000 | 1.0000 | 1.0000 | 60.00s | 60.00s | ₹0.00 | ₹0.00 | ₹0.00 | 1.0000 | 1.0000 | 1.0000 | 1.0000 |
+| **-AMOUNT** | Ablate amount signal | 1.0000 | 1.0000 | 1.0000 | 60.00s | 60.00s | ₹0.00 | ₹0.00 | ₹0.00 | 1.0000 | 1.0000 | 1.0000 | 1.0000 |
+| **-BEHAVIORAL** | Ablate device/cardinality | 1.0000 | 1.0000 | 1.0000 | 60.00s | 60.00s | ₹0.00 | ₹0.00 | ₹0.00 | 1.0000 | 1.0000 | 1.0000 | 1.0000 |
 
-*Scientific Note:* On the current development characterization dataset, individual signal masking yields identical detection accuracy because the injected spike anomalies manifest multi-signal elevation across volume, velocity, and amount attributes simultaneously.
+*Scientific Note:* On the current development characterization dataset, individual signal masking yields identical detection accuracy and per-anomaly recall across all four anomaly classes because synthetic characterization spikes manifest multi-signal elevation across volume, velocity, amount, and device features simultaneously.
 
 ---
 

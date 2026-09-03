@@ -186,3 +186,4 @@ class AblationResult(BaseModel):
     delta_precision: float
     delta_recall: float
     delta_latency_seconds: Optional[float] = None
+    per_anomaly: Optional[dict[str, Any]] = None
