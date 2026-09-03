@@ -145,6 +145,8 @@ fraud-spike-detector/
 │   └── holdout/
 ├── artifacts/               # Committed canonical research artifacts
 ├── docs/                    # Detailed technical documentation
+│   ├── PITCH.md             # 5-minute technical pitch script (§41)
+│   ├── FAILURE_STORY.md     # Documented historical failure & fix story (§40)
 │   ├── DEMO.md              # 2-3 minute demonstration guide
 │   ├── ARCHITECTURE.md      # System architecture specification
 │   ├── EVALUATION.md        # Evaluation methodology & holdout results

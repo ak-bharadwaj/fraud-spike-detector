@@ -16,7 +16,7 @@
 | 0:00 - 0:45 (45s) | 1. Problem & Financial Stakes                           | Tab 1: Live Stream Monitor      |
 | 0:45 - 1:45 (60s) | 2. Architecture & Streaming Engine                      | Tab 1: Merchant Metrics & Chart |
 | 1:45 - 2:45 (60s) | 3. Multi-Signal Scorer & Evidence Degradation Firewall | Tab 1: Score & State Transition |
-| 2:45 - 3:45 (60s) | 4. Locked Holdout Evaluation & Evasion/Drift            | Tab 2: KPI & Evasion Table      |
+| 2:45 - 3:45 (60s) | 4. Locked Holdout Evaluation & Evasion/Drift            | Tab 2: Evaluation & Evidence     |
 | 3:45 - 5:00 (75s) | 5. Live Operations Console & Scientific Disclosure      | Tab 3: Replay & Audit Trail     |
 +-------------------+---------------------------------------------------------+---------------------------------+
 ```
@@ -40,7 +40,7 @@
 ---
 
 ### 3. Multi-Signal Scorer & Evidence Degradation Firewall (1:45 – 2:45 | 60 Seconds)
-> *"Our scoring pipeline combines robust statistical Z-scores across four feature groups into a unified risk score via EWMA exponential smoothing ($\alpha=0.3$).
+> *"Our frozen canonical detector, `StatisticalDeviationScorer`, evaluates robust Z-score deviation magnitudes across four feature groups into a composite maximum magnitude $M_{\text{composite}} = \max_k M_k$ evaluated against static threshold $\tau=5.00$. In development sweeps, we also evaluated EWMA exponential smoothing ($\alpha=0.3$) as part of our trade-off research portfolio.
 > 
 > To protect against corrupted or degraded stream inputs, we implement an Evidence Quality State Machine. If data quality drops—such as missing fields or network dropouts—the system dynamically downweights confidence rather than emitting spurious alerts. Qualifying scores enter an Alert State Machine requiring persistence ($P=1$ window) before firing an alert, followed by a mandatory cooldown ($C=5$ windows) to eliminate alert flooding."*
 
@@ -62,7 +62,7 @@
 ### 5. Live Operations Console & Scientific Disclosure (3:45 – 5:00 | 75 Seconds)
 > *"Now let's switch to our live Web Operations Console.
 > 
-> In **Tab 1 (Live Stream Monitor)**, you can see real-time 1-minute window playback for Merchant `M1`. Watch as transaction volume surges at Window 5—the Risk Score breaches threshold $\tau=5.0$, transitioning state from `NORMAL` $\to$ `CANDIDATE` $\to$ `ALERT`, emitting Alert `ALT-HOLDOUT-M1-005` in 64.57 seconds.
+> In **Tab 1 (Live Stream Monitor)**, you can see real-time 1-minute window playback for Merchant `M1`. Watch as transaction volume surges at Window 5—the Risk Score breaches threshold $\tau=5.0$, transitioning state from `NORMAL` $\to$ `CANDIDATE` $\to$ `ALERT`, emitting a verified alert in 64.57 seconds.
 > 
 > In **Tab 2 (Evaluation & Evidence)**, we openly disclose our empirical limitations:
 > 1. **Small-N Holdout Sample Size:** N=5 total ground truth events, yielding wide 95% Bootstrap CIs `[0.2000, 0.8000]`.
