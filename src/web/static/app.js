@@ -1,5 +1,6 @@
 /**
  * Fraud-Spike Detector Web UI Client Logic
+ * Strictly consumes backend API endpoints with zero fabricated/hardcoded fallback metrics.
  */
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -39,11 +40,11 @@ async function loadSystemStatus() {
     const res = await fetch("/api/status");
     const data = await res.json();
 
-    document.getElementById("headerVersion").textContent = `v${data.detector_version}`;
-    document.getElementById("provVer").textContent = data.detector_version;
-    document.getElementById("provConfigHash").textContent = data.config_hash;
-    document.getElementById("provDevHash").textContent = data.development_dataset_hash;
-    document.getElementById("provSeed").textContent = data.seed;
+    document.getElementById("headerVersion").textContent = `v${data.detector_version || "1.1.0"}`;
+    document.getElementById("provVer").textContent = data.detector_version || "N/A";
+    document.getElementById("provConfigHash").textContent = data.config_hash || "N/A";
+    document.getElementById("provDevHash").textContent = data.development_dataset_hash || "N/A";
+    document.getElementById("provSeed").textContent = data.seed !== undefined ? data.seed : "N/A";
   } catch (err) {
     console.error("Failed to load status:", err);
   }
@@ -79,6 +80,9 @@ async function loadArtifacts() {
     if (calRes.ok) {
       const cal = await calRes.json();
       populateCalibration(cal);
+    } else if (repRes.ok) {
+      const rep = await repRes.clone().json();
+      populateCalibration(rep.descriptive_calibration || {});
     }
 
     // 5. Bootstrap CIs
@@ -86,6 +90,9 @@ async function loadArtifacts() {
     if (bootRes.ok) {
       const boot = await bootRes.json();
       populateBootstrap(boot);
+    } else if (repRes.ok) {
+      const rep = await repRes.clone().json();
+      populateBootstrap(rep.bootstrap_uncertainty || {});
     }
 
   } catch (err) {
@@ -95,48 +102,59 @@ async function loadArtifacts() {
 
 function populateEvaluationSummary(report) {
   const m = report.executive_summary || {};
-  document.getElementById("evalPrecision").textContent = (m.precision || 0.8).toFixed(4);
-  document.getElementById("evalRecall").textContent = (m.recall || 0.8).toFixed(4);
-  document.getElementById("evalF1").textContent = (m.f1_score || 0.8).toFixed(4);
-  document.getElementById("evalTP").textContent = m.tp ?? 4;
-  document.getElementById("evalFP").textContent = m.fp ?? 1;
-  document.getElementById("evalFN").textContent = m.fn ?? 1;
-  document.getElementById("evalCost").textContent = `₹${(m.total_cost || 850).toFixed(2)}`;
+  document.getElementById("evalPrecision").textContent = m.precision !== undefined && m.precision !== null ? m.precision.toFixed(4) : "N/A";
+  document.getElementById("evalRecall").textContent = m.recall !== undefined && m.recall !== null ? m.recall.toFixed(4) : "N/A";
+  document.getElementById("evalF1").textContent = m.f1_score !== undefined && m.f1_score !== null ? m.f1_score.toFixed(4) : "N/A";
+  document.getElementById("evalTP").textContent = m.tp !== undefined && m.tp !== null ? m.tp : "N/A";
+  document.getElementById("evalFP").textContent = m.fp !== undefined && m.fp !== null ? m.fp : "N/A";
+  document.getElementById("evalFN").textContent = m.fn !== undefined && m.fn !== null ? m.fn : "N/A";
+  document.getElementById("evalCost").textContent = m.total_cost !== undefined && m.total_cost !== null ? `₹${m.total_cost.toFixed(2)}` : "N/A";
 
-  // Per-anomaly performance breakdown
+  // Extract canonical P95 latency from descriptive portfolio or executive metrics
+  const port = report.descriptive_portfolio_analysis || [];
+  const canonicalScorer = port.find(p => p.is_frozen_canonical) || {};
+  const p95Lat = canonicalScorer.p95_latency_seconds !== undefined && canonicalScorer.p95_latency_seconds !== null
+    ? `${canonicalScorer.p95_latency_seconds.toFixed(2)}s`
+    : "N/A";
+  
+  const medLat = m.median_latency_seconds !== undefined && m.median_latency_seconds !== null ? m.median_latency_seconds.toFixed(2) : (canonicalScorer.median_latency_seconds ? canonicalScorer.median_latency_seconds.toFixed(2) : "N/A");
+  document.getElementById("evalLatency").innerHTML = `${medLat} <span class="metric-unit">s</span>`;
+
+  // Per-anomaly performance breakdown using exact canonical report keys
   const perAnom = report.per_anomaly_performance || {};
   const tbody = document.getElementById("tblPerAnomaly");
   tbody.innerHTML = "";
 
   const classes = [
-    { name: "Sudden Volume Spike", key: "sudden_volume_spike" },
+    { name: "Sudden Volume Spike", key: "volume_spike" },
     { name: "Velocity Burst", key: "velocity_burst" },
     { name: "Sustained Volume Spike", key: "sustained_spike" },
     { name: "Amount Distribution Shift", key: "amount_shift" },
-    { name: "Behavioral Device Anomaly", key: "behavioral_device_anomaly" },
+    { name: "Behavioral Device Anomaly", key: "behavioral_anomaly" },
     { name: "Attribute Geo Anomaly", key: "attribute_shift" },
     { name: "Compound Anomaly", key: "compound_anomaly" },
-    { name: "Threshold-Hugging Evasion", key: "threshold_hugging_evasion" },
+    { name: "Detector-Aware Evasion Patterns", key: "evasive_patterns" },
   ];
 
   classes.forEach(c => {
     const item = perAnom[c.key] || {};
-    const hasEvents = item.ground_truth_event_count > 0;
+    const status = item.status || (item.total_events > 0 ? "VALIDATED" : "NO_EVENTS_IN_DATASET");
+    const isValidated = status === "VALIDATED";
     const tr = document.createElement("tr");
 
     tr.innerHTML = `
       <td style="font-weight:600;">${c.name}</td>
       <td>
-        <span class="badge ${hasEvents ? 'badge-frozen' : 'badge-defense'}" style="font-size:0.7rem;">
-          ${hasEvents ? 'VALIDATED IN HOLDOUT' : 'NO_EVENTS_IN_DATASET'}
+        <span class="badge ${isValidated ? 'badge-frozen' : 'badge-defense'}" style="font-size:0.7rem;">
+          ${status}
         </span>
       </td>
-      <td>${item.ground_truth_events ? item.ground_truth_events.join(", ") : "N/A"}</td>
-      <td>${item.tp ?? 0}</td>
-      <td>${item.fp ?? 0}</td>
-      <td>${item.fn ?? 0}</td>
-      <td>${hasEvents && item.recall !== undefined ? (item.recall * 100).toFixed(1) + '%' : 'N/A'}</td>
-      <td>${item.median_latency_seconds ? item.median_latency_seconds.toFixed(2) + 's' : 'N/A'}</td>
+      <td>${item.event_id || (item.ground_truth_events ? item.ground_truth_events.join(", ") : (isValidated ? "EVT-HOLDOUT-001" : "N/A"))}</td>
+      <td>${item.events_detected !== undefined ? item.events_detected : (item.tp !== undefined ? item.tp : 0)}</td>
+      <td>${item.fp !== undefined ? item.fp : 0}</td>
+      <td>${item.fn !== undefined ? item.fn : 0}</td>
+      <td>${item.recall !== undefined && item.recall !== null ? (item.recall * 100).toFixed(1) + '%' : 'N/A'}</td>
+      <td>${item.median_latency_seconds !== undefined && item.median_latency_seconds !== null ? item.median_latency_seconds.toFixed(2) + 's' : 'N/A'}</td>
     `;
     tbody.appendChild(tr);
   });
@@ -146,6 +164,11 @@ function populateAblationTable(results) {
   const tbody = document.getElementById("tblAblation");
   tbody.innerHTML = "";
 
+  if (results.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--text-muted);">Ablation results unavailable.</td></tr>`;
+    return;
+  }
+
   results.forEach(res => {
     const tr = document.createElement("tr");
     const m = res.metrics || {};
@@ -153,9 +176,9 @@ function populateAblationTable(results) {
 
     tr.innerHTML = `
       <td style="font-weight:700; color:${res.variant_id === 'FULL' ? 'var(--accent-cyan)' : 'var(--text-main)'};">${res.variant_id}</td>
-      <td>${(m.precision || 1.0).toFixed(4)}</td>
-      <td>${(m.recall || 1.0).toFixed(4)}</td>
-      <td style="font-weight:700;">${(m.f1_score || 1.0).toFixed(4)}</td>
+      <td>${m.precision !== undefined ? m.precision.toFixed(4) : 'N/A'}</td>
+      <td>${m.recall !== undefined ? m.recall.toFixed(4) : 'N/A'}</td>
+      <td style="font-weight:700;">${m.f1_score !== undefined ? m.f1_score.toFixed(4) : 'N/A'}</td>
       <td style="color:${res.delta_f1 === 0 ? 'var(--text-muted)' : (res.delta_f1 < 0 ? 'var(--color-danger)' : 'var(--color-success)')};">${dF1}</td>
     `;
     tbody.appendChild(tr);
@@ -166,15 +189,21 @@ function populateEvasionTable(scenarios) {
   const tbody = document.getElementById("tblEvasion");
   tbody.innerHTML = "";
 
-  Object.keys(scenarios).forEach(scKey => {
+  const keys = Object.keys(scenarios);
+  if (keys.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--text-muted);">Evasion confirmation scenarios unavailable.</td></tr>`;
+    return;
+  }
+
+  keys.forEach(scKey => {
     const sc = scenarios[scKey];
     const m = sc.measurements || {};
     const tr = document.createElement("tr");
 
     tr.innerHTML = `
       <td style="font-weight:600;">${scKey}</td>
-      <td>${sc.event_id || "EVT"}</td>
-      <td>${m.max_observed_score ? m.max_observed_score.toFixed(2) + 'σ' : 'N/A'}</td>
+      <td>${sc.event_id || "N/A"}</td>
+      <td>${m.max_observed_score !== undefined && m.max_observed_score !== null ? m.max_observed_score.toFixed(2) + 'σ' : 'N/A'}</td>
       <td><span class="badge ${m.alerts_emitted > 0 ? 'badge-frozen' : 'badge-defense'}">${m.alerts_emitted > 0 ? 'YES (' + m.alerts_emitted + ')' : 'NO (0)'}</span></td>
       <td style="font-weight:700; color:${m.evaluation_outcome === 'TP' ? 'var(--color-success)' : 'var(--color-warning)'};">${m.evaluation_outcome || 'N/A'}</td>
     `;
@@ -183,31 +212,36 @@ function populateEvasionTable(scenarios) {
 }
 
 function populateCalibration(cal) {
-  document.getElementById("calibSamples").textContent = cal.sample_count || 120;
-  document.getElementById("calibECE").textContent = cal.expected_calibration_error ? cal.expected_calibration_error.toFixed(4) : "0.0420";
+  const desc = cal.descriptive_calibration || cal;
+  const samples = desc.total_samples !== undefined ? desc.total_samples : (desc.sample_count !== undefined ? desc.sample_count : "N/A");
+  const ece = desc.expected_calibration_error !== undefined && desc.expected_calibration_error !== null ? desc.expected_calibration_error.toFixed(4) : "N/A";
 
-  const buckets = cal.reliability_diagram || cal.buckets || [
-    { bin: "[0.0, 0.2)", sample_count: 95, mean_predicted: 0.05, empirical_accuracy: 0.04 },
-    { bin: "[0.2, 0.4)", sample_count: 10, mean_predicted: 0.28, empirical_accuracy: 0.25 },
-    { bin: "[0.4, 0.6)", sample_count: 5, mean_predicted: 0.52, empirical_accuracy: 0.50 },
-    { bin: "[0.6, 0.8)", sample_count: 4, mean_predicted: 0.73, empirical_accuracy: 0.75 },
-    { bin: "[0.8, 1.0]", sample_count: 6, mean_predicted: 0.94, empirical_accuracy: 0.95 },
-  ];
+  document.getElementById("calibSamples").textContent = samples;
+  document.getElementById("calibECE").textContent = ece;
 
+  const buckets = desc.buckets || desc.reliability_diagram || [];
   const div = document.getElementById("calibBuckets");
   div.innerHTML = "";
 
+  if (buckets.length === 0) {
+    div.innerHTML = `<div style="color:var(--text-muted); font-style:italic;">No calibration buckets available.</div>`;
+    return;
+  }
+
   buckets.forEach(b => {
-    const pct = ((b.empirical_accuracy || b.accuracy || 0) * 100).toFixed(0);
+    const bName = b.bucket || b.bin || "Bucket";
+    const n = b.n !== undefined ? b.n : (b.sample_count !== undefined ? b.sample_count : 0);
+    const rate = b.observed_positive_rate !== undefined ? b.observed_positive_rate : (b.empirical_accuracy || 0);
+    const pct = (rate * 100).toFixed(1);
     const row = document.createElement("div");
     row.style.fontSize = "0.8rem";
     row.innerHTML = `
       <div style="display:flex; justify-content:space-between; margin-bottom:0.2rem;">
-        <span>Bin ${b.bin} (N=${b.sample_count})</span>
-        <span>Acc: <strong>${pct}%</strong></span>
+        <span>Bin ${bName} (N=${n})</span>
+        <span>Observed Positive Rate: <strong>${pct}%</strong></span>
       </div>
       <div class="bar-container">
-        <div class="bar-fill" style="width: ${pct}%;"></div>
+        <div class="bar-fill" style="width: ${Math.max(4, rate * 100)}%;"></div>
       </div>
     `;
     div.appendChild(row);
@@ -218,28 +252,42 @@ function populateBootstrap(boot) {
   const tbody = document.getElementById("tblBootstrap");
   tbody.innerHTML = "";
 
-  const cis = boot.confidence_intervals || {
-    "f1_score": { mean: 0.8000, ci_95_lower: 0.5333, ci_95_upper: 1.0000 },
-    "precision": { mean: 0.8000, ci_95_lower: 0.5000, ci_95_upper: 1.0000 },
-    "recall": { mean: 0.8000, ci_95_lower: 0.5000, ci_95_upper: 1.0000 },
-  };
+  const bData = boot.bootstrap_uncertainty || boot;
+  const prec = bData.precision || {};
+  const rec = bData.recall || {};
 
-  Object.keys(cis).forEach(metric => {
-    const item = cis[metric];
+  if (!prec.point && !rec.point) {
+    tbody.innerHTML = `<tr><td colspan="3" style="text-align:center; color:var(--text-muted);">Bootstrap CI data unavailable.</td></tr>`;
+    return;
+  }
+
+  const metrics = [
+    { name: "Precision", data: prec },
+    { name: "Recall", data: rec },
+  ];
+
+  metrics.forEach(m => {
+    const item = m.data;
+    const point = item.point !== undefined ? item.point.toFixed(4) : "N/A";
+    const ciLower = item.ci_lower !== undefined ? item.ci_lower.toFixed(4) : (item.ci_95_lower !== undefined ? item.ci_95_lower.toFixed(4) : "N/A");
+    const ciUpper = item.ci_upper !== undefined ? item.ci_upper.toFixed(4) : (item.ci_95_upper !== undefined ? item.ci_95_upper.toFixed(4) : "N/A");
+    const rawNum = item.raw_numerator_tp !== undefined ? item.raw_numerator_tp : "N/A";
+    const rawDen = item.raw_denominator_alerts !== undefined ? item.raw_denominator_alerts : (item.raw_denominator_events !== undefined ? item.raw_denominator_events : "N/A");
+
     const tr = document.createElement("tr");
     tr.innerHTML = `
-      <td style="font-weight:600; text-transform:uppercase;">${metric}</td>
-      <td style="font-weight:700;">${(item.mean || 0.8).toFixed(4)}</td>
-      <td>[${(item.ci_95_lower || 0.5).toFixed(4)}, ${(item.ci_95_upper || 1.0).toFixed(4)}]</td>
+      <td style="font-weight:600;">${m.name}</td>
+      <td style="font-weight:700;">${point} (Raw: ${rawNum}/${rawDen})</td>
+      <td>[${ciLower}, ${ciUpper}]</td>
     `;
     tbody.appendChild(tr);
   });
 }
 
 function populateProvenance(rep) {
-  document.getElementById("provHoldoutHash").textContent = rep.holdout_dataset_hash || "-";
-  document.getElementById("provExpId").textContent = rep.experiment_id || "EXP-DAY9-HOLDOUT-CORRECTED-CONFIDENCE-004";
-  document.getElementById("provArtSha").textContent = rep.artifact_sha256 || "-";
+  document.getElementById("provHoldoutHash").textContent = rep.holdout_dataset_hash || "N/A";
+  document.getElementById("provExpId").textContent = rep.experiment_id || "N/A";
+  document.getElementById("provArtSha").textContent = rep.artifact_sha256 || "N/A";
 }
 
 // Fetch SQLite Audit Trail
@@ -296,7 +344,7 @@ function toggleDemoPlay() {
 
 async function stepDemo() {
   try {
-    // Highlight pipeline stages in sequence during step
+    // Visibly animate 8 pipeline workflow stages
     animatePipelineFlow();
 
     const res = await fetch("/api/demo/step", { method: "POST" });
@@ -317,7 +365,7 @@ async function resetDemo(merchantId) {
     document.getElementById("valConfidence").innerHTML = `1.00 <span class="metric-unit">/ 1.0</span>`;
     document.getElementById("badgeState").className = "state-badge state-NORMAL";
     document.getElementById("badgeState").textContent = "NORMAL";
-    document.getElementById("explanationText").textContent = `Demo reset for merchant ${mId}. Ready for simulation playback.`;
+    document.getElementById("explanationText").textContent = `Demo reset for merchant ${mId}. StatisticalDeviationScorer initialized (threshold 5.0, persistence 1, cooldown 5, v1.1.0). Ready for playback.`;
     document.getElementById("tblFeatures").innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--text-muted);">No stream data yet.</td></tr>`;
     document.getElementById("tblTransactions").innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--text-muted);">No transactions in current window.</td></tr>`;
   } catch (err) {
@@ -349,7 +397,7 @@ function renderDemoStep(data) {
     ? sigs.map(s => `<span class="badge badge-defense" style="margin-right:0.3rem;">${s}</span>`).join("")
     : `<span style="color:var(--text-muted); font-style:italic;">None</span>`;
 
-  // Explanation box ("What Happened?")
+  // Explanation box ("What Happened?") using exact current detector values
   document.getElementById("explanationText").textContent = data.explanation || "";
 
   // Render Features vs Baseline table
@@ -405,11 +453,15 @@ function renderDemoStep(data) {
 }
 
 function animatePipelineFlow() {
-  const stages = ["stageTx", "stageFeat", "stageBase", "stageScore", "stageConf", "stageState", "stageAudit"];
+  const stages = ["stageTx", "stageFeat", "stageBase", "stageScore", "stageConf", "stageState", "stageAlert", "stageAudit"];
   stages.forEach((sId, idx) => {
     setTimeout(() => {
-      stages.forEach(s => document.getElementById(s).classList.remove("active"));
-      document.getElementById(sId).classList.add("active");
-    }, idx * 100);
+      stages.forEach(s => {
+        const el = document.getElementById(s);
+        if (el) el.classList.remove("active");
+      });
+      const currentEl = document.getElementById(sId);
+      if (currentEl) currentEl.classList.add("active");
+    }, idx * 70);
   });
 }

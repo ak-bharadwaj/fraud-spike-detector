@@ -32,7 +32,7 @@ This document provides a structured, step-by-step demonstration walkthrough for 
   1. Navigate to **Tab 1: ⚡ Live Detection Console**.
   2. Click **▶ Start Live Demo** (or use **⏭ Step Window**).
   3. Observe the **Detection Workflow Pipeline** visualization at the top highlighting each active processing stage:
-     `Transactions` ➔ `Feature Engine` ➔ `Baseline + Evidence` ➔ `Statistical Scorer` ➔ `Confidence` ➔ `State Machine` ➔ `Alert / Audit Trail`.
+     `Transactions` ➔ `Features` ➔ `Baseline + Evidence` ➔ `Statistical Deviation Score` ➔ `Confidence` ➔ `State Machine` ➔ `Alert` ➔ `SQLite Audit`.
   4. **Watch Window 0–4 (Normal Baseline):**
      * Point out merchant `M1` operating normally (~15 txs/min).
      * Show Risk Score ($M < 5.00\sigma$), Evidence State (`SUFFICIENT`), and State (`NORMAL`).
@@ -57,7 +57,7 @@ This document provides a structured, step-by-step demonstration walkthrough for 
      * **Precision:** `0.8000` (TP: 4, FP: 1)
      * **Recall:** `0.8000` (FN: 1, Total Events: 5)
      * **F1 Score:** `0.8000`
-     * **Median Latency:** `64.57s` (P95 Latency: `114.57s`)
+     * **Median Latency:** `64.57s` (P95 Latency: `64.57s`)
      * **Total Cost:** `₹850.00`
   3. Show the **Per-Anomaly Performance Table**:
      * Point out `VALIDATED IN HOLDOUT` vs `NO_EVENTS_IN_DATASET` badges (scientific honesty).

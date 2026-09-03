@@ -72,7 +72,7 @@ Evaluated on the locked holdout dataset (`data/holdout/`) under canonical experi
 | **Recall** | **0.8000** (80.0%) | rate |
 | **F1 Score** | **0.8000** (80.0%) | score |
 | **Median Detection Latency** | **64.57** | seconds |
-| **P95 Detection Latency** | **114.57** | seconds |
+| **P95 Detection Latency** | **64.57** | seconds |
 | **False Positive Operational Cost** | **₹50.00** | ₹ (INR) |
 | **False Negative Fraud Exposure** | **₹800.00** | ₹ (INR) |
 | **Total Portfolio Financial Impact** | **₹850.00** | ₹ (INR) |
@@ -86,9 +86,9 @@ Evaluated on the locked holdout dataset (`data/holdout/`) under canonical experi
 2. **Detector-Aware Evasion Confirmation:**
    Confirms execution on physical holdout evasion scenarios: threshold-hugging, persistence evasion, staircase ramp, and oscillating sub-threshold.
 3. **Descriptive Holdout Calibration:**
-   Generates Reliability Diagrams and Expected Calibration Error ($\text{ECE} = 0.0420$).
+   Generates Reliability Diagrams and Expected Calibration Error ($\text{ECE} = 0.7094$, total samples $= 119$).
 4. **Non-Parametric Bootstrap Uncertainty:**
-   Derives 95% confidence intervals over $N = 1000$ resamples ($\text{F1} \in [0.5333, 1.0000]$).
+   Derives 95% confidence intervals over $N = 1000$ resamples ($\text{F1} \in [0.2000, 0.8000]$).
 
 ---
 

@@ -48,7 +48,7 @@ Financial impact is evaluated using the Master Plan Section 34 cost parameters:
 | **Recall** | **0.8000** | rate |
 | **F1 Score** | **0.8000** | score |
 | **Median Latency** | **64.57** | seconds |
-| **P95 Latency** | **114.57** | seconds |
+| **P95 Latency** | **64.57** | seconds |
 | **False Positive Cost** | **₹50.00** | ₹ (INR) |
 | **False Negative Exposure** | **₹800.00** | ₹ (INR) |
 | **Total Portfolio Cost** | **₹850.00** | ₹ (INR) |
@@ -93,6 +93,5 @@ Tests representative evasive attack trajectories physically embedded in `data/ho
 ## 🎲 Bootstrap Confidence Intervals (N = 1000 Resamples)
 
 Derived via empirical non-parametric bootstrap resampling ($N = 1000$ iterations, Seed $= 42$):
-* **F1 Score:** Point Estimate = `0.8000` | **95% CI:** `[0.5333, 1.0000]`
-* **Precision:** Point Estimate = `0.8000` | **95% CI:** `[0.5000, 1.0000]`
-* **Recall:** Point Estimate = `0.8000` | **95% CI:** `[0.5000, 1.0000]`
+* **Precision:** Point Estimate = `0.8000` | **95% CI:** `[0.2000, 0.8000]` (Raw: 4 TP / 5 Alerts)
+* **Recall:** Point Estimate = `0.8000` | **95% CI:** `[0.2000, 0.8000]` (Raw: 4 TP / 5 Events)
