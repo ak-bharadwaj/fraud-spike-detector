@@ -956,5 +956,83 @@ def test_per_anomaly_evasion_canonicalization_and_validation():
     assert ev_item["median_latency_seconds"] == 64.57
 
 
+def test_pitch_artifact_exists_and_matches_section_41():
+    """Verify docs/PITCH.md exists, has exact 5-minute timed sections, live demo cues, and small-N disclosure (§41)."""
+    pitch_path = Path("docs/PITCH.md")
+    assert pitch_path.exists(), "docs/PITCH.md missing"
+    content = pitch_path.read_text(encoding="utf-8")
+
+    assert "5-Minute Technical Pitch Script" in content
+    assert "0:00 - 0:45" in content
+    assert "0:45 - 1:45" in content
+    assert "1:45 - 2:45" in content
+    assert "2:45 - 3:45" in content
+    assert "3:45 - 5:00" in content
+    assert "Tab 1: Live Stream Monitor" in content
+    assert "Tab 2: Evaluation & Evidence" in content
+    assert "Tab 3: Replay & Audit Trail" in content
+    assert "Small-N Holdout" in content or "N=5" in content
+    assert "NO_EVENTS_IN_DATASET" in content
+    assert "harmonic" in content.lower()
+
+
+def test_failure_story_artifact_exists_and_documents_real_historical_fix():
+    """Verify docs/FAILURE_STORY.md exists and documents the real run_001 descriptive calibration bug and run_004 fix."""
+    story_path = Path("docs/FAILURE_STORY.md")
+    assert story_path.exists(), "docs/FAILURE_STORY.md missing"
+    content = story_path.read_text(encoding="utf-8")
+
+    assert "Historical Failure" in content
+    assert "run_001_original" in content
+    assert "414998f" in content
+    assert "run_004_canonical" in content
+    assert "2f860e8" in content
+    assert "calibration" in content.lower()
+    assert "dual_run_disclosure" in content
+
+
+def test_complete_per_anomaly_reporting_all_8_classes():
+    """Verify per-anomaly breakdown produces entries for all 8 canonical anomaly classes with explicit zero-event semantics."""
+    from src.evaluation.holdout_execution import compute_per_anomaly_holdout_metrics, execute_single_pass_holdout
+    freeze_rec = load_freeze_record(Path("config/freeze_record.json"))
+    manifest, txs, gts = load_locked_holdout_data("data/holdout")
+
+    _, alerts, _ = execute_single_pass_holdout(txs, gts, freeze_rec, explicit_evaluation_mode=True)
+    per_anomaly = compute_per_anomaly_holdout_metrics(alerts, gts)
+
+    expected_classes = [
+        "volume_spike",
+        "velocity_burst",
+        "sustained_spike",
+        "amount_shift",
+        "behavioral_anomaly",
+        "attribute_shift",
+        "compound_anomaly",
+        "evasive_patterns",
+    ]
+    for cls_name in expected_classes:
+        assert cls_name in per_anomaly, f"Missing class '{cls_name}' in per_anomaly breakdown"
+        cls_data = per_anomaly[cls_name]
+        assert "status" in cls_data
+        assert cls_data["status"] in ("VALIDATED", "NO_EVENTS_IN_DATASET")
+        if cls_data["status"] == "NO_EVENTS_IN_DATASET":
+            assert cls_data["total_events"] == 0
+            assert cls_data["events_detected"] == 0
+            assert cls_data["precision"] is None
+            assert cls_data["recall"] is None
+
+
+def test_raw_count_formatting_and_precision_recall_contract():
+    """Verify README.md and docs/EVALUATION.md report precision/recall with strict raw counts (4/5)."""
+    readme_content = Path("README.md").read_text(encoding="utf-8")
+    eval_content = Path("docs/EVALUATION.md").read_text(encoding="utf-8")
+
+    assert "4/5 TP/alerts" in readme_content
+    assert "4/5 TP/events" in readme_content
+    assert "4/5 TP/alerts" in eval_content
+    assert "4/5 TP/events" in eval_content
+
+
+
 
 

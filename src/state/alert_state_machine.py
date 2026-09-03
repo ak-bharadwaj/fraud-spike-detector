@@ -1,7 +1,8 @@
 """AlertStateMachine module for managing alert state transitions and persistence gating.
 
 Key Invariants:
-- State model & lifecycle: NORMAL -> CANDIDATE -> ALERT -> COOLDOWN -> NORMAL.
+- State model & lifecycle: NORMAL -> CANDIDATE (SUSPICIOUS) -> ALERT -> COOLDOWN -> NORMAL.
+- CANDIDATE state is identical to SUSPICIOUS state (§10 intermediate persistence accumulation state).
 - ALERT state consistency: when persistence is reached in window w, process_score returns ("ALERT", alert) and get_merchant_state() returns "ALERT".
 - COOLDOWN transition: in subsequent windows (w+1..w+5 for cooldown_windows=5), state transitions to "COOLDOWN", suppressing new alerts.
 - Normal transition: after cooldown_windows finish, state transitions back to "NORMAL" (at window w+6).

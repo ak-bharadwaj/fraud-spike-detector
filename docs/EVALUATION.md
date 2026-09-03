@@ -52,8 +52,8 @@ Financial impact is evaluated using the Master Plan Section 34 cost parameters:
 | **True Positives (TP)** | 4 | count |
 | **False Positives (FP)** | 1 | count |
 | **False Negatives (FN)** | 1 | count |
-| **Precision** | **0.8000** (95% CI: `[0.2000, 0.8000]`) | rate |
-| **Recall** | **0.8000** (95% CI: `[0.2000, 0.8000]`) | rate |
+| **Precision** | **0.8000** (80.0%, 4/5 TP/alerts, 95% CI: `[0.2000, 0.8000]`) | rate |
+| **Recall** | **0.8000** (80.0%, 4/5 TP/events, 95% CI: `[0.2000, 0.8000]`) | rate |
 | **F1 Score** | **0.8000** | score |
 | **Median Latency** | **64.57** | seconds |
 | **P95 Latency** | **64.57** | seconds |

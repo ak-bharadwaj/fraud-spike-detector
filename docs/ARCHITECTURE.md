@@ -90,7 +90,7 @@ Uses the Strategy Pattern (`AnomalyScorer` abstract base class):
 
 ### 6. Alert State Machine (`src/state/alert_state_machine.py`)
 Manages state transitions per merchant:
-* **Lifecycle:** `NORMAL` $\rightarrow$ `CANDIDATE` $\rightarrow$ `ALERT` $\rightarrow$ `COOLDOWN` $\rightarrow$ `NORMAL`.
+* **Lifecycle:** `NORMAL` $\rightarrow$ `CANDIDATE` (or `SUSPICIOUS`, §10 persistence accumulation state) $\rightarrow$ `ALERT` $\rightarrow$ `COOLDOWN` $\rightarrow$ `NORMAL`.
 * **Persistence Gating ($P=1$):** Requires score $M \ge \tau$ for $P$ consecutive qualifying windows.
 * **Cooldown Suppression ($C=5$):** After emitting an Alert, state transitions to `COOLDOWN` for 5 consecutive normal windows. Anomalous scores during cooldown reset the cooldown counter to prevent alert flooding.
 

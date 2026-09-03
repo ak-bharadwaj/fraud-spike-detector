@@ -68,8 +68,8 @@ Evaluated on the locked holdout dataset (`data/holdout/`) under canonical experi
 | **True Positives (TP)** | **4** | count |
 | **False Positives (FP)** | **1** | count |
 | **False Negatives (FN)** | **1** | count |
-| **Precision** | **0.8000** (80.0%, 95% CI: `[0.2000, 0.8000]`) | rate |
-| **Recall** | **0.8000** (80.0%, 95% CI: `[0.2000, 0.8000]`) | rate |
+| **Precision** | **0.8000** (80.0%, 4/5 TP/alerts, 95% CI: `[0.2000, 0.8000]`) | rate |
+| **Recall** | **0.8000** (80.0%, 4/5 TP/events, 95% CI: `[0.2000, 0.8000]`) | rate |
 | **F1 Score** | **0.8000** (80.0%) | score |
 | **Median Detection Latency** | **64.57** | seconds |
 | **P95 Detection Latency** | **64.57** | seconds |
