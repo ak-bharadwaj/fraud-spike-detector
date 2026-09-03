@@ -54,7 +54,7 @@ def test_multi_factor_ablation_variant_rejection():
         variant_id="INVALID_MULTI_FACTOR",
         description="Modifies two factors simultaneously",
         disable_ewma=True,
-        persistence=1,  # Second modified factor!
+        persistence=3,  # Second modified factor!
     )
 
     with pytest.raises(ValueError, match="Invalid multi-factor ablation variant"):

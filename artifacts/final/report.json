@@ -83,9 +83,9 @@
     },
     "run_004_canonical": {
       "experiment_id": "EXP-DAY9-HOLDOUT-CORRECTED-CONFIDENCE-004",
-      "execution_commit": "adc1adb",
-      "artifact_finalization_commit": "adc1adb",
-      "prior_artifact_commit": "3b281ca",
+      "execution_commit": "de7f9e3",
+      "artifact_finalization_commit": "de7f9e3",
+      "prior_artifact_commit": "ff61c56",
       "historical_artifact_chain": [
         "20bf655",
         "775e779",
@@ -99,7 +99,11 @@
         "60ab651",
         "355c52f",
         "3b281ca",
-        "adc1adb"
+        "adc1adb",
+        "9c5ef53",
+        "9fa76c5",
+        "ff61c56",
+        "de7f9e3"
       ],
       "status": "ACCEPTED_CANONICAL",
       "reason": "Post-holdout composite confidence integration (evidence quality, feature availability, signal agreement) and data quality robustness characterization conforming to Master Plan Section 17/19/27/39.",
@@ -555,16 +559,16 @@
       "alpha": 0.2,
       "persistence": 1,
       "tp": 2,
-      "fp": 3,
+      "fp": 1,
       "fn": 0,
-      "precision": 0.4,
+      "precision": 0.6666666666666666,
       "recall": 1.0,
-      "f1_score": 0.5714285714285715,
+      "f1_score": 0.8,
       "median_latency_seconds": 60.0,
       "p95_latency_seconds": 60.0,
-      "fp_cost": 150.0,
+      "fp_cost": 50.0,
       "fn_exposure": 0.0,
-      "total_cost": 150.0
+      "total_cost": 50.0
     },
     {
       "alpha": 0.2,
@@ -585,16 +589,16 @@
       "alpha": 0.2,
       "persistence": 3,
       "tp": 0,
-      "fp": 3,
+      "fp": 2,
       "fn": 2,
       "precision": 0.0,
       "recall": 0.0,
       "f1_score": 0.0,
       "median_latency_seconds": null,
       "p95_latency_seconds": null,
-      "fp_cost": 150.0,
+      "fp_cost": 100.0,
       "fn_exposure": 12900.0,
-      "total_cost": 13050.0
+      "total_cost": 13000.0
     },
     {
       "alpha": 0.3,
@@ -689,17 +693,17 @@
     {
       "alpha": 0.7,
       "persistence": 1,
-      "tp": 1,
-      "fp": 3,
-      "fn": 1,
-      "precision": 0.25,
-      "recall": 0.5,
-      "f1_score": 0.3333333333333333,
+      "tp": 2,
+      "fp": 0,
+      "fn": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1_score": 1.0,
       "median_latency_seconds": 60.0,
       "p95_latency_seconds": 60.0,
-      "fp_cost": 150.0,
-      "fn_exposure": 7700.0,
-      "total_cost": 7850.0
+      "fp_cost": 0.0,
+      "fn_exposure": 0.0,
+      "total_cost": 0.0
     },
     {
       "alpha": 0.7,
@@ -720,31 +724,31 @@
       "alpha": 0.7,
       "persistence": 3,
       "tp": 0,
-      "fp": 2,
+      "fp": 1,
       "fn": 2,
       "precision": 0.0,
       "recall": 0.0,
       "f1_score": 0.0,
       "median_latency_seconds": null,
       "p95_latency_seconds": null,
-      "fp_cost": 100.0,
+      "fp_cost": 50.0,
       "fn_exposure": 12900.0,
-      "total_cost": 13000.0
+      "total_cost": 12950.0
     },
     {
       "alpha": 0.9,
       "persistence": 1,
-      "tp": 0,
-      "fp": 8,
-      "fn": 2,
-      "precision": 0.0,
-      "recall": 0.0,
-      "f1_score": 0.0,
-      "median_latency_seconds": null,
-      "p95_latency_seconds": null,
-      "fp_cost": 400.0,
-      "fn_exposure": 12900.0,
-      "total_cost": 13300.0
+      "tp": 2,
+      "fp": 0,
+      "fn": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1_score": 1.0,
+      "median_latency_seconds": 60.0,
+      "p95_latency_seconds": 60.0,
+      "fp_cost": 0.0,
+      "fn_exposure": 0.0,
+      "total_cost": 0.0
     },
     {
       "alpha": 0.9,
@@ -765,17 +769,17 @@
       "alpha": 0.9,
       "persistence": 3,
       "tp": 0,
-      "fp": 2,
+      "fp": 1,
       "fn": 2,
       "precision": 0.0,
       "recall": 0.0,
       "f1_score": 0.0,
       "median_latency_seconds": null,
       "p95_latency_seconds": null,
-      "fp_cost": 100.0,
+      "fp_cost": 50.0,
       "fn_exposure": 12900.0,
-      "total_cost": 13000.0
+      "total_cost": 12950.0
     }
   ],
-  "artifact_sha256": "04846314dc34547db4041f438b09ced098c1f2f71e325fac627463d0c0331bab"
+  "artifact_sha256": "82e724e35f2dc103721cdc8382cc9f67288c3ab2812fbdae5529d53178a8757c"
 }

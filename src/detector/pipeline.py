@@ -89,6 +89,7 @@ class StreamingDetectorPipeline:
             persistence=self.config.persistence,
             cooldown_windows=self.config.cooldown_windows,
             static_threshold=self.config.static_threshold,
+            detector_version=self.config.detector_version,
         )
 
         self._merchant_buffers: Dict[str, List[Transaction]] = {}

@@ -124,16 +124,16 @@ class AuditRecord(BaseModel):
 
 class FrozenDetectorConfig(BaseModel):
     """Immutable frozen detector configuration shared contract."""
-    scorer: str = "HybridEWMAScorer"
-    ewma_alpha: Optional[float] = 0.3
-    static_threshold: float = 3.5
-    persistence: int = 2
+    scorer: str = "StatisticalDeviationScorer"
+    ewma_alpha: Optional[float] = None
+    static_threshold: float = 5.0
+    persistence: int = 1
     cooldown_windows: int = 5
     min_history_count: Optional[int] = None
     min_window_count: int = 5
     signal_weights: dict[str, float] = Field(default_factory=lambda: {"volume": 1.0, "velocity": 1.0, "amount": 1.0, "behavioral": 1.0})
     temporal_tolerance_seconds: float = 0.0
-    detector_version: str = "1.0.0"
+    detector_version: str = "1.1.0"
 
 
 class EvaluationMetrics(BaseModel):

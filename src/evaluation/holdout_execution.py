@@ -613,9 +613,9 @@ def save_day8_research_artifacts(
     drift_results: Dict[str, Any],
     ewma_tradeoff_results: Optional[List[Dict[str, Any]]] = None,
     experiment_id: str = "EXP-DAY9-HOLDOUT-CORRECTED-CONFIDENCE-004",
-    execution_commit: str = "adc1adb",
-    artifact_finalization_commit: str = "adc1adb",
-    prior_artifact_commit: str = "3b281ca",
+    execution_commit: str = "de7f9e3",
+    artifact_finalization_commit: str = "de7f9e3",
+    prior_artifact_commit: str = "ff61c56",
     historical_artifact_chain: Optional[List[str]] = None,
 ) -> Dict[str, Path]:
     """Save all Day 8/9 research outputs in structured artifact directories matching required Section 39 hierarchy."""
@@ -627,6 +627,16 @@ def save_day8_research_artifacts(
         "development_dataset_hash": freeze_record.development_dataset_hash,
         "holdout_dataset_hash": holdout_manifest.dataset_hash,
         "dataset_hash": holdout_manifest.dataset_hash,
+        "seed": freeze_record.seed,
+        "timestamp": freeze_record.freeze_timestamp,
+    }
+
+    dev_metadata = {
+        "experiment_id": experiment_id,
+        "detector_version": freeze_record.detector_version,
+        "config_hash": freeze_record.config_hash,
+        "development_dataset_hash": freeze_record.development_dataset_hash,
+        "dataset_hash": freeze_record.development_dataset_hash,
         "seed": freeze_record.seed,
         "timestamp": freeze_record.freeze_timestamp,
     }
@@ -668,8 +678,33 @@ def save_day8_research_artifacts(
         except Exception:
             ewma_tradeoff_results = []
     p_ewma = dirs["ablation"] / "ewma_tradeoff.json"
-    p_ewma.write_text(json.dumps({**common_metadata, "sweep_results": ewma_tradeoff_results}, indent=2), encoding="utf-8")
+    p_ewma.write_text(json.dumps({**dev_metadata, "sweep_results": ewma_tradeoff_results}, indent=2), encoding="utf-8")
     saved_paths["ewma_tradeoff"] = p_ewma
+
+    # 0c. 5-Way Signal Ablation Suite (Development Data)
+    try:
+        from src.evaluation.ablation import AblationRunner, load_characterization_data
+        dev_manifest, dev_txs, dev_gts = load_characterization_data("data/development")
+        params = freeze_record.all_selected_parameters
+        frozen_cfg = FrozenDetectorConfig(
+            scorer=params["scorer"],
+            ewma_alpha=params.get("alpha"),
+            static_threshold=float(params["static_threshold"]),
+            persistence=int(params["persistence"]),
+            cooldown_windows=int(params["cooldown_windows"]),
+            min_history_count=int(params.get("min_history_count", 1)),
+            min_window_count=int(params.get("min_window_count", 1)),
+            signal_weights=params.get("signal_weights"),
+            detector_version=freeze_record.detector_version,
+        )
+        ablation_runner = AblationRunner(config=frozen_cfg)
+        ablation_suite_results = [r.model_dump(mode="json") for r in ablation_runner.run_ablation_suite(dev_txs, dev_gts)]
+    except Exception:
+        ablation_suite_results = []
+
+    p_sig_abl = dirs["ablation"] / "signal_ablation.json"
+    p_sig_abl.write_text(json.dumps({**dev_metadata, "ablation_results": ablation_suite_results}, indent=2), encoding="utf-8")
+    saved_paths["signal_ablation"] = p_sig_abl
 
     # 1. Calibration
     p_cal = dirs["calibration"] / "holdout_calibration.json"
@@ -678,7 +713,12 @@ def save_day8_research_artifacts(
 
     # 2. Ablation / Metrics
     p_abl = dirs["ablation"] / "holdout_metrics.json"
-    p_abl.write_text(json.dumps({**common_metadata, "metrics": holdout_metrics.model_dump(mode="json"), "per_anomaly": per_anomaly_metrics}, indent=2), encoding="utf-8")
+    p_abl.write_text(json.dumps({
+        **common_metadata,
+        "metrics": holdout_metrics.model_dump(mode="json"),
+        "per_anomaly": per_anomaly_metrics,
+        "ablation_suite": ablation_suite_results,
+    }, indent=2), encoding="utf-8")
     saved_paths["ablation"] = p_abl
 
     # 3. Drift
@@ -806,7 +846,7 @@ def save_day8_research_artifacts(
             "artifact_finalization_commit": artifact_finalization_commit,
             "prior_artifact_commit": prior_artifact_commit,
             "historical_artifact_chain": historical_artifact_chain or [
-                "20bf655", "775e779", "cc2872b", "e28d6d3", "f21ddeb", "26837b7", "bc29c36", "049caf5", "5841ddb", "60ab651", "355c52f", "3b281ca", "adc1adb"
+                "20bf655", "775e779", "cc2872b", "e28d6d3", "f21ddeb", "26837b7", "bc29c36", "049caf5", "5841ddb", "60ab651", "355c52f", "3b281ca", "adc1adb", "9c5ef53", "9fa76c5", "ff61c56", "de7f9e3"
             ],
             "status": "ACCEPTED_CANONICAL",
             "reason": "Post-holdout composite confidence integration (evidence quality, feature availability, signal agreement) and data quality robustness characterization conforming to Master Plan Section 17/19/27/39.",

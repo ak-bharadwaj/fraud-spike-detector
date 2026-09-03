@@ -106,7 +106,7 @@ fraud-spike-detector/
 | **Day 4** | Evaluation Pipeline | Matching engine, precision/recall/latency metrics, sweep scripts |
 | **Day 5** | Synthetic Benchmark | Full merchant suite M1–M9, evasion patterns, compound anomalies |
 | **Day 6** | Research Experiments | Feature ablation, baseline drift, threshold-hugging evasion, degraded data tests |
-| **Day 7** | System Freeze | Model selection (`HybridEWMAScorer`), hyperparameter lock, tag frozen release |
+| **Day 7** | System Freeze | Model selection (`StatisticalDeviationScorer` v1.1.0), hyperparameter lock, freeze record |
 | **Day 8** | Holdout Evaluation | Unlock holdout dataset, evaluate metrics, bootstrap CI, cost model |
 | **Day 9** | Evidence & Artifacts | Generate charts, reliability diagrams, cost comparisons, SQLite audit rehearsal |
 | **Day 10**| Buffer & Pitch | Pitch recording, documentation finalization, final validation |

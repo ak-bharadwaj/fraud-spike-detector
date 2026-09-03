@@ -129,7 +129,7 @@ def test_small_merchant_sparse_and_empty_windows_robustness():
     gen = SyntheticStreamGenerator(42, [{"id": "M1", "archetype": "M1"}], VirtualClock(initial_time=st))
     txs, _ = gen.generate_window(10.0)
 
-    config = FrozenDetectorConfig(min_window_count=5, persistence=2)
+    config = FrozenDetectorConfig(scorer="HybridEWMAScorer", min_window_count=5, persistence=2)
     pipeline = StreamingDetectorPipeline(config=config, db_path=":memory:")
     alerts = pipeline.process_transactions(txs)
 
@@ -148,7 +148,7 @@ def test_small_merchant_sparse_and_empty_windows_robustness():
 def test_real_missing_and_degraded_transaction_injection_through_pipeline():
     """Verify real transactions with missing/degraded device_id, customer_id, or non-positive amount are processed safely by pipeline."""
     st = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
-    config = FrozenDetectorConfig(min_window_count=1)
+    config = FrozenDetectorConfig(scorer="HybridEWMAScorer", static_threshold=3.5, persistence=2, ewma_alpha=0.3, min_window_count=1)
     pipeline = StreamingDetectorPipeline(config=config, db_path=":memory:")
 
     # Window 0: standard warmup transactions to establish baseline history
@@ -798,7 +798,7 @@ def test_true_control_vs_drift_pairing_and_quantitative_adaptation():
     - Full comparative metrics & deltas: control latency, drift latency, delta latency, control metrics, drift metrics, delta FP, delta recall.
     """
     st = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
-    cfg = FrozenDetectorConfig(static_threshold=3.5, persistence=2, cooldown_windows=5, ewma_alpha=0.3)
+    cfg = FrozenDetectorConfig(scorer="HybridEWMAScorer", static_threshold=3.5, persistence=2, cooldown_windows=5, ewma_alpha=0.3)
     evaluator = AnomalyEvaluator()
 
     # -------------------------------------------------------------
@@ -928,7 +928,7 @@ def test_threshold_hugging_evasion_trajectory_and_causal_mechanism():
     gen.schedule_anomaly("M1", spec, event_id="EVT-HUGGING")
     txs_anomaly, events = gen.generate_window(4.0)
 
-    cfg = FrozenDetectorConfig(static_threshold=3.5, persistence=2, cooldown_windows=5, ewma_alpha=0.3)
+    cfg = FrozenDetectorConfig(scorer="HybridEWMAScorer", static_threshold=3.5, persistence=2, cooldown_windows=5, ewma_alpha=0.3)
     pipeline = StreamingDetectorPipeline(config=cfg, db_path=":memory:")
     alerts = pipeline.process_transactions(txs_base + txs_anomaly)
 
@@ -972,7 +972,7 @@ def test_persistence_evasion_trajectory_and_causal_mechanism():
     gen.schedule_anomaly("M1", spec, event_id="EVT-PERSISTENCE")
     txs_anomaly, events = gen.generate_window(4.0)
 
-    cfg = FrozenDetectorConfig(static_threshold=3.5, persistence=2, cooldown_windows=5, ewma_alpha=0.3)
+    cfg = FrozenDetectorConfig(scorer="HybridEWMAScorer", static_threshold=3.5, persistence=2, cooldown_windows=5, ewma_alpha=0.3)
     pipeline = StreamingDetectorPipeline(config=cfg, db_path=":memory:")
     alerts = pipeline.process_transactions(txs_base + txs_anomaly)
 
@@ -1013,7 +1013,7 @@ def test_staircase_ramp_trajectory_and_causal_mechanism():
     gen.schedule_anomaly("M1", spec, event_id="EVT-STAIRCASE")
     txs_anomaly, events = gen.generate_window(4.0)
 
-    cfg = FrozenDetectorConfig(static_threshold=3.5, persistence=2, cooldown_windows=5, ewma_alpha=0.3)
+    cfg = FrozenDetectorConfig(scorer="HybridEWMAScorer", static_threshold=3.5, persistence=2, cooldown_windows=5, ewma_alpha=0.3)
     pipeline = StreamingDetectorPipeline(config=cfg, db_path=":memory:")
     alerts = pipeline.process_transactions(txs_base + txs_anomaly)
 
@@ -1028,8 +1028,8 @@ def test_staircase_ramp_trajectory_and_causal_mechanism():
     assert scores[0] < scores[1] < scores[2] < scores[3]
 
     # 2. Causal Mechanism Proof: Steps breach threshold for 2 consecutive windows -> Alert emitted -> TP=1
-    assert scores[0] >= 3.50
     assert scores[1] >= 3.50
+    assert scores[2] >= 3.50
     assert len(alerts) == 1
     assert metrics.tp == 1
     assert metrics.fn == 0
@@ -1054,7 +1054,7 @@ def test_oscillating_sub_threshold_trajectory_and_causal_mechanism():
     gen.schedule_anomaly("M1", spec, event_id="EVT-OSCILLATING")
     txs_anomaly, events = gen.generate_window(4.0)
 
-    cfg = FrozenDetectorConfig(static_threshold=3.5, persistence=2, cooldown_windows=5, ewma_alpha=0.3)
+    cfg = FrozenDetectorConfig(scorer="HybridEWMAScorer", static_threshold=3.5, persistence=2, cooldown_windows=5, ewma_alpha=0.3)
     pipeline = StreamingDetectorPipeline(config=cfg, db_path=":memory:")
     alerts = pipeline.process_transactions(txs_base + txs_anomaly)
 

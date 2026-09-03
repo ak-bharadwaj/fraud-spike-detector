@@ -34,7 +34,7 @@ class MerchantStateContext:
 class AlertStateMachine:
     """State machine converting RiskScore observations into Alert emissions and state transitions."""
 
-    def __init__(self, persistence: int = 2, cooldown_windows: int = 5, static_threshold: float = 3.5, detector_version: str = "1.0.0"):
+    def __init__(self, persistence: int = 1, cooldown_windows: int = 5, static_threshold: float = 5.0, detector_version: str = "1.1.0"):
         if persistence <= 0:
             raise ValueError(f"persistence must be positive, got {persistence}")
         if cooldown_windows < 0:
@@ -53,11 +53,12 @@ class AlertStateMachine:
     @classmethod
     def from_config(cls, config: DetectorConfig) -> "AlertStateMachine":
         """Construct AlertStateMachine from DetectorConfig."""
+        v = getattr(config, "detector_version", getattr(config, "version", "1.1.0"))
         return cls(
             persistence=config.scorer.persistence,
             cooldown_windows=config.state_machine.cooldown_windows,
             static_threshold=config.scorer.static_threshold,
-            detector_version=config.version,
+            detector_version=v,
         )
 
     def process_score(

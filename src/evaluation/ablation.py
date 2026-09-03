@@ -31,6 +31,8 @@ from src.contracts.contracts import (
     FrozenDetectorConfig,
 )
 from src.detector.pipeline import StreamingDetectorPipeline
+from src.scoring.static import StaticThresholdScorer
+from src.scoring.statistical import StatisticalDeviationScorer
 from src.scoring.hybrid_ewma import HybridEWMAScorer
 from src.evaluation.evaluator import AnomalyEvaluator
 from src.evaluation.holdout import HoldoutManifest
@@ -242,12 +244,27 @@ class AblationRunner:
         ground_truth_events: List[GroundTruthEvent],
     ) -> EvaluationMetrics:
         """Run detector evaluation pipeline for a single ablation variant using exact scorer-level signal masking."""
-        alpha = 1.0 if variant.disable_ewma else (self.config.ewma_alpha or 0.3)
         eff_threshold = variant.static_threshold if variant.static_threshold is not None else self.config.static_threshold
         eff_persistence = variant.persistence if variant.persistence is not None else self.config.persistence
         eff_cooldown = variant.cooldown_windows if variant.cooldown_windows is not None else self.config.cooldown_windows
 
-        scorer = HybridEWMAScorer(alpha=alpha, static_threshold=eff_threshold)
+        if self.config.scorer == "StatisticalDeviationScorer":
+            scorer = StatisticalDeviationScorer(
+                static_threshold=eff_threshold,
+                signal_weights=self.config.signal_weights,
+            )
+        elif self.config.scorer == "StaticThresholdScorer":
+            scorer = StaticThresholdScorer(
+                static_threshold=eff_threshold,
+                signal_weights=self.config.signal_weights,
+            )
+        else:
+            alpha = 1.0 if variant.disable_ewma else (self.config.ewma_alpha or 0.3)
+            scorer = HybridEWMAScorer(
+                alpha=alpha,
+                static_threshold=eff_threshold,
+                signal_weights=self.config.signal_weights,
+            )
 
         cfg = self.config.model_copy(update={
             "persistence": eff_persistence,
