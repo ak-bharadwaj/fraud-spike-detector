@@ -9,7 +9,7 @@ This document details the benchmark evaluation methodology, historical holdout d
 To guarantee rigorous scientific validity and zero benchmark contamination:
 1. **Development Phase:** All detector selection, hyperparameter tuning (alpha, static threshold $\tau$, persistence $P$, cooldown $C$), feature engineering, and baseline exploration were conducted exclusively on development datasets (`data/development/`).
 2. **Holdout Freeze:** The holdout dataset (`data/holdout/`) remained encrypted/locked until system freeze on Day 7.
-3. **Single Evaluation Pass:** On Day 8, the frozen detector configuration (`StatisticalDeviationScorer` v1.1.0, $\tau=5.0$, $P=1$, $C=5$) was executed on the locked holdout stream in a single evaluation pass.
+3. **Single Evaluation Pass:** During the locked-holdout evaluation phase, the frozen detector configuration (`StatisticalDeviationScorer` v1.1.0, $\tau=5.0$, $P=1$, $C=5$) was executed on the locked holdout stream in a single evaluation pass.
 
 ---
 
@@ -28,7 +28,7 @@ Event matching strictly follows Sections 21–22 of the Master Build Plan and `c
   * `compound_anomaly`: **300s**
   * `evasive_patterns`: **300s**
 * **Detection Latency:** $\text{Latency} = \max(0\text{s}, t_a - t_{\text{start}})$.
-* **Strict One-to-One Matching:** The first valid alert within the horizon $[t_{\text{start}}, t_{\text{start}} + H_{\text{type}}]$ matches the ground truth event ($\text{TP}=1$). Subsequent alerts matching an already matched event do not increment $\text{TP}$ or $\text{FP}$.
+* **Strict One-to-One Matching:** An emitted alert matches at most one ground truth event, and a ground truth event matches at most one alert. The first valid alert within $[t_{\text{start}}, t_{\text{start}} + H_{\text{type}}]$ matches the event ($\text{TP}=1$). Any additional alert not consumed by a one-to-one match is an unmatched alert and scores False Positive ($\text{FP}=1$).
 * **Pre-Onset & Unmatched FP Rule:** Any alert emitted prior to event onset ($t_a < t_{\text{start}}$) or outside all valid event horizons scores a False Positive ($\text{FP}=1$).
 
 ---
@@ -37,9 +37,9 @@ Event matching strictly follows Sections 21–22 of the Master Build Plan and `c
 
 Financial impact is evaluated using the Master Plan Section 34 cost parameters:
 * **False Positive Cost ($C_{\text{FP}}$):** ₹50.00 per false alarm (manual risk analyst review operational cost).
-* **False Negative Exposure ($C_{\text{FN}}$):** ₹800.00 base exposure per missed fraud event plus 100% of uncaptured fraud exposure.
+* **False Negative Exposure ($C_{\text{FN}}$):** Financial exposure sum over all unmatched ground-truth events: $\text{FN Exposure} = \sum_{\text{unmatched GT}} (\text{excess\_transaction\_count} \times \text{mean\_transaction\_amount} \times \text{exposure\_factor})$, where canonical $\text{exposure\_factor} = 1.0$.
 * **Total Portfolio Cost:**
-  $$\text{Total Cost} = (\text{FP} \times ₹50.00) + (\text{FN} \times \text{Exposure})$$
+  $$\text{Total Cost} = (\text{FP} \times ₹50.00) + \text{FN Exposure}$$
 
 ---
 
