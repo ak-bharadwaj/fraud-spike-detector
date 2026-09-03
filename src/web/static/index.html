@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fraud-Spike Detector — Merchant Risk Intelligence</title>
+  <link rel="stylesheet" href="styles.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+
+  <!-- Top Header -->
+  <header class="app-header">
+    <div class="brand">
+      <div class="brand-icon">🛡️</div>
+      <div class="brand-title">
+        <h1>Fraud-Spike Detector</h1>
+        <span>Merchant Risk Intelligence Console</span>
+      </div>
+    </div>
+    <div class="header-badges">
+      <span class="badge badge-version" id="headerVersion">v1.1.0</span>
+      <span class="badge badge-frozen" id="headerStatus">FROZEN RELEASE</span>
+      <span class="badge badge-defense">DEFENSE-ONLY</span>
+    </div>
+  </header>
+
+  <!-- Navigation Tabs -->
+  <nav class="nav-tabs">
+    <button class="tab-btn active" data-tab="tabLive">⚡ Live Detection Console</button>
+    <button class="tab-btn" data-tab="tabEval">📊 Evaluation & Evidence</button>
+    <button class="tab-btn" data-tab="tabAudit">🔬 Reproducibility & Audit</button>
+  </nav>
+
+  <main class="app-container">
+
+    <!-- ===================================================================== -->
+    <!-- TAB 1: LIVE DETECTION CONSOLE (PRIMARY SCREEN) -->
+    <!-- ===================================================================== -->
+    <div id="tabLive" class="tab-content active">
+
+      <!-- Pipeline Stage Workflow Visualization -->
+      <section class="pipeline-section">
+        <div class="pipeline-title">Detection Workflow Pipeline (Active Processing Stage)</div>
+        <div class="pipeline-flow">
+          <div class="pipeline-stage active" id="stageTx">
+            <div class="stage-num">Stage 1</div>
+            <div class="stage-name">Transactions</div>
+          </div>
+          <span class="pipeline-arrow">➔</span>
+          <div class="pipeline-stage" id="stageFeat">
+            <div class="stage-num">Stage 2</div>
+            <div class="stage-name">Feature Engine</div>
+          </div>
+          <span class="pipeline-arrow">➔</span>
+          <div class="pipeline-stage" id="stageBase">
+            <div class="stage-num">Stage 3</div>
+            <div class="stage-name">Baseline + Evidence</div>
+          </div>
+          <span class="pipeline-arrow">➔</span>
+          <div class="pipeline-stage" id="stageScore">
+            <div class="stage-num">Stage 4</div>
+            <div class="stage-name">Statistical Scorer</div>
+          </div>
+          <span class="pipeline-arrow">➔</span>
+          <div class="pipeline-stage" id="stageConf">
+            <div class="stage-num">Stage 5</div>
+            <div class="stage-name">Confidence</div>
+          </div>
+          <span class="pipeline-arrow">➔</span>
+          <div class="pipeline-stage" id="stageState">
+            <div class="stage-num">Stage 6</div>
+            <div class="stage-name">State Machine</div>
+          </div>
+          <span class="pipeline-arrow">➔</span>
+          <div class="pipeline-stage" id="stageAudit">
+            <div class="stage-num">Stage 7</div>
+            <div class="stage-name">Alert / Audit Trail</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Demo Controls Bar -->
+      <div class="controls-bar">
+        <div class="btn-group">
+          <button class="btn btn-primary" id="btnPlayDemo">▶ Start Live Demo</button>
+          <button class="btn btn-secondary" id="btnStepDemo">⏭ Step Window (1m)</button>
+          <button class="btn btn-secondary" id="btnResetDemo">🔄 Reset Demo</button>
+        </div>
+        <div>
+          <label style="font-size:0.8rem; color:var(--text-muted); margin-right:0.5rem;">Merchant Target:</label>
+          <select class="select-control" id="selectMerchant">
+            <option value="M1">M1 — Stable Merchant</option>
+            <option value="M2">M2 — Organic Growth Merchant</option>
+            <option value="M3">M3 — Volatile Baseline Merchant</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Live Dashboard Grid -->
+      <div class="grid-4">
+
+        <!-- Merchant State Machine Status Card -->
+        <div class="card">
+          <div class="card-title">Detector State Machine</div>
+          <div style="margin-top:0.5rem; text-align:center;">
+            <span class="state-badge state-NORMAL" id="badgeState">NORMAL</span>
+          </div>
+          <div class="metric-sub" style="text-align:center; margin-top:0.75rem;">
+            Decision Threshold: <strong>5.00σ</strong> | Persistence: <strong>P=1</strong> | Cooldown: <strong>5w</strong>
+          </div>
+        </div>
+
+        <!-- RiskScore Card -->
+        <div class="card">
+          <div class="card-title">Risk Score (Deviation $M$)</div>
+          <div class="metric-big" id="valRiskScore">0.00 <span class="metric-unit">σ</span></div>
+          <div class="metric-sub" id="valThresholdCheck">Sub-threshold (Normal)</div>
+        </div>
+
+        <!-- Composite Confidence Card -->
+        <div class="card">
+          <div class="card-title">Composite Confidence</div>
+          <div class="metric-big" id="valConfidence">1.00 <span class="metric-unit">/ 1.0</span></div>
+          <div class="metric-sub" id="valEvidenceState">Evidence State: <strong>SUFFICIENT</strong></div>
+        </div>
+
+        <!-- Triggered Signals Card -->
+        <div class="card">
+          <div class="card-title">Triggered Signals</div>
+          <div id="valTriggeredSignals" style="margin-top:0.5rem; font-size:0.85rem; color:var(--text-main);">
+            <span style="color:var(--text-muted); font-style:italic;">None</span>
+          </div>
+          <div class="metric-sub" id="valDataQuality">Data Quality: <strong>GOOD</strong></div>
+        </div>
+
+      </div>
+
+      <!-- Plain English Explanation Panel ("What Happened?") -->
+      <div class="card" style="margin-bottom:1.5rem;">
+        <div class="card-title">Operational Context & Explanation ("What Happened?")</div>
+        <div class="explanation-box" id="explanationText">
+          System initialized. Click "Start Live Demo" or "Step Window" to observe synthetic transaction streaming through the Feature, Baseline, Statistical Deviation, Confidence, and Alert State Machine pipeline.
+        </div>
+      </div>
+
+      <!-- Live Stream Details Grid -->
+      <div class="grid-2">
+
+        <!-- Features & Baseline Breakdown -->
+        <div class="card">
+          <div class="card-title">Feature Snapshot vs Learned Baseline</div>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Metric / Signal</th>
+                  <th>Current Window</th>
+                  <th>Expected Baseline</th>
+                  <th>Robust Scale</th>
+                  <th>Deviation</th>
+                </tr>
+              </thead>
+              <tbody id="tblFeatures">
+                <tr><td colspan="5" style="text-align:center; color:var(--text-muted);">No stream data yet.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Live Transactions Stream Table -->
+        <div class="card">
+          <div class="card-title">Transaction Stream (Current Window)</div>
+          <div class="table-wrapper" style="max-height:260px; overflow-y:auto;">
+            <table>
+              <thead>
+                <tr>
+                  <th>Tx ID</th>
+                  <th>Time</th>
+                  <th>Amount (₹)</th>
+                  <th>Method</th>
+                  <th>Device ID</th>
+                </tr>
+              </thead>
+              <tbody id="tblTransactions">
+                <tr><td colspan="5" style="text-align:center; color:var(--text-muted);">No transactions in current window.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Defense-Only Notice Banner -->
+      <div style="background:rgba(245, 158, 11, 0.08); border:1px solid rgba(245, 158, 11, 0.3); border-radius:8px; padding:1rem; text-align:center; font-size:0.85rem; color:var(--color-warning);">
+        ⚠️ <strong>Defense-Only Boundary Guarantee:</strong> Fraud-Spike Detector generates interpretability risk scores and alert audit trails for human risk ops teams. It never auto-blocks, rejects, or freezes financial payment flows.
+      </div>
+
+    </div>
+
+    <!-- ===================================================================== -->
+    <!-- TAB 2: EVALUATION & EVIDENCE SCREEN -->
+    <!-- ===================================================================== -->
+    <div id="tabEval" class="tab-content">
+
+      <!-- Headline Canonical Holdout KPIs -->
+      <div class="grid-4">
+        <div class="card">
+          <div class="card-title">Holdout Precision</div>
+          <div class="metric-big" id="evalPrecision">0.8000</div>
+          <div class="metric-sub">TP: <strong id="evalTP">4</strong> | FP: <strong id="evalFP">1</strong></div>
+        </div>
+        <div class="card">
+          <div class="card-title">Holdout Recall</div>
+          <div class="metric-big" id="evalRecall">0.8000</div>
+          <div class="metric-sub">FN: <strong id="evalFN">1</strong> | Total Events: <strong>5</strong></div>
+        </div>
+        <div class="card">
+          <div class="card-title">Holdout F1 Score</div>
+          <div class="metric-big" id="evalF1" style="color:var(--accent-cyan);">0.8000</div>
+          <div class="metric-sub">Frozen v1.1.0 Canonical</div>
+        </div>
+        <div class="card">
+          <div class="card-title">Holdout Latency & Cost</div>
+          <div class="metric-big" id="evalLatency">64.57 <span class="metric-unit">s</span></div>
+          <div class="metric-sub">P95: <strong>114.57s</strong> | Total Cost: <strong id="evalCost">₹850.00</strong></div>
+        </div>
+      </div>
+
+      <!-- Per-Anomaly Breakdown Table -->
+      <div class="card" style="margin-bottom:1.5rem;">
+        <div class="card-title">Per-Anomaly Class Performance Breakdown (Holdout & Characterization)</div>
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Anomaly Class</th>
+                <th>Validation Status</th>
+                <th>Ground Truth Event ID</th>
+                <th>TP</th>
+                <th>FP</th>
+                <th>FN</th>
+                <th>Recall</th>
+                <th>Median Latency</th>
+              </tr>
+            </thead>
+            <tbody id="tblPerAnomaly">
+              <!-- Dynamically populated -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 5-Way Signal Ablation & Evasion Grid -->
+      <div class="grid-2">
+
+        <!-- 5-Way Signal Ablation Comparison -->
+        <div class="card">
+          <div class="card-title">5-Way Scorer Signal Ablation Suite (Development Data)</div>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Variant ID</th>
+                  <th>Precision</th>
+                  <th>Recall</th>
+                  <th>F1 Score</th>
+                  <th>Δ F1 vs Control</th>
+                </tr>
+              </thead>
+              <tbody id="tblAblation">
+                <!-- Dynamically populated -->
+              </tbody>
+            </table>
+          </div>
+          <div class="metric-sub" style="margin-top:0.75rem;">
+            * Measured on development characterization stream. Scorer signal masking occurs strictly inside `Scorer.calculate_score()` without perturbing baseline history.
+          </div>
+        </div>
+
+        <!-- Evasion Confirmation Grid -->
+        <div class="card">
+          <div class="card-title">Detector-Aware Evasion Confirmation (Locked Holdout)</div>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Evasion Scenario</th>
+                  <th>Event ID</th>
+                  <th>Max Score</th>
+                  <th>Alert Fired</th>
+                  <th>Outcome</th>
+                </tr>
+              </thead>
+              <tbody id="tblEvasion">
+                <!-- Dynamically populated -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Descriptive Calibration & Bootstrap Uncertainty -->
+      <div class="grid-2">
+
+        <!-- Descriptive Calibration -->
+        <div class="card">
+          <div class="card-title">Descriptive Holdout Calibration</div>
+          <div style="font-size:0.85rem; color:var(--text-muted); margin-bottom:1rem;">
+            Reliability Diagram Bucketing (Sample Count: <strong id="calibSamples">0</strong>, ECE: <strong id="calibECE">N/A</strong>)
+          </div>
+          <div id="calibBuckets" style="display:flex; flex-direction:column; gap:0.5rem;">
+            <!-- Dynamically populated bars -->
+          </div>
+        </div>
+
+        <!-- Bootstrap Confidence Intervals -->
+        <div class="card">
+          <div class="card-title">Bootstrap Uncertainty (N = 1000 Resamples)</div>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Metric</th>
+                  <th>Point Estimate</th>
+                  <th>95% Confidence Interval</th>
+                </tr>
+              </thead>
+              <tbody id="tblBootstrap">
+                <!-- Dynamically populated -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- ===================================================================== -->
+    <!-- TAB 3: REPRODUCIBILITY & AUDIT SCREEN -->
+    <!-- ===================================================================== -->
+    <div id="tabAudit" class="tab-content">
+
+      <!-- Immutable Metadata Grid -->
+      <div class="grid-2">
+
+        <div class="card">
+          <div class="card-title">Immutable System & Dataset Provenance</div>
+          <div style="display:flex; flex-direction:column; gap:0.75rem; font-size:0.85rem;">
+            <div>Detector Version: <strong id="provVer">1.1.0</strong></div>
+            <div>Configuration Hash: <code id="provConfigHash" style="color:var(--accent-cyan); word-break:break-all;">-</code></div>
+            <div>Development Dataset Hash: <code id="provDevHash" style="color:var(--accent-blue); word-break:break-all;">-</code></div>
+            <div>Holdout Dataset Hash: <code id="provHoldoutHash" style="color:var(--accent-purple); word-break:break-all;">-</code></div>
+            <div>RNG Seed: <strong id="provSeed">42</strong></div>
+            <div>Experiment ID: <strong id="provExpId">EXP-DAY9-HOLDOUT-CORRECTED-CONFIDENCE-004</strong></div>
+            <div>Canonical Artifact SHA256: <code id="provArtSha" style="color:var(--color-success); word-break:break-all;">-</code></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Scientific Honesty & Reproducibility Guarantees</div>
+          <div style="font-size:0.85rem; color:var(--text-muted); line-height:1.6;">
+            <p>• <strong>Development vs Holdout Isolation:</strong> Detector selection and hyperparameter search operated exclusively on development datasets. Holdout data remained locked until final evaluation.</p>
+            <p style="margin-top:0.5rem;">• <strong>Auditability:</strong> Every feature snapshot, baseline expected value, deviation score, confidence factor, and state machine transition is logged to SQLite.</p>
+            <p style="margin-top:0.5rem;">• <strong>Synthetic Benchmark:</strong> Results reflect quantitative characterization on reproducible synthetic transaction streams.</p>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- SQLite Audit Log Browser -->
+      <div class="card" style="margin-top:1.5rem;">
+        <div class="card-title">SQLite Audit Log Store Browser</div>
+        <div class="table-wrapper" style="max-height:400px; overflow-y:auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>Audit ID</th>
+                <th>Timestamp</th>
+                <th>Merchant</th>
+                <th>Risk Score</th>
+                <th>Confidence</th>
+                <th>Quality Status</th>
+                <th>State / Alert ID</th>
+              </tr>
+            </thead>
+            <tbody id="tblAuditLogs">
+              <tr><td colspan="7" style="text-align:center; color:var(--text-muted);">No audit records generated in live memory yet. Run live demo or step window.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+
+  </main>
+
+  <footer>
+    Fraud-Spike Detector — AI Risk Manager Razorpay Buildathon Submission | Defense-Only Architecture | Python 3.11+
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

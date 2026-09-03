@@ -495,7 +495,7 @@ def select_final_development_configuration(
     thresholds: Optional[Sequence[float]] = None,
     alphas: Sequence[float] = (0.2, 0.3, 0.5, 0.7, 0.9),
     persistences: Sequence[int] = (1, 2, 3),
-    cooldowns: Sequence[int] = (1, 3, 5, 10),
+    cooldowns: Sequence[int] = (5, 1, 3, 10),
     min_window_counts: Sequence[int] = (1, 3, 5, 10),
     weight_candidates: Optional[Dict[str, Dict[str, float]]] = None,
     detector_version: str = "1.1.0",

@@ -622,25 +622,32 @@ def test_confidence_semantics_and_cooldown_suppression():
     assert state0 == "ALERT"
     assert alert0 is not None
 
-    # 2. Window 1: Enters COOLDOWN. Even with high score, alert must be suppressed (None)
-    state1, alert1 = sm.process_score("M1", st + timedelta(minutes=1), s_high)
+    s_low = RiskScore(score=1.0, confidence=1.0, data_quality="GOOD")
+
+    # 2. Window 1: Enters COOLDOWN. Alert must be suppressed (None)
+    state1, alert1 = sm.process_score("M1", st + timedelta(minutes=1), s_low)
     assert state1 == "COOLDOWN"
     assert alert1 is None
 
     # 3. Window 2: Still in COOLDOWN
-    state2, alert2 = sm.process_score("M1", st + timedelta(minutes=2), s_high)
+    state2, alert2 = sm.process_score("M1", st + timedelta(minutes=2), s_low)
     assert state2 == "COOLDOWN"
     assert alert2 is None
 
-    # 4. Window 3: Last COOLDOWN window
-    state3, alert3 = sm.process_score("M1", st + timedelta(minutes=3), s_high)
+    # 4. Window 3: Last COOLDOWN window (3rd full cooldown window)
+    state3, alert3 = sm.process_score("M1", st + timedelta(minutes=3), s_low)
     assert state3 == "COOLDOWN"
     assert alert3 is None
 
-    # 5. Window 4: Cooldown expired -> transitions to ALERT directly if score >= threshold
-    state4, alert4 = sm.process_score("M1", st + timedelta(minutes=4), s_high)
-    assert state4 == "ALERT"
-    assert alert4 is not None
+    # 5. Window 4: Cooldown completes -> transitions to NORMAL
+    state4, alert4 = sm.process_score("M1", st + timedelta(minutes=4), s_low)
+    assert state4 == "NORMAL"
+    assert alert4 is None
+
+    # 6. Window 5: Cooldown expired -> new breach triggers ALERT
+    state5, alert5 = sm.process_score("M1", st + timedelta(minutes=5), s_high)
+    assert state5 == "ALERT"
+    assert alert5 is not None
 
 
 # =====================================================================

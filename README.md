@@ -1,54 +1,119 @@
-# Fraud-Spike Detector
+# 🛡️ Fraud-Spike Detector — Merchant Risk Intelligence
 
-**AI Risk Manager — Master Build & Research Plan**
+**Audit-First Streaming Anomaly Detection Engine & Risk Operations Console for Merchant Financial Streams**
 
-> **Status:** FROZEN BUILD CONTRACT  
-> **Primary Objective:** Build, evaluate, and defend a near-real-time merchant-level anomaly detector using a reproducible synthetic transaction stream.
-
----
-
-## 📌 Executive Summary
-
-Fraud-Spike Detector is a defense-only system that monitors a synthetic transaction stream to detect anomalous merchant behavior in near-real-time. It identifies volume spikes, velocity bursts, amount-distribution shifts, behavioral/device anomalies, attribute shifts, compound anomalies, and detector-aware evasive patterns.
-
-### Key Principles
-- **Explainable & Interpretable:** Uses explicit statistical models (`StaticThresholdScorer`, `StatisticalDeviationScorer`, `HybridEWMAScorer`) instead of black-box LLMs or deep neural networks for auditability.
-- **Audit-First Design:** Emits detailed audit trails to SQLite for every event, score, and state transition.
-- **Defense-Only:** Produces risk scores, explanations, and alerts for human review. Never auto-blocks, rejects, or freezes financial transactions.
-- **Strict Reproducibility:** Uses `VirtualClock` and deterministic RNG seeds per merchant to guarantee repeatable stream playback and evaluation.
+> **Status:** FROZEN RELEASE (`v1.1.0`)  
+> **Primary Model:** `StatisticalDeviationScorer` ($\tau = 5.00\sigma, P = 1, C = 5$)  
+> **Defense-Only Scope:** Produces interpretable risk scores, confidence ratings, and alerts for human risk operations teams — never auto-blocks payment transactions.
 
 ---
 
-## 🏗️ System Architecture
+## 📌 Problem Statement
+
+Payment gateways process millions of transactions per minute across thousands of distinct merchants. During fraud attacks or merchant compromises, fraud rings rapidly launch card-testing bursts, volume spikes, and velocity floods.
+
+### Why Ordinary Thresholding is Insufficient:
+1. **Static Global Limits Fail:** A high-volume merchant naturally processes 500 txs/min, while a small boutique merchant processes 2 txs/min. A static global threshold of 100 txs/min floods small merchants with false alarms while missing massive relative spikes on high-volume merchants.
+2. **Alert Fatigue & Flapping:** Fluctuating scores hovering near decision boundaries produce repetitive, noisy alerts without state machine persistence and cooldown logic.
+3. **Black-Box Model Risk:** Deep learning and LLM classifiers lack deterministic auditability, making it impossible for risk analysts to explain why an alert was triggered during regulatory audits.
+
+---
+
+## 💡 The Solution
+
+Fraud-Spike Detector is an **explainable, statistical streaming anomaly detector** that learns per-merchant robust baselines in real time, evaluates multi-signal deviation magnitudes ($M$), enforces evidence sufficiency rules, and manages state transitions via an alert state machine.
+
+### Key Highlights:
+* **Per-Merchant Baseline Engine:** Tracks online running expected values $E[X]$ and robust scale $S[X] = \max(\text{MAD}[X], \epsilon)$ over minute-aligned sliding windows.
+* **Statistical Deviation Scoring:** Computes standardized magnitude scores $M = \frac{|X - E[X]|}{S[X]}$ across volume, velocity, amount, and behavioral signals.
+* **Composite Confidence Rating:** Integrates evidence state (`SUFFICIENT`, `DEGRADED`, `INSUFFICIENT`), feature availability, and signal agreement.
+* **State Machine Persistence & Cooldown:** Enforces persistence ($P=1$) to confirm alerts and cooldown ($C=5$ consecutive normal windows) to eliminate alert fatigue.
+* **100% SQLite Auditability:** Every feature snapshot, baseline expected value, deviation score, confidence level, and state transition is logged to SQLite.
+* **Interactive Web Operations Console:** Live visualization console for judges and risk ops teams (`python scripts/run_ui.py`).
+
+---
+
+## 🏗️ System Architecture & Workflow
 
 ```
-Generator
-   ↓ (transactions only)
-TimeOrderedEventBus + VirtualClock
-   ↓
-Feature Engine
-   ↓
-Baseline Engine + Evidence State
-   ↓
-Anomaly Scorer
-   ├── StaticThresholdScorer
-   ├── StatisticalDeviationScorer
-   └── HybridEWMAScorer
-   ↓
-AlertStateMachine
-   ├── Alert → SQLite
-   └── Error → AuditRecord only
-   ↓
-Evaluator
-   ├── Precision / Recall
-   ├── Latency
-   ├── Calibration
-   ├── Bootstrap CI
-   ├── Ablation
-   ├── Drift
-   ├── Evasion
-   └── Portfolio Cost
+Synthetic Stream Generator (Transactions)
+   │
+   ▼
+TimeOrderedEventBus + VirtualClock (Monotonic Time Authority)
+   │
+   ▼
+StreamingDetectorPipeline
+   │
+   ├── 1. Feature Engine (Minute-aligned sliding windows [HH:MM:00, HH:MM:00 + 1m))
+   │
+   ├── 2. Baseline Engine + Evidence State (Online expected values E[X] & MAD scale S[X])
+   │
+   ├── 3. StatisticalDeviationScorer v1.1.0 (Standardized magnitude M = |X - E[X]| / S[X])
+   │
+   ├── 4. Composite Confidence Engine (SUFFICIENT=1.0, DEGRADED=0.5, INSUFFICIENT=0.0)
+   │
+   ├── 5. AlertStateMachine (NORMAL ➔ CANDIDATE ➔ ALERT ➔ COOLDOWN ➔ NORMAL)
+   │
+   └── 6. SQLite Audit Database (Relational persistence for audit records & alerts)
 ```
+
+---
+
+## 📊 Measured Locked Holdout Benchmark Results
+
+Evaluated on the locked holdout dataset (`data/holdout/`) under canonical experiment `EXP-DAY9-HOLDOUT-CORRECTED-CONFIDENCE-004` (Commit SHA `808358f`):
+
+| Benchmark Metric | Canonical Value | Unit |
+|---|---|---|
+| **True Positives (TP)** | **4** | count |
+| **False Positives (FP)** | **1** | count |
+| **False Negatives (FN)** | **1** | count |
+| **Precision** | **0.8000** (80.0%) | rate |
+| **Recall** | **0.8000** (80.0%) | rate |
+| **F1 Score** | **0.8000** (80.0%) | score |
+| **Median Detection Latency** | **64.57** | seconds |
+| **P95 Detection Latency** | **114.57** | seconds |
+| **False Positive Operational Cost** | **₹50.00** | ₹ (INR) |
+| **False Negative Fraud Exposure** | **₹800.00** | ₹ (INR) |
+| **Total Portfolio Financial Impact** | **₹850.00** | ₹ (INR) |
+
+---
+
+## 🔬 Research & Evaluation Highlights
+
+1. **5-Way Signal Ablation Comparison:**
+   Evaluates feature group contributions (`FULL`, `-VOLUME`, `-VELOCITY`, `-AMOUNT`, `-BEHAVIORAL`) via scorer-level signal masking without baseline history starvation.
+2. **Detector-Aware Evasion Confirmation:**
+   Confirms execution on physical holdout evasion scenarios: threshold-hugging, persistence evasion, staircase ramp, and oscillating sub-threshold.
+3. **Descriptive Holdout Calibration:**
+   Generates Reliability Diagrams and Expected Calibration Error ($\text{ECE} = 0.0420$).
+4. **Non-Parametric Bootstrap Uncertainty:**
+   Derives 95% confidence intervals over $N = 1000$ resamples ($\text{F1} \in [0.5333, 1.0000]$).
+
+---
+
+## 🔬 Scientific Honesty & Known Limitations
+
+* **Synthetic Data Boundary:** Results reflect quantitative performance on reproducible synthetic streams. Synthetic streams do not capture all multi-modal complexities of real-world production fraud.
+* **Unrepresented Anomaly Classes:** Certain synthetic generator anomaly classes (e.g. geo attribute shift) are not present in the 5-event locked holdout dataset and are designated as `NO_EVENTS_IN_DATASET`.
+* **Descriptive Calibration:** Calibration diagrams characterize the frozen detector without feeding back into hyperparameter retuning.
+* **Defense-Only Scope:** Produces risk signals and alerts for human risk operations review. Never auto-blocks or freezes financial transactions.
+
+---
+
+## 🚀 How to Run & Demo Instructions
+
+### 1. Launch the Web Operations Console (Interactive UI & Demo Mode):
+```bash
+python scripts/run_ui.py
+```
+Open `http://localhost:8000` in your browser. Click **▶ Start Live Demo** or **⏭ Step Window** to observe the live processing flow!
+
+### 2. Execute the Full Pytest Benchmark Suite:
+```bash
+python -m pytest tests/ -v
+```
+All 273+ unit, integration, and architectural boundary tests execute deterministically and pass with zero failures.
 
 ---
 
@@ -56,60 +121,36 @@ Evaluator
 
 ```
 fraud-spike-detector/
-├── config/                  # Configuration files (YAML)
+├── config/                  # Locked configuration & freeze records
 │   ├── detector.yaml
 │   ├── generator.yaml
-│   └── evaluation.yaml
-├── src/                     # Core application source code
+│   └── freeze_record.json
+├── src/                     # Source application packages
 │   ├── contracts/           # Pydantic data schemas
 │   ├── generator/           # Synthetic stream generator
-│   ├── stream/              # TimeOrderedEventBus & VirtualClock
+│   ├── stream/              # VirtualClock & TimeOrderedEventBus
 │   ├── features/            # Feature aggregation engine
-│   ├── baseline/            # Baseline computation & EvidenceState
-│   ├── scoring/             # Anomaly scorers strategy pattern
+│   ├── baseline/            # Baseline engine & Evidence state
+│   ├── scoring/             # StatisticalDeviationScorer strategy
 │   ├── state/               # Alert state machine
-│   ├── detector/            # Detector orchestration pipeline
+│   ├── detector/            # StreamingDetectorPipeline
 │   ├── audit/               # SQLite audit persistence
-│   └── evaluation/          # Benchmark & evaluation metrics
-├── tests/                   # Pytest suite & boundary enforcement tests
-├── scripts/                 # Execution & experiment scripts
-├── data/                    # Dataset storage (development & holdout)
+│   ├── evaluation/          # Benchmark metrics, ablation, evasion, drift, calibration
+│   └── web/                 # Web server & interactive single-page UI
+├── tests/                   # Complete Pytest test suite (273+ tests)
+├── scripts/                 # Execution & UI launcher scripts
+│   └── run_ui.py            # Standalone web UI launcher
+├── data/                    # Development & locked holdout streams
 │   ├── development/
 │   └── holdout/
-├── artifacts/               # Benchmark outputs, charts, and metrics
-├── requirements.txt         # Pinned python dependencies
+├── artifacts/               # Committed canonical research artifacts
+├── docs/                    # Detailed technical documentation
+│   ├── DEMO.md              # 2-3 minute judge demonstration guide
+│   ├── ARCHITECTURE.md      # System architecture specification
+│   ├── EVALUATION.md        # Evaluation methodology & holdout results
+│   └── LIMITATIONS.md       # Scientific honesty & known boundaries
 └── README.md
 ```
-
----
-
-## 🚀 Technology Stack
-
-- **Runtime:** Python 3.11+
-- **Data Contracts:** Pydantic
-- **Streaming Logic:** `TimeOrderedEventBus` + `VirtualClock`
-- **Persistence:** SQLite
-- **Numerical Processing:** NumPy, Pandas
-- **Visualization:** Matplotlib
-- **Testing & Quality:** Pytest
-- **Config:** YAML + Pydantic validation
-
----
-
-## 📅 10-Day Build Roadmap
-
-| Day | Phase | Deliverable |
-|---|---|---|
-| **Day 1** | Foundation & Contracts | Repository setup, Pydantic contracts, `VirtualClock`, RNG seeding, holdout guard |
-| **Day 2** | Synthetic Stream | Merchants M1–M3, normal traffic, sudden volume spikes, ground-truth events |
-| **Day 3** | Vertical Slice | End-to-end processing pipeline (Transactions → Features → Baseline → Scorer → Alert → SQLite) |
-| **Day 4** | Evaluation Pipeline | Matching engine, precision/recall/latency metrics, sweep scripts |
-| **Day 5** | Synthetic Benchmark | Full merchant suite M1–M9, evasion patterns, compound anomalies |
-| **Day 6** | Research Experiments | Feature ablation, baseline drift, threshold-hugging evasion, degraded data tests |
-| **Day 7** | System Freeze | Model selection (`StatisticalDeviationScorer` v1.1.0), hyperparameter lock, freeze record |
-| **Day 8** | Holdout Evaluation | Unlock holdout dataset, evaluate metrics, bootstrap CI, cost model |
-| **Day 9** | Evidence & Artifacts | Generate charts, reliability diagrams, cost comparisons, SQLite audit rehearsal |
-| **Day 10**| Buffer & Pitch | Pitch recording, documentation finalization, final validation |
 
 ---
 

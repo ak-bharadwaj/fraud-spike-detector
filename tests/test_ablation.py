@@ -153,3 +153,20 @@ def test_ablation_result_pydantic_schema_compliance(characterization_dataset):
         dumped = res.model_dump()
         reconstructed = AblationResult(**dumped)
         assert reconstructed.variant_id == res.variant_id
+
+
+def test_committed_signal_ablation_artifact_integrity():
+    """Verify committed artifacts/ablation/signal_ablation.json uses StatisticalDeviationScorer v1.1.0 and dev dataset provenance."""
+    import json
+    sig_abl_path = Path(__file__).parent.parent / "artifacts" / "ablation" / "signal_ablation.json"
+    if not sig_abl_path.exists():
+        pytest.skip("signal_ablation.json not generated yet")
+
+    data = json.loads(sig_abl_path.read_text(encoding="utf-8"))
+    assert data["detector_version"] == "1.1.0"
+    assert data["dataset_scope"] == "DEVELOPMENT"
+    assert "ablation_results" in data
+    assert len(data["ablation_results"]) == 5
+
+    variant_ids = [v["variant_id"] for v in data["ablation_results"]]
+    assert variant_ids == ["FULL", "-VOLUME", "-VELOCITY", "-AMOUNT", "-BEHAVIORAL"]

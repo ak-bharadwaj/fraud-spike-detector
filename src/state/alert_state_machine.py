@@ -81,21 +81,26 @@ class AlertStateMachine:
         if ctx.state == "ALERT":
             if self.cooldown_windows > 0:
                 ctx.state = "COOLDOWN"
-                ctx.cooldown_counter = self.cooldown_windows  # 5 full cooldown windows
+                ctx.cooldown_counter = self.cooldown_windows
                 ctx.persistence_counter = 0
+                return ("COOLDOWN", None)
             else:
                 ctx.state = "NORMAL"
                 ctx.persistence_counter = 0
 
         # 2. Handle COOLDOWN state progression
-        if ctx.state == "COOLDOWN":
-            current_cooldown_state = "COOLDOWN"
-            ctx.cooldown_counter -= 1
-            if ctx.cooldown_counter <= 0:
-                ctx.state = "NORMAL"
-                ctx.persistence_counter = 0
-                ctx.cooldown_counter = 0
-            return (current_cooldown_state, None)
+        elif ctx.state == "COOLDOWN":
+            if score_val is not None and score_val >= self.static_threshold:
+                ctx.cooldown_counter = self.cooldown_windows
+                return ("COOLDOWN", None)
+            else:
+                ctx.cooldown_counter -= 1
+                if ctx.cooldown_counter <= 0:
+                    ctx.state = "NORMAL"
+                    ctx.persistence_counter = 0
+                    ctx.cooldown_counter = 0
+                    return ("NORMAL", None)
+                return ("COOLDOWN", None)
 
         # 3. Check if risk_score is None (INSUFFICIENT evidence) or below static_threshold
         if score_val is None or score_val < self.static_threshold:

@@ -36,7 +36,7 @@
       "injected_invalid_transactions": 10,
       "degraded_audit_windows": 7,
       "stream_crashed": false,
-      "alert_count": 2,
+      "alert_count": 1,
       "description": "Invalid amount=0.0 handled safely with DEGRADED status."
     },
     "duplicate_transactions": {

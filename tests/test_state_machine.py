@@ -125,30 +125,30 @@ def test_explicit_window_by_window_cooldown_transition_lifecycle():
 
     # Window 3 (t=2): 1st Cooldown window -> COOLDOWN
     t3 = st + timedelta(minutes=2)
-    st3, alt3 = sm.process_score("M1", t3, make_dummy_risk_score(score=10.0))
+    st3, alt3 = sm.process_score("M1", t3, make_dummy_risk_score(score=1.0))
     assert st3 == "COOLDOWN"
     assert sm.get_merchant_state("M1") == "COOLDOWN"
     assert alt3 is None
 
     # Window 4 (t=3): 2nd Cooldown window -> COOLDOWN
     t4 = st + timedelta(minutes=3)
-    st4, alt4 = sm.process_score("M1", t4, make_dummy_risk_score(score=10.0))
+    st4, alt4 = sm.process_score("M1", t4, make_dummy_risk_score(score=1.0))
     assert st4 == "COOLDOWN"
     assert sm.get_merchant_state("M1") == "COOLDOWN"
 
     # Window 5 (t=4): 3rd Cooldown window -> COOLDOWN
     t5 = st + timedelta(minutes=4)
-    st5, alt5 = sm.process_score("M1", t5, make_dummy_risk_score(score=10.0))
+    st5, alt5 = sm.process_score("M1", t5, make_dummy_risk_score(score=1.0))
     assert st5 == "COOLDOWN"
 
     # Window 6 (t=5): 4th Cooldown window -> COOLDOWN
     t6 = st + timedelta(minutes=5)
-    st6, alt6 = sm.process_score("M1", t6, make_dummy_risk_score(score=10.0))
+    st6, alt6 = sm.process_score("M1", t6, make_dummy_risk_score(score=1.0))
     assert st6 == "COOLDOWN"
 
     # Window 7 (t=6): 5th Cooldown window -> COOLDOWN
     t7 = st + timedelta(minutes=6)
-    st7, alt7 = sm.process_score("M1", t7, make_dummy_risk_score(score=10.0))
+    st7, alt7 = sm.process_score("M1", t7, make_dummy_risk_score(score=1.0))
     assert st7 == "COOLDOWN"
 
     # Window 8 (t=7): Cooldown exhausted -> transitions back to NORMAL
@@ -157,6 +157,45 @@ def test_explicit_window_by_window_cooldown_transition_lifecycle():
     assert st8 == "NORMAL"
     assert sm.get_merchant_state("M1") == "NORMAL"
     assert alt8 is None
+
+
+def test_cooldown_reset_on_anomalous_window_during_cooldown():
+    """Verify ALERT -> COOLDOWN -> anomalous window during cooldown resets cooldown counter -> return to NORMAL only after required consecutive normal windows."""
+    st = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
+    sm = AlertStateMachine(persistence=1, cooldown_windows=3, static_threshold=5.0)
+
+    # Window 0: score >= 5.0 -> ALERT
+    st0, alert0 = sm.process_score("M1", st, make_dummy_risk_score(score=10.0))
+    assert st0 == "ALERT"
+    assert alert0 is not None
+
+    # Window 1: normal score < 5.0 -> enters COOLDOWN (counter = 2)
+    t1 = st + timedelta(minutes=1)
+    st1, alert1 = sm.process_score("M1", t1, make_dummy_risk_score(score=1.0))
+    assert st1 == "COOLDOWN"
+    assert alert1 is None
+
+    # Window 2: ANOMALOUS score >= 5.0 during COOLDOWN -> stays in COOLDOWN and resets cooldown_counter back to 3
+    t2 = st + timedelta(minutes=2)
+    st2, alert2 = sm.process_score("M1", t2, make_dummy_risk_score(score=10.0))
+    assert st2 == "COOLDOWN"
+    assert alert2 is None  # Suppressed due to cooldown
+
+    # Window 3 (1st consecutive normal window): counter becomes 2
+    t3 = st + timedelta(minutes=3)
+    st3, _ = sm.process_score("M1", t3, make_dummy_risk_score(score=1.0))
+    assert st3 == "COOLDOWN"
+
+    # Window 4 (2nd consecutive normal window): counter becomes 1
+    t4 = st + timedelta(minutes=4)
+    st4, _ = sm.process_score("M1", t4, make_dummy_risk_score(score=1.0))
+    assert st4 == "COOLDOWN"
+
+    # Window 5 (3rd consecutive normal window): counter becomes 0 -> returns to NORMAL
+    t5 = st + timedelta(minutes=5)
+    st5, _ = sm.process_score("M1", t5, make_dummy_risk_score(score=1.0))
+    assert st5 == "NORMAL"
+    assert sm.get_merchant_state("M1") == "NORMAL"
 
 
 # =====================================================================

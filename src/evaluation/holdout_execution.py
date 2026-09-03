@@ -338,25 +338,22 @@ def execute_portfolio_comparison(
 
     results = []
     for strat_name, scorer in strategies:
-        fake_rec = FreezeRecord(
-            detector_version="1.0.0",
-            config_hash="PORTFOLIO_COMPARISON",
-            development_dataset_hash="PORTFOLIO",
-            seed=42,
-            selected_scorer=strat_name,
-            all_selected_parameters={**params, "scorer": strat_name},
-            selection_rationale="Descriptive portfolio comparison on holdout data",
-            freeze_timestamp="2026-01-08T00:00:00Z",
-        )
+        strat_rec = freeze_record.model_copy(update={
+            "selected_scorer": strat_name,
+            "all_selected_parameters": {**params, "scorer": strat_name},
+            "selection_rationale": f"Descriptive portfolio comparison strategy ({strat_name}) evaluated on holdout data.",
+        })
         m, _, _ = execute_single_pass_holdout(
             transactions=list(transactions),
             ground_truth_events=list(ground_truth_events),
-            freeze_record=fake_rec,
+            freeze_record=strat_rec,
             explicit_evaluation_mode=True,
         )
 
         results.append({
             "detector": strat_name,
+            "is_descriptive_comparator": True,
+            "is_frozen_canonical": bool(strat_name == freeze_record.selected_scorer),
             "fp_cost": m.fp_cost,
             "fn_exposure": m.fn_exposure,
             "total_cost": m.total_cost,
@@ -637,6 +634,7 @@ def save_day8_research_artifacts(
         "config_hash": freeze_record.config_hash,
         "development_dataset_hash": freeze_record.development_dataset_hash,
         "dataset_hash": freeze_record.development_dataset_hash,
+        "dataset_scope": "DEVELOPMENT",
         "seed": freeze_record.seed,
         "timestamp": freeze_record.freeze_timestamp,
     }
