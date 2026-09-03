@@ -145,7 +145,7 @@ fraud-spike-detector/
 │   └── holdout/
 ├── artifacts/               # Committed canonical research artifacts
 ├── docs/                    # Detailed technical documentation
-│   ├── DEMO.md              # 2-3 minute judge demonstration guide
+│   ├── DEMO.md              # 2-3 minute demonstration guide
 │   ├── ARCHITECTURE.md      # System architecture specification
 │   ├── EVALUATION.md        # Evaluation methodology & holdout results
 │   └── LIMITATIONS.md       # Scientific honesty & known boundaries
