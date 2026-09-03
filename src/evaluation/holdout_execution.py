@@ -159,6 +159,7 @@ def execute_single_pass_holdout(
 def compute_per_anomaly_holdout_metrics(
     alerts: Sequence[Alert],
     ground_truth_events: Sequence[GroundTruthEvent],
+    evaluator: Optional[AnomalyEvaluator] = None,
 ) -> Dict[str, Dict[str, Any]]:
     """Compute per-anomaly class evaluation table conforming to Section 36 with explicit zero-event semantics.
 
