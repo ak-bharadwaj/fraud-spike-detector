@@ -63,6 +63,23 @@ Financial impact is evaluated using the Master Plan Section 34 cost parameters:
 
 ---
 
+### Per-Anomaly Holdout Class Breakdown
+
+| Anomaly Class | Status | Total Events | Events Detected (TP) | Recall | Precision | F1 Score | Median Latency |
+|---|---|---|---|---|---|---|---|
+| **Sudden Volume Spike** | `VALIDATED` | 1 | 1 | 1.0000 (100%) | 0.2000 | 0.3333 | 64.57s |
+| **Detector-Aware Evasion** | `VALIDATED` | 4 | 3 | 0.7500 (75.0%) | 0.6000 | 0.6667 | 64.57s |
+| **Velocity Burst** | `NO_EVENTS_IN_DATASET` | 0 | 0 | N/A | N/A | N/A | N/A |
+| **Sustained Spike** | `NO_EVENTS_IN_DATASET` | 0 | 0 | N/A | N/A | N/A | N/A |
+| **Amount Shift** | `NO_EVENTS_IN_DATASET` | 0 | 0 | N/A | N/A | N/A | N/A |
+| **Behavioral Anomaly** | `NO_EVENTS_IN_DATASET` | 0 | 0 | N/A | N/A | N/A | N/A |
+| **Attribute Shift** | `NO_EVENTS_IN_DATASET` | 0 | 0 | N/A | N/A | N/A | N/A |
+| **Compound Anomaly** | `NO_EVENTS_IN_DATASET` | 0 | 0 | N/A | N/A | N/A | N/A |
+
+*Methodological Note on Per-Class Precision:* When evaluating precision for a target anomaly class subset ($P_{\text{class}} = \text{TP}_{\text{class}} / (\text{TP}_{\text{class}} + \text{FP}_{\text{other+noise}})$), any alert emitted by non-target anomaly classes or unperturbed noise is counted as False Positive relative to that specific class.
+
+---
+
 ## 🔬 5-Way Signal Ablation Comparison (Development Stream)
 
 Evaluates the contribution of each individual feature group by masking signals strictly inside `Scorer.calculate_score()` without perturbing baseline calculation:

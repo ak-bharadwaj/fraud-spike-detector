@@ -11,7 +11,7 @@ Key Invariants:
 - BOOTSTRAP UNCERTAINTY: 1,000 deterministic resamples (seed 42) computing 95% CIs for Precision and Recall with complete raw counts and N.
 - PORTFOLIO ANALYSIS: Evaluates Static, Statistical, and Hybrid on holdout, reporting FP Cost, FN Exposure, and Total Cost.
 - ARTIFACT GENERATION: Generates required hierarchy under artifacts/ (including final/metrics.json, final/metrics.csv with '₹' unit, final/report.json).
-- UNAMBIGUOUS PROVENANCE: Discloses both original run (EXP-DAY8-HOLDOUT-CONFIRMATION-001, execution_commit: 414998f, artifact_finalization_commit: 414998f) and corrected canonical run (EXP-DAY8-HOLDOUT-CORRECTED-002, execution_commit: fb3c7f9, artifact_finalization_commit: 26837b7, prior_artifact_commit: f21ddeb, historical_artifact_chain: [20bf655, 775e779, cc2872b, e28d6d3, f21ddeb, 26837b7], artifact_sha256).
+- UNAMBIGUOUS PROVENANCE: Discloses original superseded runs and canonical run EXP-DAY9-HOLDOUT-CORRECTED-CONFIDENCE-004 (execution_commit: 2f860e8, artifact_finalization_commit: 2f860e8).
 - HOLDOUT IMMUTABILITY: Verifies holdout SHA before == holdout SHA after.
 """
 
@@ -159,9 +159,14 @@ def execute_single_pass_holdout(
 def compute_per_anomaly_holdout_metrics(
     alerts: Sequence[Alert],
     ground_truth_events: Sequence[GroundTruthEvent],
-    evaluator: Optional[AnomalyEvaluator] = None,
 ) -> Dict[str, Dict[str, Any]]:
-    """Compute per-anomaly class evaluation table conforming to Section 36 with explicit zero-event semantics."""
+    """Compute per-anomaly class evaluation table conforming to Section 36 with explicit zero-event semantics.
+
+    Methodological Note on Per-Class Precision:
+    Evaluating a target anomaly class subset against the full stream alert log scores any alert not matched
+    to the target class (including alerts for other ground truth classes or noise) as a False Positive
+    relative to that specific target class: P_class = TP_class / (TP_class + FP_other_and_noise).
+    """
     eval_engine = evaluator or AnomalyEvaluator()
     events_by_type: Dict[str, List[GroundTruthEvent]] = {}
     for gt in ground_truth_events:

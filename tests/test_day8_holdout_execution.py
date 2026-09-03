@@ -936,7 +936,7 @@ def test_tampered_evasion_artifact_fails_independent_execution_derivation():
 
 
 def test_per_anomaly_evasion_canonicalization_and_validation():
-    """Verify per-anomaly reporting correctly canonicalizes holdout evasion scenario types to 'evasive_patterns'."""
+    """Verify per-anomaly reporting correctly canonicalizes holdout evasion scenario types to 'evasive_patterns' and validates complete row metrics."""
     from src.evaluation.holdout_execution import compute_per_anomaly_holdout_metrics, execute_single_pass_holdout
     freeze_rec = load_freeze_record(Path("config/freeze_record.json"))
     manifest, txs, gts = load_locked_holdout_data("data/holdout")
@@ -946,10 +946,14 @@ def test_per_anomaly_evasion_canonicalization_and_validation():
 
     assert "evasive_patterns" in per_anomaly
     ev_item = per_anomaly["evasive_patterns"]
+    assert ev_item["anomaly_type"] == "evasive_patterns"
     assert ev_item["status"] == "VALIDATED"
     assert ev_item["total_events"] == 4
     assert ev_item["events_detected"] == 3
+    assert ev_item["precision"] == 0.6
     assert ev_item["recall"] == 0.75
+    assert ev_item["f1"] == 0.6667
+    assert ev_item["median_latency_seconds"] == 64.57
 
 
 
