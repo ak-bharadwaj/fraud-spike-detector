@@ -113,7 +113,7 @@ Open `http://localhost:8000` in your browser. Click **▶ Start Live Demo** or *
 ```bash
 python -m pytest tests/ -v
 ```
-All 273+ unit, integration, and architectural boundary tests execute deterministically and pass with zero failures.
+Executes the complete unit, integration, and architectural boundary test suite deterministically.
 
 ---
 

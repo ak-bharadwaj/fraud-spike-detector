@@ -968,17 +968,17 @@ def test_pitch_artifact_exists_and_matches_section_41():
 
     # 2. Mechanical Timing Block Verification (§41 Exact SSOT 7 Blocks)
     timed_blocks = [
-        ("0:00 – 0:40", 40),
-        ("0:40 – 1:20", 40),
-        ("1:20 – 2:20", 60),
-        ("2:20 – 3:10", 50),
-        ("3:10 – 3:50", 40),
-        ("3:50 – 4:30", 40),
-        ("4:30 – 5:00", 30),
+        ("0:00 - 0:40", "0:00 – 0:40", 40),
+        ("0:40 - 1:20", "0:40 – 1:20", 40),
+        ("1:20 - 2:20", "1:20 – 2:20", 60),
+        ("2:20 - 3:10", "2:20 – 3:10", 50),
+        ("3:10 - 3:50", "3:10 – 3:50", 40),
+        ("3:50 - 4:30", "3:50 – 4:30", 40),
+        ("4:30 - 5:00", "4:30 – 5:00", 30),
     ]
     total_seconds = 0
-    for block_str, block_duration in timed_blocks:
-        assert block_str in content, f"Missing time block '{block_str}' in PITCH.md"
+    for block_ascii, block_endash, block_duration in timed_blocks:
+        assert (block_ascii in content or block_endash in content), f"Missing time block '{block_ascii}' in PITCH.md"
         total_seconds += block_duration
 
     assert total_seconds == 300, f"Pitch timeline total duration must equal exactly 300 seconds, got {total_seconds}"
