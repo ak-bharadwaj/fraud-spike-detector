@@ -613,8 +613,8 @@ def save_day8_research_artifacts(
     drift_results: Dict[str, Any],
     ewma_tradeoff_results: Optional[List[Dict[str, Any]]] = None,
     experiment_id: str = "EXP-DAY9-HOLDOUT-CORRECTED-CONFIDENCE-004",
-    execution_commit: str = "de7f9e3",
-    artifact_finalization_commit: str = "de7f9e3",
+    execution_commit: str = "2f860e8",
+    artifact_finalization_commit: str = "2f860e8",
     prior_artifact_commit: str = "ff61c56",
     historical_artifact_chain: Optional[List[str]] = None,
 ) -> Dict[str, Path]:
@@ -846,7 +846,7 @@ def save_day8_research_artifacts(
             "artifact_finalization_commit": artifact_finalization_commit,
             "prior_artifact_commit": prior_artifact_commit,
             "historical_artifact_chain": historical_artifact_chain or [
-                "20bf655", "775e779", "cc2872b", "e28d6d3", "f21ddeb", "26837b7", "bc29c36", "049caf5", "5841ddb", "60ab651", "355c52f", "3b281ca", "adc1adb", "9c5ef53", "9fa76c5", "ff61c56", "de7f9e3"
+                "20bf655", "775e779", "cc2872b", "e28d6d3", "f21ddeb", "26837b7", "bc29c36", "049caf5", "5841ddb", "60ab651", "355c52f", "3b281ca", "adc1adb", "9c5ef53", "9fa76c5", "ff61c56", "2f860e8"
             ],
             "status": "ACCEPTED_CANONICAL",
             "reason": "Post-holdout composite confidence integration (evidence quality, feature availability, signal agreement) and data quality robustness characterization conforming to Master Plan Section 17/19/27/39.",
