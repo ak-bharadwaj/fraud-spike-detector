@@ -40,7 +40,7 @@ async function loadSystemStatus() {
     const res = await fetch("/api/status");
     const data = await res.json();
 
-    document.getElementById("headerVersion").textContent = `v${data.detector_version || "1.1.0"}`;
+    document.getElementById("headerVersion").textContent = data.detector_version ? `v${data.detector_version}` : "N/A";
     document.getElementById("provVer").textContent = data.detector_version || "N/A";
     document.getElementById("provConfigHash").textContent = data.config_hash || "N/A";
     document.getElementById("provDevHash").textContent = data.development_dataset_hash || "N/A";
