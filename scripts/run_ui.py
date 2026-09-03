@@ -17,6 +17,12 @@ from src.web.server import run_server
 
 
 def main():
+    if hasattr(sys.stdout, "reconfigure"):
+        try:
+            sys.stdout.reconfigure(encoding="utf-8")
+        except Exception:
+            pass
+
     port = 8000
     url = f"http://127.0.0.1:{port}"
     print(f"🚀 Starting Fraud-Spike Detector Web Operations Console...")
