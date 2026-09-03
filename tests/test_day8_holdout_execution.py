@@ -550,7 +550,7 @@ def test_published_canonical_report_provenance_and_artifact_sha():
     # Strictly verify provenance against actual git repository state
     prov_result = verify_canonical_report_provenance(data)
     assert prov_result["status"] == "PROVENANCE_VERIFIED"
-    assert prov_result["execution_commit"] == "adc1adb"
+    assert prov_result["execution_commit"] == "2f860e8"
     assert prov_result["chain_length"] >= 8
 
 
