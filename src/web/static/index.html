@@ -17,18 +17,18 @@
         <h1>Fraud-Spike Detector</h1>
         <span>Merchant Risk Intelligence Console</span>
       </div>
-    </div>
-    <div class="header-badges">
+        <div class="header-badges">
       <span class="badge badge-version" id="headerVersion">v1.1.0</span>
       <span class="badge badge-frozen" id="headerStatus">FROZEN RELEASE</span>
+      <span class="badge" style="background:rgba(59, 130, 246, 0.15); color:var(--accent-blue); border:1px solid rgba(59, 130, 246, 0.3);">SYNTHETIC / DETERMINISTIC DEMONSTRATION</span>
       <span class="badge badge-defense">DEFENSE-ONLY</span>
     </div>
   </header>
 
   <!-- Navigation Tabs -->
   <nav class="nav-tabs">
-    <button class="tab-btn active" data-tab="tabLive">⚡ Live Detection Console</button>
-    <button class="tab-btn" data-tab="tabEval">📊 Evaluation & Evidence</button>
+    <button class="tab-btn active" data-tab="tabLive">⚡ Deterministic Synthetic Stream Demo</button>
+    <button class="tab-btn" data-tab="tabEval">📊 Locked Evaluation Evidence</button>
     <button class="tab-btn" data-tab="tabAudit">🔬 Reproducibility & Audit</button>
   </nav>
 
@@ -88,7 +88,7 @@
       <!-- Demo Controls Bar -->
       <div class="controls-bar">
         <div class="btn-group">
-          <button class="btn btn-primary" id="btnPlayDemo">▶ Start Live Demo</button>
+          <button class="btn btn-primary" id="btnPlayDemo">▶ Start Deterministic Stream Demo</button>
           <button class="btn btn-secondary" id="btnStepDemo">⏭ Step Window (1m)</button>
           <button class="btn btn-secondary" id="btnResetDemo">🔄 Reset Demo</button>
         </div>
@@ -145,7 +145,7 @@
       <div class="card" style="margin-bottom:1.5rem;">
         <div class="card-title">Operational Context & Explanation ("What Happened?")</div>
         <div class="explanation-box" id="explanationText">
-          System initialized. Click "Start Live Demo" or "Step Window" to observe synthetic transaction streaming through the Feature, Baseline, Statistical Deviation, Confidence, and Alert State Machine pipeline.
+          System initialized. Click "Start Deterministic Stream Demo" or "Step Window" to observe synthetic transaction streaming through the Feature, Baseline, Statistical Deviation, Confidence, and Alert State Machine pipeline.
         </div>
       </div>
 
@@ -204,31 +204,69 @@
     </div>
 
     <!-- ===================================================================== -->
-    <!-- TAB 2: EVALUATION & EVIDENCE SCREEN -->
+    <!-- TAB 2: LOCKED EVALUATION EVIDENCE SCREEN -->
     <!-- ===================================================================== -->
     <div id="tabEval" class="tab-content">
 
-      <!-- Headline Canonical Holdout KPIs -->
-      <div class="grid-4">
-        <div class="card">
-          <div class="card-title">Holdout Precision</div>
-          <div class="metric-big" id="evalPrecision">-</div>
-          <div class="metric-sub">95% CI: <strong id="evalPrecisionCI">[-, -]</strong> | TP: <strong id="evalTP">-</strong> | FP: <strong id="evalFP">-</strong></div>
+      <!-- Track B Primary Real-World Benchmark Cards -->
+      <div style="margin-bottom:1.5rem;">
+        <div style="font-size:1.1rem; font-weight:700; color:var(--text-main); margin-bottom:0.75rem; display:flex; align-items:center; gap:0.5rem;">
+          <span>📊 LOCKED EVALUATION EVIDENCE</span>
+          <span class="badge badge-frozen" style="font-size:0.75rem;">TRACK B: REAL-WORLD PUBLIC BENCHMARK (EXP-REALWORLD-CCF-001)</span>
         </div>
-        <div class="card">
-          <div class="card-title">Holdout Recall</div>
-          <div class="metric-big" id="evalRecall">-</div>
-          <div class="metric-sub">95% CI: <strong id="evalRecallCI">[-, -]</strong> | FN: <strong id="evalFN">-</strong> | Total Events: <strong>5</strong></div>
+        <div class="grid-4">
+          <div class="card">
+            <div class="card-title">Real-World Test Precision</div>
+            <div class="metric-big" style="color:var(--color-success);">0.8298 <span class="metric-unit">(83.0%)</span></div>
+            <div class="metric-sub">95% CI: <strong>[0.7142, 0.9298]</strong> | TP: <strong>39</strong> | FP: <strong>8</strong></div>
+          </div>
+          <div class="card">
+            <div class="card-title">Real-World Test Recall</div>
+            <div class="metric-big" style="color:var(--accent-blue);">0.7500 <span class="metric-unit">(75.0%)</span></div>
+            <div class="metric-sub">95% CI: <strong>[0.6274, 0.8667]</strong> | FN: <strong>13</strong> | Test Fraud Txs: <strong>52</strong></div>
+          </div>
+          <div class="card">
+            <div class="card-title">Real-World F1 & AUC-ROC</div>
+            <div class="metric-big" style="color:var(--accent-cyan);">0.7879</div>
+            <div class="metric-sub">AUC-ROC: <strong>0.9825</strong> | AUC-PR: <strong>0.7703</strong> | ECE: <strong>0.01%</strong></div>
+          </div>
+          <div class="card">
+            <div class="card-title">Real-World Portfolio Cost</div>
+            <div class="metric-big" style="color:var(--text-main);">₹2,772.40</div>
+            <div class="metric-sub">FP Review: <strong>₹400.00</strong> | FN Exposure: <strong>₹2,372.40</strong></div>
+          </div>
         </div>
-        <div class="card">
-          <div class="card-title">Holdout F1 Score</div>
-          <div class="metric-big" id="evalF1" style="color:var(--accent-cyan);">-</div>
-          <div class="metric-sub">Frozen v1.1.0 Canonical</div>
+      </div>
+
+      <!-- Track A Streaming Validation Section -->
+      <div style="margin-bottom:1.5rem;">
+        <div style="font-size:0.95rem; font-weight:700; color:var(--text-muted); margin-bottom:0.75rem; display:flex; align-items:center; gap:0.5rem;">
+          <span>TRACK A: STREAMING ARCHITECTURE VALIDATION (EXP-DAY9-HOLDOUT-CORRECTED-CONFIDENCE-004)</span>
+          <span class="badge badge-defense" style="font-size:0.7rem;">5 SYNTHETIC EVENTS (DISCLOSED WIDE CI)</span>
         </div>
-        <div class="card">
-          <div class="card-title">Holdout Latency & Cost</div>
-          <div class="metric-big" id="evalLatency">- <span class="metric-unit">s</span></div>
-          <div class="metric-sub">P95: <strong id="evalP95">-</strong> | Total Cost: <strong id="evalCost">-</strong></div>
+        <div class="grid-4">
+          <div class="card">
+            <div class="card-title">Holdout Precision</div>
+            <div class="metric-big" id="evalPrecision">-</div>
+            <div class="metric-sub">95% CI: <strong id="evalPrecisionCI">[-, -]</strong> | TP: <strong id="evalTP">-</strong> | FP: <strong id="evalFP">-</strong></div>
+          </div>
+          <div class="card">
+            <div class="card-title">Holdout Recall</div>
+            <div class="metric-big" id="evalRecall">-</div>
+            <div class="metric-sub">95% CI: <strong id="evalRecallCI">[-, -]</strong> | FN: <strong id="evalFN">-</strong> | Total Events: <strong>5</strong></div>
+          </div>
+          <div class="card">
+            <div class="card-title">Holdout F1 Score</div>
+            <div class="metric-big" id="evalF1" style="color:var(--accent-cyan);">-</div>
+            <div class="metric-sub">Frozen v1.1.0 Canonical</div>
+          </div>
+          <div class="card">
+            <div class="card-title">Holdout Latency & Cost</div>
+            <div class="metric-big" id="evalLatency">- <span class="metric-unit">s</span></div>
+            <div class="metric-sub">P95: <strong id="evalP95">-</strong> | Total Cost: <strong id="evalCost">-</strong></div>
+          </div>
+        </div>
+      </div>="evalCost">-</strong></div>
         </div>
       </div>
 
@@ -392,7 +430,7 @@
               </tr>
             </thead>
             <tbody id="tblAuditLogs">
-              <tr><td colspan="7" style="text-align:center; color:var(--text-muted);">No audit records generated in live memory yet. Run live demo or step window.</td></tr>
+              <tr><td colspan="7" style="text-align:center; color:var(--text-muted);">No SQLite audit records yet. Click "Start Deterministic Stream Demo" or "Step Window" on Tab 1.</td></tr>
             </tbody>
           </table>
         </div>

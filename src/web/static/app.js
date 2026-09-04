@@ -317,7 +317,7 @@ async function fetchAuditLogs() {
 
     const audits = data.audit_records || [];
     if (audits.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:var(--text-muted);">No SQLite audit records yet. Click "Start Live Demo" or "Step Window" on Tab 1.</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:var(--text-muted);">No SQLite audit records yet. Click "Start Deterministic Stream Demo" or "Step Window" on Tab 1.</td></tr>`;
       return;
     }
 
@@ -352,7 +352,7 @@ function toggleDemoPlay() {
     playInterval = setInterval(stepDemo, 1200);
   } else {
     isPlaying = false;
-    btn.textContent = "▶ Start Live Demo";
+    btn.textContent = "▶ Start Deterministic Stream Demo";
     btn.classList.replace("btn-secondary", "btn-primary");
     clearInterval(playInterval);
   }
@@ -427,23 +427,23 @@ function renderDemoStep(data) {
     <tr>
       <td style="font-weight:600;">Volume (txs/min)</td>
       <td><strong>${feat.volume !== undefined ? feat.volume : data.transaction_count}</strong></td>
-      <td>${exp.volume !== undefined ? exp.volume.toFixed(2) : 'N/A'}</td>
-      <td>${scale.volume !== undefined ? scale.volume.toFixed(2) : 'N/A'}</td>
+      <td>${exp.volume !== undefined && exp.volume !== null ? exp.volume.toFixed(2) : 'N/A — not emitted by backend'}</td>
+      <td>${scale.volume !== undefined && scale.volume !== null ? scale.volume.toFixed(2) : 'N/A — not emitted by backend'}</td>
       <td style="font-weight:700; color:${score >= 5.0 ? 'var(--color-danger)' : 'var(--accent-cyan)'};">${score.toFixed(2)}σ</td>
     </tr>
     <tr>
       <td style="font-weight:600;">Velocity (txs/sec)</td>
-      <td>${feat.velocity !== undefined ? feat.velocity.toFixed(2) : '0.00'}</td>
-      <td>${exp.velocity !== undefined ? exp.velocity.toFixed(2) : '0.00'}</td>
-      <td>${scale.velocity !== undefined ? scale.velocity.toFixed(2) : '1.00'}</td>
-      <td>0.00σ</td>
+      <td>${feat.velocity !== undefined && feat.velocity !== null ? feat.velocity.toFixed(2) : 'N/A — not emitted by backend'}</td>
+      <td>${exp.velocity !== undefined && exp.velocity !== null ? exp.velocity.toFixed(2) : 'N/A — not emitted by backend'}</td>
+      <td>${scale.velocity !== undefined && scale.velocity !== null ? scale.velocity.toFixed(2) : 'N/A — not emitted by backend'}</td>
+      <td>${feat.velocity !== undefined && feat.velocity !== null ? '0.00σ' : 'N/A — not emitted by backend'}</td>
     </tr>
     <tr>
       <td style="font-weight:600;">Unique Devices</td>
-      <td>${feat.unique_devices !== undefined ? feat.unique_devices : 0}</td>
-      <td>${exp.unique_devices !== undefined ? exp.unique_devices.toFixed(2) : '0.00'}</td>
-      <td>${scale.unique_devices !== undefined ? scale.unique_devices.toFixed(2) : '1.00'}</td>
-      <td>0.00σ</td>
+      <td>${feat.unique_devices !== undefined && feat.unique_devices !== null ? feat.unique_devices : 'N/A — not emitted by backend'}</td>
+      <td>${exp.unique_devices !== undefined && exp.unique_devices !== null ? exp.unique_devices.toFixed(2) : 'N/A — not emitted by backend'}</td>
+      <td>${scale.unique_devices !== undefined && scale.unique_devices !== null ? scale.unique_devices.toFixed(2) : 'N/A — not emitted by backend'}</td>
+      <td>${feat.unique_devices !== undefined && feat.unique_devices !== null ? '0.00σ' : 'N/A — not emitted by backend'}</td>
     </tr>
   `;
 
@@ -457,11 +457,11 @@ function renderDemoStep(data) {
     txs.forEach(t => {
       const tr = document.createElement("tr");
       tr.innerHTML = `
-        <td style="font-family:monospace;">${t.transaction_id ? t.transaction_id.substring(0, 10) : 'tx'}</td>
-        <td>${t.timestamp ? t.timestamp.substring(11, 19) : '-'}</td>
-        <td style="font-weight:600;">₹${(t.amount || 0).toFixed(2)}</td>
-        <td>${t.payment_method || 'CREDIT_CARD'}</td>
-        <td style="font-family:monospace;">${t.device_id || 'DEV-1'}</td>
+        <td style="font-family:monospace;">${t.transaction_id ? t.transaction_id.substring(0, 10) : 'N/A — not emitted by backend'}</td>
+        <td>${t.timestamp ? t.timestamp.substring(11, 19) : 'N/A — not emitted by backend'}</td>
+        <td style="font-weight:600;">${t.amount !== undefined && t.amount !== null ? '₹' + t.amount.toFixed(2) : 'N/A — not emitted by backend'}</td>
+        <td>${t.payment_method || 'N/A — not emitted by backend'}</td>
+        <td style="font-family:monospace;">${t.device_id || 'N/A — not emitted by backend'}</td>
       `;
       tblT.appendChild(tr);
     });
