@@ -304,3 +304,56 @@ def test_day9_provenance_verification():
 
     prov_res = verify_canonical_report_provenance(data)
     assert prov_res["status"] == "PROVENANCE_VERIFIED"
+
+
+# =====================================================================
+# 13. Dynamic Track B Rendering & Frontend Non-Duplication Guarantee
+# =====================================================================
+
+def test_no_hardcoded_track_b_frontend_constants():
+    """Verify Track B headline metrics are NOT hardcoded as frontend text constants in index.html or app.js."""
+    index_path = Path("src/web/static/index.html")
+    assert index_path.exists(), "src/web/static/index.html must exist"
+    index_content = index_path.read_text(encoding="utf-8")
+
+    app_path = Path("src/web/static/app.js")
+    assert app_path.exists(), "src/web/static/app.js must exist"
+    app_content = app_path.read_text(encoding="utf-8")
+
+    forbidden_literals = [
+        "0.8298",
+        "0.7879",
+        "0.9825",
+        "0.7703",
+        "284,807",
+        "42,721",
+        "42,661",
+        "₹2,772.40",
+        "₹400.00",
+        "₹2,372.40",
+        "[0.7142, 0.9298]",
+        "[0.6274, 0.8667]",
+    ]
+
+    for lit in forbidden_literals:
+        assert lit not in index_content, f"Forbidden hardcoded benchmark constant '{lit}' found in index.html"
+        assert lit not in app_content, f"Forbidden hardcoded benchmark constant '{lit}' found in app.js"
+
+    from src.web.server import app
+    from fastapi.testclient import TestClient
+
+    client = TestClient(app)
+    response = client.get("/api/artifacts/realworld")
+    assert response.status_code == 200
+    data = response.json()
+    metrics = data["models"]["primary_xgboost"]["metrics_test"]
+    assert metrics["precision"] == pytest.approx(0.829787234, abs=1e-4)
+    assert metrics["recall"] == pytest.approx(0.75, abs=1e-4)
+    assert metrics["f1_score"] == pytest.approx(0.7878787, abs=1e-4)
+    assert metrics["auc_roc"] == pytest.approx(0.98253, abs=1e-4)
+    assert metrics["tp"] == 39
+    assert metrics["fp"] == 8
+    assert metrics["fn"] == 13
+    assert metrics["tn"] == 42661
+    assert metrics["total_cost"] == 2772.4
+

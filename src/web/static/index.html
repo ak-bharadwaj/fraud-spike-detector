@@ -232,33 +232,33 @@
         <div style="font-size:1.1rem; font-weight:700; color:var(--text-main); margin-bottom:0.3rem; display:flex; align-items:center; justify-content:space-between;">
           <div style="display:flex; align-items:center; gap:0.5rem;">
             <span>📊 LOCKED EVALUATION EVIDENCE</span>
-            <span class="badge badge-frozen" style="font-size:0.75rem;">TRACK B: REAL-WORLD PUBLIC BENCHMARK (EXP-REALWORLD-CCF-001)</span>
+            <span class="badge badge-frozen" style="font-size:0.75rem;" id="trackBBadge">TRACK B: REAL-WORLD PUBLIC BENCHMARK (EXP-REALWORLD-CCF-001)</span>
           </div>
           <span style="font-size:0.8rem; color:var(--text-muted); font-weight:500;">Values loaded from committed backend artifacts</span>
         </div>
-        <div style="font-size:0.8rem; color:var(--text-muted); margin-bottom:0.75rem;">
-          Locked test characterization • 284,807 total dataset transactions • <strong>42,721 locked TEST transactions</strong> • 52 fraud cases • Primary XGBoost Model
+        <div style="font-size:0.8rem; color:var(--text-muted); margin-bottom:0.75rem;" id="trackBScope">
+          Locked test characterization • Loading real-world metrics from backend...
         </div>
         <div class="grid-4">
           <div class="card">
             <div class="card-title">Real-World Test Precision</div>
-            <div class="metric-big" style="color:var(--color-success);">0.8298 <span class="metric-unit">(83.0%)</span></div>
-            <div class="metric-sub">95% CI: <strong>[0.7142, 0.9298]</strong> | TP: <strong>39</strong> | FP: <strong>8</strong></div>
+            <div class="metric-big" style="color:var(--color-success);" id="trackBPrecision">-</div>
+            <div class="metric-sub">95% CI: <strong id="trackBPrecisionCI">[-, -]</strong> | TP: <strong id="trackBTP">-</strong> | FP: <strong id="trackBFP">-</strong></div>
           </div>
           <div class="card">
             <div class="card-title">Real-World Test Recall</div>
-            <div class="metric-big" style="color:var(--accent-blue);">0.7500 <span class="metric-unit">(75.0%)</span></div>
-            <div class="metric-sub">95% CI: <strong>[0.6274, 0.8667]</strong> | FN: <strong>13</strong> | TN: <strong>42,661</strong></div>
+            <div class="metric-big" style="color:var(--accent-blue);" id="trackBRecall">-</div>
+            <div class="metric-sub">95% CI: <strong id="trackBRecallCI">[-, -]</strong> | FN: <strong id="trackBFN">-</strong> | TN: <strong id="trackBTN">-</strong></div>
           </div>
           <div class="card">
             <div class="card-title">Real-World F1 & AUC-ROC</div>
-            <div class="metric-big" style="color:var(--accent-cyan);">0.7879</div>
-            <div class="metric-sub">AUC-ROC: <strong>0.9825</strong> | AUC-PR: <strong>0.7703</strong> | ECE: <strong>0.01%</strong></div>
+            <div class="metric-big" style="color:var(--accent-cyan);" id="trackBF1">-</div>
+            <div class="metric-sub">AUC-ROC: <strong id="trackBAucRoc">-</strong> | AUC-PR: <strong id="trackBAucPr">-</strong> | ECE: <strong id="trackBEce">-</strong></div>
           </div>
           <div class="card">
             <div class="card-title">Real-World Portfolio Cost</div>
-            <div class="metric-big" style="color:var(--text-main);">₹2,772.40</div>
-            <div class="metric-sub">FP Review: <strong>₹400.00</strong> | FN Exposure: <strong>₹2,372.40</strong></div>
+            <div class="metric-big" style="color:var(--text-main);" id="trackBCost">-</div>
+            <div class="metric-sub">FP Review: <strong id="trackBFpCost">-</strong> | FN Exposure: <strong id="trackBFnCost">-</strong></div>
           </div>
         </div>
       </div>

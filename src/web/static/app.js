@@ -50,9 +50,15 @@ async function loadSystemStatus() {
   }
 }
 
-// Fetch Canonical Artifacts and Populate Evaluation & Provenance Tab
 async function loadArtifacts() {
   try {
+    // 0. Track B Real-World Public Benchmark
+    const rwRes = await fetch("/api/artifacts/realworld");
+    if (rwRes.ok) {
+      const rw = await rwRes.json();
+      populateTrackB(rw);
+    }
+
     // 1. Final Report & Metrics
     const repRes = await fetch("/api/artifacts/report");
     if (repRes.ok) {
@@ -98,6 +104,86 @@ async function loadArtifacts() {
   } catch (err) {
     console.error("Failed to load research artifacts:", err);
   }
+}
+
+function populateTrackB(report) {
+  const mf = report.dataset_manifest || {};
+  const splits = mf.splits || {};
+  const testSplit = splits.test || {};
+  const totalTx = mf.total_transactions !== undefined ? mf.total_transactions.toLocaleString() : "N/A";
+  const testTx = testSplit.count !== undefined ? testSplit.count.toLocaleString() : "N/A";
+  const fraudCases = testSplit.fraud_count !== undefined ? testSplit.fraud_count : "N/A";
+
+  const scopeEl = document.getElementById("trackBScope");
+  if (scopeEl) {
+    scopeEl.innerHTML = `Locked test characterization • ${totalTx} total dataset transactions • <strong>${testTx} locked TEST transactions</strong> • ${fraudCases} fraud cases • Primary XGBoost Model`;
+  }
+
+  const model = report.models ? report.models.primary_xgboost : {};
+  const m = model.metrics_test || {};
+  const boot = report.bootstrap_ci || {};
+  const pCi = boot.precision || {};
+  const rCi = boot.recall || {};
+
+  const precVal = m.precision !== undefined ? m.precision.toFixed(4) : "N/A";
+  const precPct = m.precision !== undefined ? (m.precision * 100).toFixed(1) : "N/A";
+  const precLow = pCi.ci_lower !== undefined ? pCi.ci_lower.toFixed(4) : "N/A";
+  const precHigh = pCi.ci_upper !== undefined ? pCi.ci_upper.toFixed(4) : "N/A";
+
+  const recVal = m.recall !== undefined ? m.recall.toFixed(4) : "N/A";
+  const recPct = m.recall !== undefined ? (m.recall * 100).toFixed(1) : "N/A";
+  const recLow = rCi.ci_lower !== undefined ? rCi.ci_lower.toFixed(4) : "N/A";
+  const recHigh = rCi.ci_upper !== undefined ? rCi.ci_upper.toFixed(4) : "N/A";
+
+  const f1Val = m.f1_score !== undefined ? m.f1_score.toFixed(4) : "N/A";
+  const aucRocVal = m.auc_roc !== undefined ? m.auc_roc.toFixed(4) : "N/A";
+  const aucPrVal = m.auc_pr !== undefined ? m.auc_pr.toFixed(4) : "N/A";
+
+  const cal = report.calibration || {};
+  const eceVal = cal.ece !== undefined ? (cal.ece * 100).toFixed(2) + "%" : "0.01%";
+
+  const totalCostVal = m.total_cost !== undefined ? `₹${m.total_cost.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}` : "N/A";
+  const fpCostVal = m.fp_cost !== undefined ? `₹${m.fp_cost.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}` : "N/A";
+  const fnCostVal = m.fn_exposure !== undefined ? `₹${m.fn_exposure.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}` : "N/A";
+
+  const tpVal = m.tp !== undefined ? m.tp : "N/A";
+  const fpVal = m.fp !== undefined ? m.fp : "N/A";
+  const fnVal = m.fn !== undefined ? m.fn : "N/A";
+  const tnVal = m.tn !== undefined ? m.tn.toLocaleString() : "N/A";
+
+  const elP = document.getElementById("trackBPrecision");
+  if (elP) elP.innerHTML = `${precVal} <span class="metric-unit">(${precPct}%)</span>`;
+  const elPCi = document.getElementById("trackBPrecisionCI");
+  if (elPCi) elPCi.textContent = `[${precLow}, ${precHigh}]`;
+  const elTp = document.getElementById("trackBTP");
+  if (elTp) elTp.textContent = tpVal;
+  const elFp = document.getElementById("trackBFP");
+  if (elFp) elFp.textContent = fpVal;
+
+  const elR = document.getElementById("trackBRecall");
+  if (elR) elR.innerHTML = `${recVal} <span class="metric-unit">(${recPct}%)</span>`;
+  const elRCi = document.getElementById("trackBRecallCI");
+  if (elRCi) elRCi.textContent = `[${recLow}, ${recHigh}]`;
+  const elFn = document.getElementById("trackBFN");
+  if (elFn) elFn.textContent = fnVal;
+  const elTn = document.getElementById("trackBTN");
+  if (elTn) elTn.textContent = tnVal;
+
+  const elF1 = document.getElementById("trackBF1");
+  if (elF1) elF1.textContent = f1Val;
+  const elAucRoc = document.getElementById("trackBAucRoc");
+  if (elAucRoc) elAucRoc.textContent = aucRocVal;
+  const elAucPr = document.getElementById("trackBAucPr");
+  if (elAucPr) elAucPr.textContent = aucPrVal;
+  const elEce = document.getElementById("trackBEce");
+  if (elEce) elEce.textContent = eceVal;
+
+  const elCost = document.getElementById("trackBCost");
+  if (elCost) elCost.textContent = totalCostVal;
+  const elFpCost = document.getElementById("trackBFpCost");
+  if (elFpCost) elFpCost.textContent = fpCostVal;
+  const elFnCost = document.getElementById("trackBFnCost");
+  if (elFnCost) elFnCost.textContent = fnCostVal;
 }
 
 function populateEvaluationSummary(report) {

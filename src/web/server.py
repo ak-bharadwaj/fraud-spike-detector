@@ -107,6 +107,7 @@ def get_artifact(category: str):
     """Retrieve committed research artifact JSONs."""
     mapping = {
         "report": ROOT_DIR / "artifacts" / "final" / "report.json",
+        "realworld": ROOT_DIR / "artifacts" / "realworld" / "report.json",
         "metrics": ROOT_DIR / "artifacts" / "final" / "metrics.json",
         "signal_ablation": ROOT_DIR / "artifacts" / "ablation" / "signal_ablation.json",
         "ewma_tradeoff": ROOT_DIR / "artifacts" / "ablation" / "ewma_tradeoff.json",
