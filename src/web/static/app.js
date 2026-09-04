@@ -110,9 +110,9 @@ function populateTrackB(report) {
   const mf = report.dataset_manifest || {};
   const splits = mf.splits || {};
   const testSplit = splits.test || {};
-  const totalTx = mf.total_transactions !== undefined ? mf.total_transactions.toLocaleString() : "N/A";
-  const testTx = testSplit.count !== undefined ? testSplit.count.toLocaleString() : "N/A";
-  const fraudCases = testSplit.fraud_count !== undefined ? testSplit.fraud_count : "N/A";
+  const totalTx = mf.total_transactions !== undefined && mf.total_transactions !== null ? mf.total_transactions.toLocaleString() : "N/A";
+  const testTx = testSplit.count !== undefined && testSplit.count !== null ? testSplit.count.toLocaleString() : "N/A";
+  const fraudCases = testSplit.fraud_count !== undefined && testSplit.fraud_count !== null ? testSplit.fraud_count : "N/A";
 
   const scopeEl = document.getElementById("trackBScope");
   if (scopeEl) {
@@ -125,34 +125,34 @@ function populateTrackB(report) {
   const pCi = boot.precision || {};
   const rCi = boot.recall || {};
 
-  const precVal = m.precision !== undefined ? m.precision.toFixed(4) : "N/A";
-  const precPct = m.precision !== undefined ? (m.precision * 100).toFixed(1) : "N/A";
-  const precLow = pCi.ci_lower !== undefined ? pCi.ci_lower.toFixed(4) : "N/A";
-  const precHigh = pCi.ci_upper !== undefined ? pCi.ci_upper.toFixed(4) : "N/A";
+  const precVal = m.precision !== undefined && m.precision !== null ? m.precision.toFixed(4) : "N/A";
+  const precPct = m.precision !== undefined && m.precision !== null ? (m.precision * 100).toFixed(1) : "N/A";
+  const precLow = pCi.ci_lower !== undefined && pCi.ci_lower !== null ? pCi.ci_lower.toFixed(4) : "N/A";
+  const precHigh = pCi.ci_upper !== undefined && pCi.ci_upper !== null ? pCi.ci_upper.toFixed(4) : "N/A";
 
-  const recVal = m.recall !== undefined ? m.recall.toFixed(4) : "N/A";
-  const recPct = m.recall !== undefined ? (m.recall * 100).toFixed(1) : "N/A";
-  const recLow = rCi.ci_lower !== undefined ? rCi.ci_lower.toFixed(4) : "N/A";
-  const recHigh = rCi.ci_upper !== undefined ? rCi.ci_upper.toFixed(4) : "N/A";
+  const recVal = m.recall !== undefined && m.recall !== null ? m.recall.toFixed(4) : "N/A";
+  const recPct = m.recall !== undefined && m.recall !== null ? (m.recall * 100).toFixed(1) : "N/A";
+  const recLow = rCi.ci_lower !== undefined && rCi.ci_lower !== null ? rCi.ci_lower.toFixed(4) : "N/A";
+  const recHigh = rCi.ci_upper !== undefined && rCi.ci_upper !== null ? rCi.ci_upper.toFixed(4) : "N/A";
 
-  const f1Val = m.f1_score !== undefined ? m.f1_score.toFixed(4) : "N/A";
-  const aucRocVal = m.auc_roc !== undefined ? m.auc_roc.toFixed(4) : "N/A";
-  const aucPrVal = m.auc_pr !== undefined ? m.auc_pr.toFixed(4) : "N/A";
+  const f1Val = m.f1_score !== undefined && m.f1_score !== null ? m.f1_score.toFixed(4) : "N/A";
+  const aucRocVal = m.auc_roc !== undefined && m.auc_roc !== null ? m.auc_roc.toFixed(4) : "N/A";
+  const aucPrVal = m.auc_pr !== undefined && m.auc_pr !== null ? m.auc_pr.toFixed(4) : "N/A";
 
   const cal = report.calibration || {};
-  const eceVal = cal.ece !== undefined ? (cal.ece * 100).toFixed(2) + "%" : "0.01%";
+  const eceVal = cal.ece !== undefined && cal.ece !== null ? (cal.ece * 100).toFixed(2) + "%" : "N/A";
 
-  const totalCostVal = m.total_cost !== undefined ? `₹${m.total_cost.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}` : "N/A";
-  const fpCostVal = m.fp_cost !== undefined ? `₹${m.fp_cost.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}` : "N/A";
-  const fnCostVal = m.fn_exposure !== undefined ? `₹${m.fn_exposure.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}` : "N/A";
+  const totalCostVal = m.total_cost !== undefined && m.total_cost !== null ? `₹${m.total_cost.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}` : "N/A";
+  const fpCostVal = m.fp_cost !== undefined && m.fp_cost !== null ? `₹${m.fp_cost.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}` : "N/A";
+  const fnCostVal = m.fn_exposure !== undefined && m.fn_exposure !== null ? `₹${m.fn_exposure.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}` : "N/A";
 
-  const tpVal = m.tp !== undefined ? m.tp : "N/A";
-  const fpVal = m.fp !== undefined ? m.fp : "N/A";
-  const fnVal = m.fn !== undefined ? m.fn : "N/A";
-  const tnVal = m.tn !== undefined ? m.tn.toLocaleString() : "N/A";
+  const tpVal = m.tp !== undefined && m.tp !== null ? m.tp : "N/A";
+  const fpVal = m.fp !== undefined && m.fp !== null ? m.fp : "N/A";
+  const fnVal = m.fn !== undefined && m.fn !== null ? m.fn : "N/A";
+  const tnVal = m.tn !== undefined && m.tn !== null ? m.tn.toLocaleString() : "N/A";
 
   const elP = document.getElementById("trackBPrecision");
-  if (elP) elP.innerHTML = `${precVal} <span class="metric-unit">(${precPct}%)</span>`;
+  if (elP) elP.innerHTML = precVal !== "N/A" ? `${precVal} <span class="metric-unit">(${precPct}%)</span>` : "N/A";
   const elPCi = document.getElementById("trackBPrecisionCI");
   if (elPCi) elPCi.textContent = `[${precLow}, ${precHigh}]`;
   const elTp = document.getElementById("trackBTP");
@@ -161,7 +161,7 @@ function populateTrackB(report) {
   if (elFp) elFp.textContent = fpVal;
 
   const elR = document.getElementById("trackBRecall");
-  if (elR) elR.innerHTML = `${recVal} <span class="metric-unit">(${recPct}%)</span>`;
+  if (elR) elR.innerHTML = recVal !== "N/A" ? `${recVal} <span class="metric-unit">(${recPct}%)</span>` : "N/A";
   const elRCi = document.getElementById("trackBRecallCI");
   if (elRCi) elRCi.textContent = `[${recLow}, ${recHigh}]`;
   const elFn = document.getElementById("trackBFN");

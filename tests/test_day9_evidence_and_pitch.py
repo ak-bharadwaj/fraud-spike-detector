@@ -325,6 +325,7 @@ def test_no_hardcoded_track_b_frontend_constants():
         "0.7879",
         "0.9825",
         "0.7703",
+        "0.01%",
         "284,807",
         "42,721",
         "42,661",
