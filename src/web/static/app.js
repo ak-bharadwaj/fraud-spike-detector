@@ -441,7 +441,7 @@ async function fetchAuditLogs() {
       const tr = document.createElement("tr");
       const rawId = rec.alert_id || rec.audit_id || "";
       const displayId = rawId ? (rawId.length > 18 ? rawId.substring(0, 18) + '...' : rawId) : '-';
-      const isAlert = rawId.startsWith("ALT-") || (rec.risk_score !== null && rec.risk_score >= 5.0);
+      const isAlert = rawId.startsWith("ALT-");
 
       tr.innerHTML = `
         <td style="font-family:monospace; font-weight:600; color:var(--accent-cyan);">${displayId}</td>
