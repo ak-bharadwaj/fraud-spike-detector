@@ -26,8 +26,6 @@ from typing import Any, Dict, List, Optional, Tuple
 import numpy as np
 import pandas as pd
 
-from src.contracts.contracts import Transaction
-
 
 # Principled feature groups for ML ablation studies
 ML_FEATURE_GROUPS: Dict[str, List[str]] = {
@@ -185,39 +183,6 @@ class KaggleCreditCardAdapter:
             return list(feature_subset)
         else:
             raise ValueError(f"Unknown feature_subset: {feature_subset}")
-
-    def convert_to_transactions(
-        self, df: Optional[pd.DataFrame] = None
-    ) -> List[Transaction]:
-        """Convert DataFrame rows to project Transaction contract objects for system integration."""
-        if df is None:
-            df = self.load()
-        else:
-            df = df.copy()
-
-        if "timestamp" not in df.columns:
-            df["timestamp"] = df["Time"].apply(
-                lambda t: self.BASE_TIMESTAMP + timedelta(seconds=float(t))
-            )
-
-        transactions = []
-        for idx, row in df.iterrows():
-            payload = f"RW:{idx}:{row['Time']}:{row['Amount']}"
-            digest = hashlib.sha256(payload.encode("utf-8")).hexdigest()[:12]
-
-            tx = Transaction(
-                transaction_id=f"TX-RW-{digest}",
-                timestamp=row["timestamp"],
-                merchant_id="RW-MERCHANT-GLOBAL",
-                customer_id=f"CUST-RW-{digest[:6]}",
-                amount=float(row["Amount"]),
-                payment_method="card",
-                country="EU",
-                device_id=f"DEV-RW-{digest[6:]}",
-            )
-            transactions.append(tx)
-
-        return transactions
 
     def compute_dataset_hash(self) -> str:
         """Compute SHA-256 integrity hash of raw dataset file."""

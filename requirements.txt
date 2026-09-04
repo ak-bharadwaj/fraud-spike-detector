@@ -11,5 +11,5 @@ uvicorn==0.28.0
 # ML Dependencies (Real-World Fraud Detection Pipeline - Exact Pinned Versions)
 scikit-learn==1.9.0
 xgboost==3.4.1
-kagglehub==0.3.14
+kagglehub==0.3.13
 joblib==1.5.3

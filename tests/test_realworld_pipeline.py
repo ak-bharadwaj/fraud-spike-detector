@@ -109,17 +109,6 @@ class TestKaggleCreditCardAdapter:
         X_amt_time, _ = adapter.get_feature_matrix(df, feature_subset="amount_time")
         assert X_amt_time.shape[1] == 2
 
-    def test_convert_to_transactions(self):
-        """Adapter should generate valid Transaction contracts with global merchant placeholder."""
-        from src.realworld.data_adapter import KaggleCreditCardAdapter
-        _, _, df = KaggleCreditCardAdapter.create_synthetic_benchmark_matrix(n_rows=10)
-
-        adapter = KaggleCreditCardAdapter.__new__(KaggleCreditCardAdapter)
-        txs = adapter.convert_to_transactions(df)
-        assert len(txs) == 10
-        assert all(tx.merchant_id == "RW-MERCHANT-GLOBAL" for tx in txs)
-        assert all(tx.payment_method == "card" for tx in txs)
-
 
 # ============================================================================
 # ML Scorer & Calibration Isolation Tests

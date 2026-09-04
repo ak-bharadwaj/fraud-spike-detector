@@ -2,8 +2,8 @@
   "experiment_id": "EXP-REALWORLD-CCF-001",
   "track": "realworld",
   "synthetic_baseline_unchanged": true,
-  "timestamp": "2026-09-04T07:55:05.754775+00:00",
-  "elapsed_seconds": 68.8508939743042,
+  "timestamp": "2026-09-04T08:23:44.717189+00:00",
+  "elapsed_seconds": 74.36860632896423,
   "dataset_manifest": {
     "dataset_name": "ULB / Kaggle Credit Card Fraud Detection Benchmark",
     "reference": "Andrea Dal Pozzolo et al., IEEE SSCI 2015",
@@ -404,6 +404,6 @@
     "experiment_id": "EXP-REALWORLD-CCF-001",
     "locked_threshold": 0.01,
     "calibration_method": "Platt scaling (sigmoid on CALIBRATION split)",
-    "artifact_sha256": "1b5d8f97dc19728c8c452d1b887fa30afc722f691c27cbeede74f8b151a9529b"
+    "artifact_sha256": "9d3a78e66a6e1bb5a97313c098414b9b47fb1160523c38dfef0fedc27dc218a3"
   }
 }

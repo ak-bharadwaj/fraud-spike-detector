@@ -485,8 +485,9 @@ def main():
         },
     }
 
-    # Compute hash on canonical report object (excluding self-hash field)
-    report_json_pre = json.dumps(report, indent=2, sort_keys=True, default=str)
+    # Compute deterministic SHA-256 hash over evaluation payload (excluding runtime-variable timestamp & elapsed_seconds)
+    deterministic_payload = {k: v for k, v in report.items() if k not in ("timestamp", "elapsed_seconds")}
+    report_json_pre = json.dumps(deterministic_payload, indent=2, sort_keys=True, default=str)
     report_hash = hashlib.sha256(report_json_pre.encode("utf-8")).hexdigest()
     report["provenance"]["artifact_sha256"] = report_hash
 
