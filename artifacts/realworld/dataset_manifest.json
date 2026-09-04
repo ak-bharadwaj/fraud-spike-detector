@@ -1,0 +1,34 @@
+{
+  "dataset_name": "ULB / Kaggle Credit Card Fraud Detection Benchmark",
+  "reference": "Andrea Dal Pozzolo et al., IEEE SSCI 2015",
+  "dataset_sha256": "76274b691b16a6c49d3f159c883398e03ccd6d1ee12d9d8ee38f4b4b98551a89",
+  "csv_path": "C:\\Users\\dorni\\.cache\\kagglehub\\datasets\\mlg-ulb\\creditcardfraud\\versions\\3\\creditcard.csv",
+  "total_transactions": 284807,
+  "total_fraud": 492,
+  "total_legitimate": 284315,
+  "fraud_rate": 0.001727485630620034,
+  "time_span_hours": 47.99777777777778,
+  "splits": {
+    "train": {
+      "count": 199368,
+      "fraud_count": 384,
+      "ratio": 0.7000108845639328,
+      "min_time": 0.0,
+      "max_time": 132929.0
+    },
+    "calibration": {
+      "count": 42718,
+      "fraud_count": 56,
+      "ratio": 0.14998929099355002,
+      "min_time": 132930.0,
+      "max_time": 151328.0
+    },
+    "test": {
+      "count": 42721,
+      "fraud_count": 52,
+      "ratio": 0.14999982444251722,
+      "min_time": 151329.0,
+      "max_time": 172792.0
+    }
+  }
+}

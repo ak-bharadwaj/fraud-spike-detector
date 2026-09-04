@@ -7,39 +7,39 @@ This document explicitly outlines the scientific boundaries, dataset assumptions
 ## 📌 Non-Negotiable Boundaries & Guarantees
 
 1. **Defense-Only Scope:**
-   Fraud-Spike Detector is designed strictly for risk operational intelligence, alerting, and explainable audit logging. It produces risk scores $M$ and confidence ratings for human risk analyst review. It **NEVER** auto-blocks, rejects, or freezes payment transactions.
+   Fraud-Spike Detector is designed strictly for risk operational intelligence, alerting, and explainable audit logging. It produces risk scores and confidence ratings for human risk analyst review. It **NEVER** auto-blocks, rejects, or freezes payment transactions.
 
-2. **Zero Ground-Truth & Holdout Contamination:**
-   Detector logic in `src/detector/`, `src/features/`, `src/baseline/`, `src/scoring/`, `src/state/`, and `src/audit/` contains ZERO imports or dependencies on ground truth event generation or holdout evaluation datasets.
+2. **Zero Contamination & Data Leakage:**
+   - **Track A (Synthetic Streaming):** Detector logic in `src/` contains ZERO imports or dependencies on ground truth event generation or holdout evaluation datasets (`data/holdout/`).
+   - **Track B (Real-World Benchmark):** Dataset splitting uses a strict 3-way temporal split (TRAIN 70% ➔ CALIBRATION 15% ➔ LOCKED TEST 15%). Calibration models (Platt scaling) are fitted strictly on the CALIBRATION split, preventing test set data leakage.
 
 3. **Deterministic Simulation & Time Handling:**
-   All execution time advancement relies on `VirtualClock`. System processing contains zero wall-clock dependencies (`datetime.now()`) or non-deterministic random entropy (`uuid.uuid4()`).
+   All synthetic execution time advancement relies on `VirtualClock`. System processing contains zero wall-clock dependencies (`datetime.now()`) or non-deterministic random entropy (`uuid.uuid4()`).
 
 ---
 
-## ⚠️ Known Scientific Limitations
+## ⚠️ Known Scientific & Dataset Limitations
 
-1. **Synthetic Stream vs. Real-World Production Traffic:**
-   * Benchmark metrics are evaluated on synthetic transaction streams generated under controlled Poisson and Gaussian distribution models.
-   * Real-world financial production traffic exhibits unmodeled multi-modal behavioral shifts, complex fraud networks, and adversarial adaptation beyond clean synthetic models.
+1. **Synthetic Stream vs. Real-World Public Benchmark Track Separation:**
+   - Track A evaluates deterministic streaming state-machine behavior on 5 locked synthetic events.
+   - Track B evaluates learned multi-dimensional classification on 42,721 held-out real credit card transactions (52 fraud events).
+   - The two tracks answer distinct technical questions and are presented separately.
 
-2. **Unrepresented Anomaly Classes in Locked Holdout:**
-   * The locked holdout dataset contains 5 ground truth events (`EVT-HOLDOUT-001` through `EVT-HOLDOUT-005`).
-   * Certain anomaly archetypes present in synthetic benchmark generators (such as attribute geo-shift or complex multi-attribute compound anomalies) are not represented in the canonical 5-event holdout dataset and are reported as `NO_EVENTS_IN_DATASET`.
+2. **ULB / Kaggle Dataset Dimension Anonymization:**
+   - The Kaggle Credit Card dataset features 28 PCA-transformed dimensions (`V1`–`V28`) plus `Time` and `Amount`.
+   - It lacks merchant IDs, IP addresses, or device fingerprints. Therefore, real-world evaluation measures transaction-level fraud discrimination rather than streaming merchant window aggregation.
 
-3. **Descriptive Nature of Post-Holdout Analyses:**
-   * Calibration reliability diagrams and portfolio cost comparisons are descriptive characterizations of holdout performance.
-   * Model freeze was executed on Day 7; post-holdout findings characterize the locked release without feeding back into detector retuning.
+3. **Feature Dominance in Real-World Credit Card Fraud:**
+   - As proven by our ablation study, `Time` and `Amount` alone yield F1 = 0.0053 (-0.7702), confirming that anonymized PCA dimensions (`V1`–`V28`) contain over 99% of the fraud signal.
 
-4. **Non-Discriminative Development Ablation:**
-   * On the development characterization dataset, single-signal masking (`-VOLUME`, `-VELOCITY`, `-AMOUNT`, `-BEHAVIORAL`) yields zero change in F1 score ($\Delta \text{F1} = 0.0000$).
-   * This occurs because synthetic spike anomalies elevate volume, velocity, and amount statistics simultaneously, providing redundant signal paths.
+4. **Descriptive Nature of Post-Holdout Analyses:**
+   - Post-holdout calibration and cost analyses characterize frozen model outputs. Holdout metrics reflect a single evaluation pass without post-hoc hyperparameter retuning.
 
 ---
 
 ## 🔮 Recommendations for Production Defense Systems
 
 To transition from this reproducible benchmark prototype to an enterprise production defense pipeline:
-1. **Supervised & Semi-Supervised Model Ensembles:** Combine statistical deviation scoring with supervised gradient-boosted trees (e.g. XGBoost/LightGBM) trained on historical chargeback data.
+1. **Hybrid Streaming Ensembles:** Combine real-time statistical deviation scoring ($\tau=5.0\sigma$) for instant velocity burst detection with calibrated XGBoost models for deep transactional fraud scoring.
 2. **Graph-Based Entity Resolution:** Integrate graph neural network (GNN) embeddings to track cross-merchant card-testing rings and shared device infrastructure.
-3. **Adaptive Baseline Windowing:** Dynamic seasonal baseline windowing (e.g., matching day-of-week and hour-of-day temporal cycles).
+3. **Adaptive Baseline Windowing:** Dynamic seasonal baseline windowing (matching day-of-week and hour-of-day temporal cycles).

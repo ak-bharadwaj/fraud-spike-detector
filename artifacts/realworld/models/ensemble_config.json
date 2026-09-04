@@ -1,0 +1,9 @@
+{
+  "w_if": 0.3,
+  "w_xgb": 0.7,
+  "static_threshold": 0.5,
+  "model_hashes": {
+    "isolation_forest_sha256": "685c08411f36ac8efeeaaaf7c63a7922952b164ce76a2e1259e03516cbd40cfb",
+    "xgboost_sha256": "edf32d157b480d068e472f1e0ff093a8d6206997233934bc922da88dadbb16ee"
+  }
+}
