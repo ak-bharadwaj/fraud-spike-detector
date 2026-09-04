@@ -4,7 +4,7 @@
 
 > **Status:** FROZEN RELEASE (`v1.1.0`)  
 > **Primary Streaming Model:** `StatisticalDeviationScorer` ($\tau = 5.00\sigma, P = 1, C = 5$) — Frozen Synthetic Holdout  
-> **Real-World ML Validation Track:** Primary `XGBoost` Classifier (Platt-Calibrated on 284,807 transactions) — `EXP-REALWORLD-CCF-001`  
+> **Real-World ML Validation Track:** Primary `XGBoost` Classifier (Platt-scaled using the CALIBRATION split; benchmark dataset: 284,807 transactions) — `EXP-REALWORLD-CCF-001`  
 > **Defense-Only Scope:** Produces interpretable risk scores, confidence ratings, and alerts for human risk operations teams — never auto-blocks payment transactions.
 
 ---

@@ -49,10 +49,12 @@
 ---
 
 ### 4. Benchmark Precision, Recall, Latency & Calibration (2:20 - 3:10 | 50 Seconds)
-> *"In **Tab 2: Evaluation & Evidence**, we present benchmark evaluation results across both tracks:
+> *"In **Tab 2: Locked Evaluation Evidence**, we immediately lead with our strongest empirical evidence—the **Real-World Public Benchmark (Track B)**:
 > 
-> - **Track A (Synthetic Holdout):** Precision = 80.0% (4 TP / 5 Alerts), Recall = 80.0% (4 TP / 5 Events), F1 = 0.8000, Median Latency = 64.57s.
-> - **Track B (Real-World Kaggle Benchmark):** Evaluated on 42,721 held-out test transactions (52 fraud transactions) under strict 3-way temporal split. Our primary Platt-calibrated XGBoost classifier achieves **Precision = 82.98%** (39 TP / 8 FP), **Recall = 75.00%** (39 TP / 13 FN), **F1 = 0.7879**, **AUC-ROC = 0.9825**, **AUC-PR = 0.7703**, and Platt-scaled Calibration ECE = 0.01%."*
+> - **Track B (Real-World Kaggle Benchmark):** Evaluated on 42,721 held-out test transactions (52 fraud cases) under strict 3-way temporal split. Our primary pre-designated XGBoost classifier achieves **Precision = 82.98%** (39 TP / 8 FP), **Recall = 75.00%** (39 TP / 13 FN), **F1 = 0.7879**, **AUC-ROC = 0.9825**, **AUC-PR = 0.7703**, and Platt-scaled Calibration ECE = 0.01%.
+> 
+> Separately, our synthetic **Track A** validates the real-time streaming architecture:
+> - **Track A (Streaming Architecture Validation):** Evaluated on 5 synthetic holdout events ($\tau=5.0\sigma, P=1, C=5$), achieving Precision = 80.0% (4 TP / 1 FP), Recall = 80.0% (4 TP / 1 FN), F1 = 0.8000, and exact median/P95 latency of 64.57s."*
 
 ---
 

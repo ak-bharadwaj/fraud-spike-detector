@@ -170,11 +170,9 @@ def step_demo():
     volume = len(m_txs)
     explanation = ""
     if state_machine_status == "ALERT":
-        explanation = f"CRITICAL: Merchant {demo_session.merchant_id} volume ({volume} txs/min) breached static threshold 5.00σ with 1-window persistence. Alert emitted to audit trail!"
+        explanation = f"CRITICAL: Merchant {demo_session.merchant_id} volume ({volume} txs/min) breached static threshold 5.00σ with 1-window persistence (P=1). Alert emitted to SQLite audit trail!"
     elif state_machine_status == "COOLDOWN":
         explanation = f"COOLDOWN ACTIVE: Alert recently emitted for {demo_session.merchant_id}. Suppressing redundant alerts for 5 consecutive normal windows to prevent operational fatigue."
-    elif state_machine_status == "CANDIDATE":
-        explanation = f"SUSPICIOUS: Transaction volume ({volume} txs/min) elevated above baseline. Entering CANDIDATE state (evaluating persistence requirement P=1)."
     else:
         explanation = f"NORMAL OPERATION: Merchant {demo_session.merchant_id} operating near learned statistical baseline ({volume} txs/min)."
 
