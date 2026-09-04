@@ -134,7 +134,7 @@ def get_audit(merchant_id: Optional[str] = None):
         "audit_record_count": len(audits),
         "alert_count": len(alerts),
         "audit_records": audits,
-        "alerts": [a.model_dump(mode="json") for a in alerts],
+        "alerts": [a.model_dump(mode="json") if hasattr(a, "model_dump") else a for a in alerts],
     }
 
 
@@ -183,7 +183,7 @@ def step_demo():
         "transaction_count": volume,
         "transactions": [t.model_dump(mode="json") for t in m_txs[:20]],
         "audit": latest_audit,
-        "alerts_emitted": [a.model_dump(mode="json") for a in alerts],
+        "alerts_emitted": [a.model_dump(mode="json") if hasattr(a, "model_dump") else a for a in alerts],
         "state_machine_status": state_machine_status,
         "explanation": explanation,
         "pipeline_stages": {
