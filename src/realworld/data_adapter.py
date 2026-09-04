@@ -76,8 +76,8 @@ class KaggleCreditCardAdapter:
             data[col] = pca_vals[:, i]
 
         labels = np.zeros(n_rows, dtype=np.int32)
-        # Distribute positive samples evenly across rows
-        labels[::12] = 1
+        # Distribute positive samples evenly across rows (ensure >= 5 samples per split in small test matrices)
+        labels[::5] = 1
         data["Class"] = labels
 
         df = pd.DataFrame(data)
