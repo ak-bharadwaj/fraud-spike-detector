@@ -134,7 +134,7 @@ def get_audit(merchant_id: Optional[str] = None):
         "audit_record_count": len(audits),
         "alert_count": len(alerts),
         "audit_records": audits,
-        "alerts": [a.model_dump(mode="json") if hasattr(a, "model_dump") else a for a in alerts],
+        "alerts": alerts,
     }
 
 

@@ -49,7 +49,14 @@ def test_server_audit_endpoint_empty_and_after_steps(client):
     assert audit_res.status_code == 200
     audit_data = audit_res.json()
     assert audit_data["audit_record_count"] >= 7
-    assert isinstance(audit_data["alerts"], list)
+    assert audit_data["alert_count"] > 0
+    assert len(audit_data["alerts"]) > 0
+
+    first_alert = audit_data["alerts"][0]
+    assert "risk_score" in first_alert
+    assert isinstance(first_alert["risk_score"], (int, float))
+    assert "triggered_signals" in first_alert
+    assert isinstance(first_alert["triggered_signals"], list)
 
 
 def test_server_artifact_endpoints(client):
