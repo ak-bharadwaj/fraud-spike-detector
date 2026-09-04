@@ -416,11 +416,19 @@ function populateProvenance(rep) {
 
 // Fetch SQLite Audit Trail
 async function fetchAuditLogs() {
+  const tbody = document.getElementById("tblAuditLogs");
+  if (!tbody) return;
+
   try {
     const merchantId = document.getElementById("selectMerchant").value || "M1";
     const res = await fetch(`/api/audit?merchant_id=${merchantId}`);
+
+    if (!res.ok) {
+      tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:var(--color-danger); font-weight:600;">Error loading audit records — HTTP ${res.status}.</td></tr>`;
+      return;
+    }
+
     const data = await res.json();
-    const tbody = document.getElementById("tblAuditLogs");
     tbody.innerHTML = "";
 
     const audits = data.audit_records || [];
@@ -444,6 +452,9 @@ async function fetchAuditLogs() {
     });
   } catch (err) {
     console.error("Failed to fetch audit logs:", err);
+    if (tbody) {
+      tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:var(--color-danger); font-weight:600;">Error loading audit records — ${err.message || err}.</td></tr>`;
+    }
   }
 }
 
