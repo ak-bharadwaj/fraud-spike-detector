@@ -43,6 +43,7 @@ def test_server_audit_endpoint_empty_and_after_steps(client):
         assert step_res.status_code == 200
         step_data = step_res.json()
         assert "audit" in step_data
+        assert "window_range" in step_data
 
     # Query audit trail again (now populated with records and alerts)
     audit_res = client.get("/api/audit?merchant_id=M1")

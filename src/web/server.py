@@ -179,6 +179,9 @@ def step_demo():
     step_data = {
         "window_index": w_idx,
         "timestamp": win_start.isoformat(),
+        "window_start": win_start.isoformat(),
+        "window_end": win_end.isoformat(),
+        "window_range": f"{win_start.strftime('%H:%M:%S')}–{win_end.strftime('%H:%M:%S')}",
         "merchant_id": demo_session.merchant_id,
         "transaction_count": volume,
         "transactions": [t.model_dump(mode="json") for t in m_txs[:20]],

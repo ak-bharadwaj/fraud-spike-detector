@@ -439,14 +439,18 @@ async function fetchAuditLogs() {
 
     audits.slice().reverse().forEach(rec => {
       const tr = document.createElement("tr");
+      const rawId = rec.alert_id || rec.audit_id || "";
+      const displayId = rawId ? (rawId.length > 18 ? rawId.substring(0, 18) + '...' : rawId) : '-';
+      const isAlert = rawId.startsWith("ALT-") || (rec.risk_score !== null && rec.risk_score >= 5.0);
+
       tr.innerHTML = `
-        <td style="font-family:monospace;">${rec.audit_id ? rec.audit_id.substring(0, 16) + '...' : '-'}</td>
+        <td style="font-family:monospace; font-weight:600; color:var(--accent-cyan);">${displayId}</td>
         <td>${rec.timestamp ? rec.timestamp.substring(11, 19) : '-'}</td>
         <td>${rec.merchant_id}</td>
-        <td style="font-weight:700;">${rec.risk_score !== null ? rec.risk_score.toFixed(2) + 'σ' : 'None'}</td>
+        <td style="font-weight:700;">${rec.risk_score !== null && rec.risk_score !== undefined ? rec.risk_score.toFixed(2) + 'σ' : 'None'}</td>
         <td>${rec.confidence !== undefined ? rec.confidence.toFixed(2) : '1.00'}</td>
         <td><span class="badge ${rec.data_quality_status === 'GOOD' ? 'badge-frozen' : 'badge-defense'}">${rec.data_quality_status}</span></td>
-        <td>${rec.alert_id ? '<span class="badge state-ALERT">ALERT: ' + rec.alert_id.substring(0, 8) + '</span>' : 'AUDIT_LOG'}</td>
+        <td>${isAlert ? '<span class="badge state-ALERT">ALERT: ' + rawId.substring(0, 12) + '</span>' : '<span class="badge badge-defense">AUDIT_LOG</span>'}</td>
       `;
       tbody.appendChild(tr);
     });
@@ -498,7 +502,7 @@ async function resetDemo(merchantId) {
     const wIdxEl = document.getElementById("lblWindowIndex");
     if (wIdxEl) wIdxEl.textContent = "#0";
     const wTimeEl = document.getElementById("lblWindowTime");
-    if (wTimeEl) wTimeEl.textContent = "2026-01-01T12:00:00Z";
+    if (wTimeEl) wTimeEl.textContent = "12:00:00–12:01:00";
     
     document.getElementById("valRiskScore").innerHTML = `0.00 <span class="metric-unit">σ</span>`;
     document.getElementById("valThresholdCheck").textContent = "Sub-threshold (Normal)";
@@ -518,7 +522,17 @@ function renderDemoStep(data) {
   const wIdxEl = document.getElementById("lblWindowIndex");
   if (wIdxEl) wIdxEl.textContent = `#${data.window_index !== undefined ? data.window_index : 0}`;
   const wTimeEl = document.getElementById("lblWindowTime");
-  if (wTimeEl && data.timestamp) wTimeEl.textContent = data.timestamp;
+  if (wTimeEl) {
+    if (data.window_range) {
+      wTimeEl.textContent = data.window_range;
+    } else if (data.window_start && data.window_end) {
+      const s = data.window_start.substring(11, 19);
+      const e = data.window_end.substring(11, 19);
+      wTimeEl.textContent = `${s}–${e}`;
+    } else if (data.timestamp) {
+      wTimeEl.textContent = data.timestamp;
+    }
+  }
 
   // Update state machine badge
   const st = data.state_machine_status || "NORMAL";
