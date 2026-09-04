@@ -14,10 +14,10 @@ To provide both deterministic streaming auditability and learned real-world frau
    - **Dataset:** 5-event locked synthetic holdout stream (`data/holdout/`).
 
 2. **Track B — Real-World Public Benchmark Track (`EXP-REALWORLD-CCF-001`):**
-   - **Model:** Calibrated Ensemble (`IsolationForest` + `XGBoost` classifier)
-   - **Purpose:** Validates learned multi-dimensional fraud discrimination, Platt-scaled probability calibration, and feature group ablation on a large, highly imbalanced dataset.
-   - **Dataset:** ULB / Kaggle Credit Card Fraud Benchmark (284,807 European cardholder transactions, 492 fraud events across 48 hours).
-   - **Isolation Split:** Strict 3-way temporal split: TRAIN (70%) ➔ CALIBRATION (15%) ➔ LOCKED TEST (15%, 42,721 transactions, 52 fraud events).
+   - **Model:** Primary Supervised `XGBoost` Classifier (Platt-Calibrated) with Isolation Forest comparator
+   - **Purpose:** Validates learned multi-dimensional fraud discrimination, Platt-scaled probability calibration on CALIBRATION split, and feature group ablation on a large, highly imbalanced dataset.
+   - **Dataset:** ULB / Kaggle Credit Card Fraud Benchmark (284,807 European cardholder transactions, 492 fraud transactions across 48 hours).
+   - **Isolation Split:** Strict 3-way temporal split: TRAIN (70%) ➔ CALIBRATION (15%) ➔ LOCKED TEST (15%, 42,721 transactions, 52 fraud transactions).
 
 ---
 
@@ -44,7 +44,7 @@ Event matching strictly follows Sections 21–22 of the Master Build Plan and `c
 
 Financial impact is evaluated using the Master Plan Section 34 cost parameters:
 * **False Positive Cost ($C_{\text{FP}}$):** ₹50.00 per false alarm (manual risk analyst review operational cost).
-* **False Negative Exposure ($C_{\text{FN}}$):** Financial exposure sum over all unmatched ground-truth events.
+* **False Negative Exposure ($C_{\text{FN}}$):** Dynamic financial exposure calculated as $\sum \text{Amount}$ of missed fraud transactions (for Track B) or unmitigated event impact (for Track A).
 * **Total Portfolio Cost:**
   $$\text{Total Cost} = (\text{FP} \times ₹50.00) + \text{FN Exposure}$$
 
@@ -82,43 +82,47 @@ Tests representative evasive attack trajectories physically embedded in `data/ho
    * *Mechanism:* Stepwise volume progression ramping to $M = 6.50\sigma$.
    * *Outcome:* Consecutive steps breach threshold -> Alert emitted ($\text{TP}=1$).
 4. **Oscillating Sub-Threshold (`EVT-HOLDOUT-005`):**
-   * *Mechanism:* Sub-threshold harmonic oscillation staying strictly below decision threshold ($M = 4.20\sigma < 5.00\sigma$).
+   * *Mechanism:* Sub-threshold harmonic oscillation staying strictly below decision threshold ($M = 1.64\sigma < 5.00\sigma$).
    * *Outcome:* Max score stays below threshold -> State machine remains `NORMAL` ($\text{FN}=1$).
 
 ---
 
 ## 🌐 Track B: Real-World Public Benchmark Results (`EXP-REALWORLD-CCF-001`)
 
-Evaluated on 42,721 held-out test transactions (52 fraud events) under strict 3-way temporal isolation:
+Evaluated on 42,721 held-out test transactions (52 fraud transactions) under strict 3-way temporal isolation:
 
-### Benchmark Summary
+### Primary Model Benchmark Summary (XGBoost, Platt-Calibrated)
 
-| Benchmark Metric | Calibrated Ensemble Value | 95% Bootstrap CI (N=1000) |
+| Benchmark Metric | Primary XGBoost Value | 95% Bootstrap CI (N=1000) |
 |---|---|---|
 | **Held-Out Test Set Size** | **42,721 transactions** | N/A |
-| **Held-Out Test Fraud Events** | **52 fraud events** (0.1217% rate) | N/A |
-| **True Positives (TP)** | **37** | count |
-| **False Positives (FP)** | **6** | count |
-| **False Negatives (FN)** | **15** | count |
-| **Precision** | **0.8605** (86.1%) | `[0.7500, 0.9512]` |
-| **Recall** | **0.7115** (71.2%) | `[0.5849, 0.8333]` |
-| **F1 Score** | **0.7789** (77.9%) | `[0.6760, 0.8600]` |
-| **AUC-ROC** | **0.9410** | `[0.8971, 0.9758]` |
-| **AUC-PR** | **0.7489** | N/A |
-| **Calibration Error (ECE)** | **0.0564** (5.6% ECE) | Platt-scaled on CALIB split |
+| **Held-Out Test Fraud Transactions** | **52 fraud transactions** (0.1217% rate) | N/A |
+| **True Positives (TP)** | **39** | count |
+| **False Positives (FP)** | **8** | count |
+| **False Negatives (FN)** | **13** | count |
+| **Precision** | **0.8298** (83.0%) | `[0.7142, 0.9298]` |
+| **Recall** | **0.7500** (75.0%) | `[0.6274, 0.8667]` |
+| **F1 Score** | **0.7879** (78.8%) | `[0.6857, 0.8687]` |
+| **AUC-ROC** | **0.9825** | `[0.9692, 0.9931]` |
+| **AUC-PR** | **0.7703** | N/A |
+| **Calibration Error (ECE)** | **0.0001** (0.01% ECE) | Platt-scaled on CALIB split |
+| **False Positive Cost** | **₹400.00** (8 × ₹50) | ₹ (INR) |
+| **False Negative Exposure** | **₹2,372.40** ($\sum \text{Amount}$ of 13 FNs) | ₹ (INR) |
+| **Total Portfolio Impact** | **₹2,772.40** | ₹ (INR) |
 
 ---
 
-### Track B: Principled Feature & Model Group Ablation
+### Track B: Principled Feature & Model Group Ablation (6 Variants)
 
 Evaluated on the 42,721 held-out test transactions:
 
 | Variant ID | Features | Description | Precision | Recall | F1 Score | $\Delta\text{F1}$ | AUC-PR |
 |---|---|---|---|---|---|---|---|
-| **`FULL_ENSEMBLE`** | 30 | IF + XGBoost on all 30 features | 0.8261 | 0.7308 | **0.7755** | +0.0000 | 0.7391 |
-| **`XGB_ONLY`** | 30 | XGBoost alone on all features | 0.8444 | 0.7308 | **0.7835** | +0.0080 | 0.7659 |
-| **`IF_ONLY`** | 30 | Isolation Forest alone (unsupervised) | 0.0527 | 0.5192 | **0.0957** | -0.6798 | 0.0408 |
-| **`PCA_ONLY`** | 28 | V1–V28 PCA features only (no Time/Amount)| 0.8298 | 0.7500 | **0.7879** | +0.0124 | 0.7486 |
-| **`AMOUNT_TIME_ONLY`** | 2 | Time & Amount features only | 0.0029 | 0.0385 | **0.0053** | -0.7702 | 0.0019 |
+| **`FULL_ENSEMBLE`** | 30 | IF + XGBoost on all 30 features | 0.8605 | 0.7115 | **0.7789** | +0.0000 | 0.7489 |
+| **`XGB_ONLY`** | 30 | XGBoost alone on all features (Headline) | 0.8298 | 0.7500 | **0.7879** | +0.0089 | 0.7703 |
+| **`IF_ONLY`** | 30 | Isolation Forest alone (unsupervised) | 0.0542 | 0.5000 | **0.0977** | -0.6812 | 0.0429 |
+| **`PCA_ONLY`** | 28 | V1–V28 PCA features only (no Time/Amount)| 0.9250 | 0.7115 | **0.8043** | +0.0254 | 0.7519 |
+| **`PCA_PLUS_AMOUNT`** | 29 | V1–V28 PCA features + Amount | 0.8667 | 0.7500 | **0.8041** | +0.0252 | 0.7427 |
+| **`AMOUNT_TIME_ONLY`** | 2 | Time & Amount features only | 0.0029 | 0.0385 | **0.0053** | -0.7736 | 0.0022 |
 
-> **Scientific Insight:** The ablation study proves that `Time` & `Amount` alone yield F1 = 0.0053 (-0.7702), confirming that anonymized PCA dimensions (`V1`–`V28`) carry over 99% of the predictive fraud signal. Unsupervised Isolation Forest alone achieves F1 = 0.0957 (-0.6798), demonstrating why supervised XGBoost with Platt-scaling calibration is necessary for highly imbalanced real-world credit card fraud.
+> **Scientific Insight:** Performance collapses when PCA features are removed ($F_1 = 0.0053$), indicating that $V_1$–$V_{28}$ contain the dominant predictive information in this benchmark. Unsupervised Isolation Forest alone achieves $F_1 = 0.0977$, demonstrating why supervised XGBoost with Platt-scaling calibration fitted strictly on CALIBRATION is the superior real-world detector.

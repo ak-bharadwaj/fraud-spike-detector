@@ -32,6 +32,7 @@ from src.contracts.contracts import Transaction
 # Principled feature groups for ML ablation studies
 ML_FEATURE_GROUPS: Dict[str, List[str]] = {
     "pca": [f"V{i}" for i in range(1, 29)],
+    "pca_plus_amount": [f"V{i}" for i in range(1, 29)] + ["Amount"],
     "amount_time": ["Time", "Amount"],
 }
 
@@ -62,9 +63,33 @@ class KaggleCreditCardAdapter:
         self._raw_df: Optional[pd.DataFrame] = None
 
     @staticmethod
+    def create_synthetic_benchmark_matrix(
+        n_rows: int = 100, seed: int = 42
+    ) -> Tuple[np.ndarray, np.ndarray, pd.DataFrame]:
+        """Generate synthetic 30-feature transaction data for offline testing."""
+        rng = np.random.RandomState(seed)
+        times = np.sort(rng.uniform(0, 172800, size=n_rows))
+        amounts = rng.exponential(scale=88.0, size=n_rows)
+        pca_cols = [f"V{i}" for i in range(1, 29)]
+        pca_vals = rng.randn(n_rows, 28)
+
+        data = {"Time": times, "Amount": amounts}
+        for i, col in enumerate(pca_cols):
+            data[col] = pca_vals[:, i]
+
+        labels = np.zeros(n_rows, dtype=np.int32)
+        # Distribute positive samples evenly across rows
+        labels[::12] = 1
+        data["Class"] = labels
+
+        df = pd.DataFrame(data)
+        X = df[ALL_FEATURE_COLS].values.astype(np.float64)
+        y = labels
+        return X, y, df
+
+    @staticmethod
     def _find_or_download() -> Path:
         """Find local cached CSV or auto-download via kagglehub."""
-        # Check standard cache paths first
         cache_dir = Path.home() / ".cache" / "kagglehub" / "datasets" / "mlg-ulb" / "creditcardfraud"
         if cache_dir.exists():
             for csv_file in cache_dir.rglob("creditcard.csv"):
@@ -94,7 +119,6 @@ class KaggleCreditCardAdapter:
         assert "Class" in df.columns, f"Expected 'Class' column, got {df.columns.tolist()}"
         assert len(df) > 200_000, f"Expected 284K+ rows, got {len(df)}"
 
-        # Convert Time (seconds from first transaction) to datetime timestamps
         df["timestamp"] = df["Time"].apply(
             lambda t: self.BASE_TIMESTAMP + timedelta(seconds=float(t))
         )
@@ -105,12 +129,7 @@ class KaggleCreditCardAdapter:
     def temporal_three_way_split(
         self, train_ratio: float = 0.70, calib_ratio: float = 0.15
     ) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-        """Split dataset strictly by time into TRAIN (70%), CALIBRATION (15%), and TEST (15%).
-
-        - TRAIN: Fit ML models (Isolation Forest, XGBoost).
-        - CALIBRATION: Fit Platt-scaling calibrator & IF score normalization.
-        - TEST: Single final evaluation pass. Zero data leakage.
-        """
+        """Split dataset strictly by time into TRAIN (70%), CALIBRATION (15%), and TEST (15%)."""
         df = self.load()
         df_sorted = df.sort_values("Time").reset_index(drop=True)
 
@@ -131,20 +150,14 @@ class KaggleCreditCardAdapter:
         df: Optional[pd.DataFrame] = None,
         feature_subset: Optional[str] = None,
     ) -> Tuple[np.ndarray, np.ndarray]:
-        """Extract feature matrix X and labels y for ML training and evaluation.
-
-        Args:
-            df: DataFrame subset (TRAIN, CALIBRATION, or TEST). If None, uses full dataset.
-            feature_subset: 'pca', 'amount_time', or None (all 30 features).
-
-        Returns:
-            (X, y) tuple where X is feature matrix and y is binary fraud labels.
-        """
+        """Extract feature matrix X and labels y for ML training and evaluation."""
         if df is None:
             df = self.load()
 
         if feature_subset == "pca":
             cols = ML_FEATURE_GROUPS["pca"]
+        elif feature_subset == "pca_plus_amount":
+            cols = ML_FEATURE_GROUPS["pca_plus_amount"]
         elif feature_subset == "amount_time":
             cols = ML_FEATURE_GROUPS["amount_time"]
         elif feature_subset is None or feature_subset == "all":
@@ -162,6 +175,8 @@ class KaggleCreditCardAdapter:
         """Get list of feature column names for given subset."""
         if feature_subset == "pca":
             return list(ML_FEATURE_GROUPS["pca"])
+        elif feature_subset == "pca_plus_amount":
+            return list(ML_FEATURE_GROUPS["pca_plus_amount"])
         elif feature_subset == "amount_time":
             return list(ML_FEATURE_GROUPS["amount_time"])
         elif feature_subset is None or feature_subset == "all":
@@ -174,13 +189,16 @@ class KaggleCreditCardAdapter:
     def convert_to_transactions(
         self, df: Optional[pd.DataFrame] = None
     ) -> List[Transaction]:
-        """Convert DataFrame rows to project Transaction contract objects for system integration.
-
-        Note: Uses deterministic identifiers based on Time and Amount. Does NOT claim
-        these represent real-world customer or merchant entities.
-        """
+        """Convert DataFrame rows to project Transaction contract objects for system integration."""
         if df is None:
             df = self.load()
+        else:
+            df = df.copy()
+
+        if "timestamp" not in df.columns:
+            df["timestamp"] = df["Time"].apply(
+                lambda t: self.BASE_TIMESTAMP + timedelta(seconds=float(t))
+            )
 
         transactions = []
         for idx, row in df.iterrows():
@@ -218,7 +236,8 @@ class KaggleCreditCardAdapter:
             "dataset_name": "ULB / Kaggle Credit Card Fraud Detection Benchmark",
             "reference": "Andrea Dal Pozzolo et al., IEEE SSCI 2015",
             "dataset_sha256": self.compute_dataset_hash(),
-            "csv_path": str(self._csv_path),
+            "dataset_filename": "creditcard.csv",
+            "dataset_source": "kaggle/mlg-ulb/creditcardfraud",
             "total_transactions": len(df),
             "total_fraud": int(df["Class"].sum()),
             "total_legitimate": int((df["Class"] == 0).sum()),

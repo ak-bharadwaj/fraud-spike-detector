@@ -41,7 +41,7 @@ class IsolationForestScorer(AnomalyScorer):
     """Unsupervised anomaly detection via Isolation Forest with CALIBRATION-fitted scaling.
 
     - Fits forest on normal TRAIN transactions.
-    - Fits min-max / percentile normalization on CALIBRATION split.
+    - Fits min-max / percentile normalization strictly on CALIBRATION split.
     - Outputs calibrated anomaly probabilities in [0, 1].
     """
 
@@ -54,8 +54,9 @@ class IsolationForestScorer(AnomalyScorer):
     ):
         self.n_estimators = n_estimators
         self.contamination = contamination
-        self.static_threshold = static_threshold
+        self.static_threshold = float(static_threshold)
         self.seed = seed
+        self.optimal_threshold: float = float(static_threshold)
         self._model: Optional[IsolationForest] = None
         self._feature_names: List[str] = []
         self._is_fitted = False
@@ -76,9 +77,11 @@ class IsolationForestScorer(AnomalyScorer):
         return self
 
     def calibrate_scores(self, X_calib: np.ndarray) -> "IsolationForestScorer":
-        """Fit min-max score normalization on CALIBRATION split."""
+        """Fit min-max score normalization strictly on CALIBRATION split."""
         if not self._is_fitted:
             raise RuntimeError("Must fit model before calibrating scores.")
+        if X_calib is None or len(X_calib) == 0:
+            raise RuntimeError("X_calib is required to calibrate Isolation Forest scores.")
         raw_scores = -self._model.decision_function(X_calib)
         self._min_score = float(np.percentile(raw_scores, 1))
         self._max_score = float(np.percentile(raw_scores, 99))
@@ -91,14 +94,13 @@ class IsolationForestScorer(AnomalyScorer):
         if not self._is_fitted:
             raise RuntimeError("IsolationForestScorer not fitted. Call fit() first.")
         raw_scores = -self._model.decision_function(X)
-        # Rescale to [0, 1] using calibration parameters
         clipped = np.clip(raw_scores, self._min_score, self._max_score)
         calibrated = (clipped - self._min_score) / (self._max_score - self._min_score)
         return calibrated
 
     def predict_labels(self, X: np.ndarray, threshold: Optional[float] = None) -> np.ndarray:
         """Return binary anomaly predictions."""
-        thresh = threshold if threshold is not None else self.static_threshold
+        thresh = threshold if threshold is not None else self.optimal_threshold
         scores = self.predict_anomaly_scores(X)
         return (scores >= thresh).astype(np.int32)
 
@@ -109,51 +111,12 @@ class IsolationForestScorer(AnomalyScorer):
         signal_mask: Optional[Sequence[str]] = None,
         signal_weights: Optional[Dict[str, float]] = None,
     ) -> RiskScore:
-        """AnomalyScorer ABC implementation."""
-        if baseline_snapshot.evidence_state == "INSUFFICIENT":
-            dq = "EMPTY" if feature_snapshot.data_quality == "EMPTY" else "INSUFFICIENT"
-            return RiskScore(score=None, confidence=0.0, triggered_signals=[], data_quality=dq)
-
-        feat_vec = self._snapshot_to_feature_vector(feature_snapshot, baseline_snapshot)
-        if feat_vec is None or not self._is_fitted:
-            return RiskScore(score=0.0, confidence=0.5, triggered_signals=[], data_quality="DEGRADED")
-
-        score = float(self.predict_anomaly_scores(feat_vec.reshape(1, -1))[0]) * 10.0
-        triggered = ["ml_isolation_forest"] if score >= (self.static_threshold * 10.0) else []
-
-        return RiskScore(
-            score=score,
-            confidence=float(score / 10.0),
-            triggered_signals=triggered,
-            data_quality="GOOD",
+        """Explicitly decoupled from Track A streaming semantics."""
+        raise NotImplementedError(
+            "IsolationForestScorer is a Track B real-world ML model operating on transaction "
+            "feature matrices. It does not process aggregated FeatureSnapshot / BaselineSnapshot "
+            "streaming events (Track A)."
         )
-
-    def _snapshot_to_feature_vector(
-        self, feat: FeatureSnapshot, base: BaselineSnapshot
-    ) -> Optional[np.ndarray]:
-        try:
-            vals = [
-                feat.volume, feat.velocity, float(feat.unique_customers), float(feat.unique_devices),
-                feat.amount_statistics.get("total_amount", 0.0),
-                feat.amount_statistics.get("mean_amount", 0.0),
-                feat.amount_statistics.get("std_amount", 0.0),
-                feat.amount_statistics.get("median_amount", 0.0),
-                feat.amount_statistics.get("mad_amount", 0.0),
-                feat.amount_statistics.get("min_amount", 0.0),
-                feat.amount_statistics.get("max_amount", 0.0),
-            ]
-            arr = np.array(vals, dtype=np.float64)
-            expected_n = len(self._feature_names) if self._feature_names else len(vals)
-            if len(arr) < expected_n:
-                # Zero-pad to match model feature expectation
-                padded = np.zeros(expected_n, dtype=np.float64)
-                padded[:len(arr)] = arr
-                return padded
-            elif len(arr) > expected_n:
-                return arr[:expected_n]
-            return arr
-        except Exception:
-            return None
 
     def save(self, path: Union[str, Path]) -> str:
         """Serialize fitted model to disk and return SHA-256 hash."""
@@ -165,6 +128,7 @@ class IsolationForestScorer(AnomalyScorer):
             "feature_names": self._feature_names,
             "min_score": self._min_score,
             "max_score": self._max_score,
+            "optimal_threshold": self.optimal_threshold,
             "params": {
                 "n_estimators": self.n_estimators,
                 "contamination": self.contamination,
@@ -184,6 +148,7 @@ class IsolationForestScorer(AnomalyScorer):
         scorer._feature_names = data["feature_names"]
         scorer._min_score = data.get("min_score", 0.0)
         scorer._max_score = data.get("max_score", 1.0)
+        scorer.optimal_threshold = float(data.get("optimal_threshold", scorer.static_threshold))
         scorer._is_fitted = True
         return scorer
 
@@ -193,7 +158,7 @@ class XGBoostFraudScorer(AnomalyScorer):
 
     - Fits XGBoost classifier on TRAIN split.
     - Fits Platt scaling (`CalibratedClassifierCV`) strictly on CALIBRATION split.
-    - Zero data leakage into locked TEST split.
+    - Zero data leakage into locked TEST split. No silent training-set fallbacks.
     """
 
     def __init__(
@@ -207,7 +172,8 @@ class XGBoostFraudScorer(AnomalyScorer):
         self.n_estimators = n_estimators
         self.max_depth = max_depth
         self.learning_rate = learning_rate
-        self.static_threshold = static_threshold
+        self.static_threshold = float(static_threshold)
+        self.optimal_threshold: float = float(static_threshold)
         self.seed = seed
         self._model = None
         self._calibrated_model = None
@@ -244,19 +210,24 @@ class XGBoostFraudScorer(AnomalyScorer):
         self._model.fit(X_train, y_train)
         self._feature_names = list(feature_names) if feature_names else [f"f{i}" for i in range(X_train.shape[1])]
 
-        # Fit Platt-scaling calibrator on CALIBRATION split (Refinement #5)
-        if X_calib is not None and y_calib is not None and len(y_calib) > 0:
+        # Fit Platt-scaling calibrator strictly on CALIBRATION split (NO silent fallback)
+        if X_calib is None or y_calib is None or len(y_calib) == 0:
+            raise RuntimeError(
+                "X_calib and y_calib are strictly required to fit Platt scaling calibration "
+                "on the CALIBRATION split without training set leakage."
+            )
+
+        try:
             try:
                 from sklearn.frozen import FrozenEstimator
                 frozen = FrozenEstimator(self._model)
-                self._calibrated_model = CalibratedClassifierCV(frozen, cv=5, method="sigmoid")
+                self._calibrated_model = CalibratedClassifierCV(frozen, method="sigmoid")
                 self._calibrated_model.fit(X_calib, y_calib)
-            except Exception:
-                self._calibrated_model = CalibratedClassifierCV(self._model, cv=3, method="sigmoid")
-                self._calibrated_model.fit(X_train, y_train)
-        else:
-            self._calibrated_model = CalibratedClassifierCV(self._model, cv=3, method="sigmoid")
-            self._calibrated_model.fit(X_train, y_train)
+            except (ImportError, ValueError, AttributeError):
+                self._calibrated_model = CalibratedClassifierCV(self._model, cv="prefit", method="sigmoid")
+                self._calibrated_model.fit(X_calib, y_calib)
+        except Exception as err:
+            raise RuntimeError(f"Failed to fit Platt scaling calibration on CALIBRATION split: {err}") from err
 
         self._is_fitted = True
         self._training_stats = {
@@ -264,8 +235,8 @@ class XGBoostFraudScorer(AnomalyScorer):
             "n_fraud_train": int(n_pos),
             "n_legit_train": int(n_neg),
             "scale_pos_weight": float(scale_pos_weight),
-            "n_calib": len(y_calib) if y_calib is not None else 0,
-            "n_fraud_calib": int(y_calib.sum()) if y_calib is not None else 0,
+            "n_calib": len(y_calib),
+            "n_fraud_calib": int(y_calib.sum()),
         }
         return self
 
@@ -278,7 +249,7 @@ class XGBoostFraudScorer(AnomalyScorer):
 
     def predict_labels(self, X: np.ndarray, threshold: Optional[float] = None) -> np.ndarray:
         """Return binary predictions using specified probability threshold."""
-        thresh = threshold if threshold is not None else self.static_threshold
+        thresh = threshold if threshold is not None else self.optimal_threshold
         probas = self.predict_proba(X)
         return (probas >= thresh).astype(np.int32)
 
@@ -299,52 +270,12 @@ class XGBoostFraudScorer(AnomalyScorer):
         signal_mask: Optional[Sequence[str]] = None,
         signal_weights: Optional[Dict[str, float]] = None,
     ) -> RiskScore:
-        """AnomalyScorer ABC implementation."""
-        if baseline_snapshot.evidence_state == "INSUFFICIENT":
-            dq = "EMPTY" if feature_snapshot.data_quality == "EMPTY" else "INSUFFICIENT"
-            return RiskScore(score=None, confidence=0.0, triggered_signals=[], data_quality=dq)
-
-        feat_vec = self._snapshot_to_feature_vector(feature_snapshot, baseline_snapshot)
-        if feat_vec is None or not self._is_fitted:
-            return RiskScore(score=0.0, confidence=0.5, triggered_signals=[], data_quality="DEGRADED")
-
-        proba = float(self.predict_proba(feat_vec.reshape(1, -1))[0])
-        score = proba * 10.0
-        triggered = ["ml_xgboost"] if proba >= self.static_threshold else []
-
-        return RiskScore(
-            score=score,
-            confidence=float(proba),
-            triggered_signals=triggered,
-            data_quality="GOOD",
+        """Explicitly decoupled from Track A streaming semantics."""
+        raise NotImplementedError(
+            "XGBoostFraudScorer is a Track B real-world ML model operating on transaction "
+            "feature matrices. It does not process aggregated FeatureSnapshot / BaselineSnapshot "
+            "streaming events (Track A)."
         )
-
-    def _snapshot_to_feature_vector(
-        self, feat: FeatureSnapshot, base: BaselineSnapshot
-    ) -> Optional[np.ndarray]:
-        try:
-            vals = [
-                feat.volume, feat.velocity, float(feat.unique_customers), float(feat.unique_devices),
-                feat.amount_statistics.get("total_amount", 0.0),
-                feat.amount_statistics.get("mean_amount", 0.0),
-                feat.amount_statistics.get("std_amount", 0.0),
-                feat.amount_statistics.get("median_amount", 0.0),
-                feat.amount_statistics.get("mad_amount", 0.0),
-                feat.amount_statistics.get("min_amount", 0.0),
-                feat.amount_statistics.get("max_amount", 0.0),
-            ]
-            arr = np.array(vals, dtype=np.float64)
-            expected_n = len(self._feature_names) if self._feature_names else len(vals)
-            if len(arr) < expected_n:
-                # Zero-pad to match model feature expectation
-                padded = np.zeros(expected_n, dtype=np.float64)
-                padded[:len(arr)] = arr
-                return padded
-            elif len(arr) > expected_n:
-                return arr[:expected_n]
-            return arr
-        except Exception:
-            return None
 
     def save(self, path: Union[str, Path]) -> str:
         """Serialize fitted model to disk and return SHA-256 hash."""
@@ -356,6 +287,7 @@ class XGBoostFraudScorer(AnomalyScorer):
             "calibrated_model": self._calibrated_model,
             "feature_names": self._feature_names,
             "training_stats": self._training_stats,
+            "optimal_threshold": self.optimal_threshold,
             "params": {
                 "n_estimators": self.n_estimators,
                 "max_depth": self.max_depth,
@@ -376,18 +308,16 @@ class XGBoostFraudScorer(AnomalyScorer):
         scorer._calibrated_model = data["calibrated_model"]
         scorer._feature_names = data["feature_names"]
         scorer._training_stats = data["training_stats"]
+        scorer.optimal_threshold = float(data.get("optimal_threshold", scorer.static_threshold))
         scorer._is_fitted = True
         return scorer
 
 
 class EnsembleFraudScorer(AnomalyScorer):
-    """Weighted ensemble combining calibrated IF anomaly scores and XGBoost probabilities (Refinement #6).
+    """Weighted ensemble combining calibrated IF anomaly scores and XGBoost probabilities.
 
     Formula:
         P_ensemble = w_if * P_if_calibrated + w_xgb * P_xgb_calibrated
-
-    Both components output calibrated probabilities in [0, 1], guaranteeing mathematical
-    scale compatibility.
     """
 
     def __init__(
@@ -403,24 +333,25 @@ class EnsembleFraudScorer(AnomalyScorer):
         self.w_if = float(w_if)
         self.w_xgb = float(w_xgb)
         self.static_threshold = float(static_threshold)
+        self.optimal_threshold: float = float(static_threshold)
 
     def predict_ensemble_scores(self, X: np.ndarray) -> np.ndarray:
         """Compute weighted ensemble probability scores on feature matrix."""
         scores = np.zeros(X.shape[0])
 
         if self.if_scorer and self.if_scorer._is_fitted:
-            if_scores = self.if_scorer.predict_anomaly_scores(X)  # Already calibrated to [0, 1]
+            if_scores = self.if_scorer.predict_anomaly_scores(X)
             scores += self.w_if * if_scores
 
         if self.xgb_scorer and self.xgb_scorer._is_fitted:
-            xgb_probas = self.xgb_scorer.predict_proba(X)  # Already Platt-calibrated to [0, 1]
+            xgb_probas = self.xgb_scorer.predict_proba(X)
             scores += self.w_xgb * xgb_probas
 
         return np.clip(scores, 0.0, 1.0)
 
     def predict_labels(self, X: np.ndarray, threshold: Optional[float] = None) -> np.ndarray:
         """Binary fraud predictions from ensemble scores."""
-        thresh = threshold if threshold is not None else self.static_threshold
+        thresh = threshold if threshold is not None else self.optimal_threshold
         scores = self.predict_ensemble_scores(X)
         return (scores >= thresh).astype(np.int32)
 
@@ -431,44 +362,11 @@ class EnsembleFraudScorer(AnomalyScorer):
         signal_mask: Optional[Sequence[str]] = None,
         signal_weights: Optional[Dict[str, float]] = None,
     ) -> RiskScore:
-        """AnomalyScorer ABC implementation."""
-        if baseline_snapshot.evidence_state == "INSUFFICIENT":
-            dq = "EMPTY" if feature_snapshot.data_quality == "EMPTY" else "INSUFFICIENT"
-            return RiskScore(score=None, confidence=0.0, triggered_signals=[], data_quality=dq)
-
-        triggered = []
-        component_scores = []
-
-        if self.if_scorer:
-            if_res = self.if_scorer.calculate_score(feature_snapshot, baseline_snapshot, signal_mask, signal_weights)
-            if if_res.score is not None:
-                component_scores.append(("if", if_res.score / 10.0))
-                triggered.extend(if_res.triggered_signals)
-
-        if self.xgb_scorer:
-            xgb_res = self.xgb_scorer.calculate_score(feature_snapshot, baseline_snapshot, signal_mask, signal_weights)
-            if xgb_res.score is not None:
-                component_scores.append(("xgb", xgb_res.score / 10.0))
-                triggered.extend(xgb_res.triggered_signals)
-
-        if not component_scores:
-            return RiskScore(score=0.0, confidence=0.5, triggered_signals=[], data_quality="DEGRADED")
-
-        p_ensemble = 0.0
-        for tag, proba in component_scores:
-            w = self.w_if if tag == "if" else self.w_xgb
-            p_ensemble += w * proba
-
-        final_score = p_ensemble * 10.0
-        triggered_final = list(set(triggered))
-        if p_ensemble >= self.static_threshold:
-            triggered_final.append("ml_ensemble")
-
-        return RiskScore(
-            score=final_score,
-            confidence=float(min(1.0, p_ensemble)),
-            triggered_signals=triggered_final,
-            data_quality="GOOD",
+        """Explicitly decoupled from Track A streaming semantics."""
+        raise NotImplementedError(
+            "EnsembleFraudScorer is a Track B real-world ML model operating on transaction "
+            "feature matrices. It does not process aggregated FeatureSnapshot / BaselineSnapshot "
+            "streaming events (Track A)."
         )
 
     def save(self, directory: Union[str, Path]) -> Dict[str, str]:
@@ -485,6 +383,7 @@ class EnsembleFraudScorer(AnomalyScorer):
             "w_if": self.w_if,
             "w_xgb": self.w_xgb,
             "static_threshold": self.static_threshold,
+            "optimal_threshold": self.optimal_threshold,
             "model_hashes": hashes,
         }
         with open(d / "ensemble_config.json", "w") as f:
@@ -501,29 +400,44 @@ class EnsembleFraudScorer(AnomalyScorer):
         if_scorer = IsolationForestScorer.load(d / "isolation_forest.joblib") if (d / "isolation_forest.joblib").exists() else None
         xgb_scorer = XGBoostFraudScorer.load(d / "xgboost_fraud.joblib") if (d / "xgboost_fraud.joblib").exists() else None
 
-        return cls(
+        ensemble = cls(
             if_scorer=if_scorer,
             xgb_scorer=xgb_scorer,
             w_if=config["w_if"],
             w_xgb=config["w_xgb"],
             static_threshold=config["static_threshold"],
         )
+        ensemble.optimal_threshold = float(config.get("optimal_threshold", ensemble.static_threshold))
+        return ensemble
 
 
 def evaluate_binary_classifier(
     y_true: np.ndarray,
     y_pred: np.ndarray,
     y_proba: Optional[np.ndarray] = None,
+    amounts: Optional[np.ndarray] = None,
     fp_unit_cost: float = 50.0,
     fn_exposure_factor: float = 800.0,
 ) -> Dict[str, Any]:
-    """Compute binary classification metrics and financial impact."""
+    """Compute binary classification metrics and financial impact.
+
+    If `amounts` is provided, FN exposure is calculated dynamically as sum(Amount)
+    of missed fraud transactions (y_true == 1 and y_pred == 0).
+    Otherwise, fn_exposure_factor is used as a fallback.
+    """
     cm = confusion_matrix(y_true, y_pred)
     tn, fp, fn, tp = cm.ravel() if cm.size == 4 else (0, 0, 0, 0)
 
     prec = precision_score(y_true, y_pred, zero_division=0.0)
     rec = recall_score(y_true, y_pred, zero_division=0.0)
     f1 = f1_score(y_true, y_pred, zero_division=0.0)
+
+    fp_cost = float(fp * fp_unit_cost)
+    if amounts is not None and len(amounts) == len(y_true):
+        fn_mask = (y_true == 1) & (y_pred == 0)
+        fn_exposure = float(np.sum(amounts[fn_mask]))
+    else:
+        fn_exposure = float(fn * fn_exposure_factor)
 
     result = {
         "tp": int(tp),
@@ -533,9 +447,9 @@ def evaluate_binary_classifier(
         "precision": float(prec),
         "recall": float(rec),
         "f1_score": float(f1),
-        "fp_cost": float(fp * fp_unit_cost),
-        "fn_exposure": float(fn * fn_exposure_factor),
-        "total_cost": float(fp * fp_unit_cost + fn * fn_exposure_factor),
+        "fp_cost": fp_cost,
+        "fn_exposure": fn_exposure,
+        "total_cost": float(fp_cost + fn_exposure),
         "total_predictions": int(len(y_pred)),
         "total_positive_predictions": int(y_pred.sum()),
         "total_actual_positive": int(y_true.sum()),

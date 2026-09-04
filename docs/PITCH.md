@@ -78,7 +78,7 @@
 > 1. **Historical Fix Story:** In `run_001`, a pseudo-probability division bug caused improper calibration, which was resolved in `run_004`.
 > 2. **Small-N Holdout:** Honest reporting of wide 95% CIs `[0.2000, 0.8000]` given N=5 holdout events.
 > 3. **Zero-Event Anomaly Coverage:** Unrepresented anomaly classes in the synthetic holdout are reported as `NO_EVENTS_IN_DATASET`.
-> 4. **Evasion Boundary:** Low-amplitude harmonic oscillation (`EVT-HOLDOUT-005`, $M=4.20\sigma$) remains below decision threshold $\tau=5.00$—an explicit model boundary.
+> 4. **Evasion Boundary:** Low-amplitude harmonic oscillation (`EVT-HOLDOUT-005`, $M=1.64\sigma$) remains below decision threshold $\tau=5.00$—an explicit model boundary.
 > 
 > Thank you."*
 
@@ -87,7 +87,7 @@
 ## 🎯 Key Questions & Answers for Judges
 
 1. **Q: Why are your 95% Confidence Intervals so wide (`[0.2000, 0.8000]`)?**  
-   *A:* Because the Track A locked holdout dataset contains N=5 ground truth events. Non-parametric bootstrap resampling over 1,000 iterations over small sample sizes correctly reflects sampling variance rather than disguising it. In Track B (N=42,721 test transactions, 52 fraud events), bootstrap CIs shrink to tight `[0.7500, 0.9512]` bounds.
+   *A:* Because the Track A locked holdout dataset contains N=5 ground truth events. Non-parametric bootstrap resampling over 1,000 iterations over small sample sizes correctly reflects sampling variance rather than disguising it. In Track B (N=42,721 test transactions, 52 fraud transactions), bootstrap CIs shrink to tight `[0.6857, 0.8687]` bounds.
 
 2. **Q: How do you prevent data leakage in your real-world ML benchmark?**  
    *A:* We use a strict 3-way temporal split (TRAIN 70% ➔ CALIBRATION 15% ➔ LOCKED TEST 15%). The base Isolation Forest and XGBoost models are trained on TRAIN, Platt scaling is fitted on CALIBRATION, and evaluation is performed on the un-seen LOCKED TEST set.

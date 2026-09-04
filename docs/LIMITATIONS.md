@@ -22,7 +22,7 @@ This document explicitly outlines the scientific boundaries, dataset assumptions
 
 1. **Synthetic Stream vs. Real-World Public Benchmark Track Separation:**
    - Track A evaluates deterministic streaming state-machine behavior on 5 locked synthetic events.
-   - Track B evaluates learned multi-dimensional classification on 42,721 held-out real credit card transactions (52 fraud events).
+   - Track B evaluates learned multi-dimensional classification on 42,721 held-out real credit card transactions (52 fraud transactions).
    - The two tracks answer distinct technical questions and are presented separately.
 
 2. **ULB / Kaggle Dataset Dimension Anonymization:**
@@ -30,7 +30,7 @@ This document explicitly outlines the scientific boundaries, dataset assumptions
    - It lacks merchant IDs, IP addresses, or device fingerprints. Therefore, real-world evaluation measures transaction-level fraud discrimination rather than streaming merchant window aggregation.
 
 3. **Feature Dominance in Real-World Credit Card Fraud:**
-   - As proven by our ablation study, `Time` and `Amount` alone yield F1 = 0.0053 (-0.7702), confirming that anonymized PCA dimensions (`V1`–`V28`) contain over 99% of the fraud signal.
+   - As proven by our ablation study, `Time` and `Amount` alone yield F1 = 0.0053 (-0.7736), confirming that anonymized PCA dimensions (`V1`–`V28`) contain the dominant predictive fraud information in this benchmark.
 
 4. **Descriptive Nature of Post-Holdout Analyses:**
    - Post-holdout calibration and cost analyses characterize frozen model outputs. Holdout metrics reflect a single evaluation pass without post-hoc hyperparameter retuning.
