@@ -86,11 +86,20 @@
 
 ## 🎯 Key Questions & Answers for Judges
 
-1. **Q: Why are your 95% Confidence Intervals so wide (`[0.2000, 0.8000]`)?**  
-   *A:* Because the Track A locked holdout dataset contains N=5 ground truth events. Non-parametric bootstrap resampling over 1,000 iterations over small sample sizes correctly reflects sampling variance rather than disguising it. In Track B (N=42,721 test transactions, 52 fraud transactions), bootstrap CIs shrink to tight `[0.6857, 0.8687]` bounds.
+1. **Q: Why was XGBoost chosen as the primary model when PCA_ONLY scored slightly higher F1?**  
+   *A:* **Primary Model Pre-Designation:** XGBoost on all features was pre-designated as the primary supervised model prior to locked-test evaluation. Feature group ablations (such as PCA_ONLY) are descriptive characterization experiments evaluated under frozen hyperparameters and do not redefine the primary model post-hoc based on test set performance.
 
-2. **Q: How do you prevent data leakage in your real-world ML benchmark?**  
-   *A:* We use a strict 3-way temporal split (TRAIN 70% ➔ CALIBRATION 15% ➔ LOCKED TEST 15%). The base Isolation Forest and XGBoost models are trained on TRAIN, Platt scaling is fitted on CALIBRATION, and evaluation is performed on the un-seen LOCKED TEST set.
+2. **Q: Why is Track A's median detection latency exactly 64.57s across all detected events?**  
+   *A:* **Deterministic Window Alignment:** Ground truth events in the locked holdout start at 10-minute boundaries (`:10:00`, `:20:00`, etc.). The feature engine's 1-minute window sequence aligns to the dataset's first transaction timestamp (`:00:04.567`). The first window fully capturing an anomaly completes at `:04.567` past the subsequent minute. The difference between `:11:04.567` and `:10:00.000` is exactly $60\text{s} + 4.567\text{s} = 64.567\text{s}$.
 
-3. **Q: How does the system prevent baseline contamination during long-running fraud?**  
+3. **Q: Why are your 95% Confidence Intervals so wide (`[0.2000, 0.8000]`)?**  
+   *A:* Because the Track A locked holdout dataset contains $N=5$ ground truth events. Non-parametric bootstrap resampling over 1,000 iterations over small sample sizes correctly reflects sampling variance rather than disguising it. In Track B ($N=42,721$ test transactions, 52 fraud transactions), bootstrap CIs shrink to tight `[0.6857, 0.8687]` bounds.
+
+4. **Q: How do you interpret the Track B ECE of 0.0001 (0.01%)?**  
+   *A:* This is the 10-bin Expected Calibration Error of Platt-scaled XGBoost probabilities on the locked test set. Because the dataset has extreme class imbalance (42,675 of 42,721 test transactions fall in $[0, 0.1)$), the near-zero ECE reflects high calibration accuracy in the dominant background bucket alongside calibrated probabilities in the minority fraud buckets.
+
+5. **Q: How do you prevent data leakage in your real-world ML benchmark?**  
+   *A:* We use a strict 3-way temporal split (TRAIN 70% ➔ CALIBRATION 15% ➔ LOCKED TEST 15%). Base models are trained on TRAIN, Platt scaling is fitted on CALIBRATION, and evaluation is performed on the un-seen LOCKED TEST set.
+
+6. **Q: How does the system prevent baseline contamination during long-running fraud?**  
    *A:* Baseline updates execute strictly after score evaluation ($t_{\text{past}} < t_{\text{current}}$), and robust median/MAD scaling prevents sudden high-magnitude spikes from immediately inflating historical baselines.

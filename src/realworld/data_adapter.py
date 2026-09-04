@@ -107,10 +107,23 @@ class KaggleCreditCardAdapter:
                 "Or provide csv_path directly to KaggleCreditCardAdapter(csv_path=...)"
             )
 
+    EXPECTED_DATASET_SHA256 = "76274b691b16a6c49d3f159c883398e03ccd6d1ee12d9d8ee38f4b4b98551a89"
+
+    def verify_dataset_hash(self) -> None:
+        """Fail-closed integrity check: verify raw CSV SHA-256 matches expected canonical benchmark hash."""
+        computed_sha = self.compute_dataset_hash()
+        if computed_sha != self.EXPECTED_DATASET_SHA256:
+            raise ValueError(
+                f"Fail-closed dataset integrity violation! Expected dataset SHA-256 "
+                f"'{self.EXPECTED_DATASET_SHA256}', but computed '{computed_sha}' from {self._csv_path}."
+            )
+
     def load(self) -> pd.DataFrame:
-        """Load and preprocess the raw dataset."""
+        """Load and preprocess the raw dataset with fail-closed integrity verification."""
         if self._raw_df is not None:
             return self._raw_df
+
+        self.verify_dataset_hash()
 
         df = pd.read_csv(self._csv_path)
         assert "Class" in df.columns, f"Expected 'Class' column, got {df.columns.tolist()}"

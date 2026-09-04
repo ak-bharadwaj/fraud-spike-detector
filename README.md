@@ -125,6 +125,8 @@ Ablation study on the held-out test set demonstrates the individual contribution
 | **`AMOUNT_TIME_ONLY`** | 2 | Time & Amount features only | 0.0029 | 0.0385 | **0.0053** | -0.7736 | 0.0022 |
 
 > **Key Discovery:** Performance collapses when PCA features are removed ($F_1 = 0.0053$), indicating that $V_1$–$V_{28}$ contain the dominant predictive fraud information in this benchmark.
+>
+> **Primary Model Pre-Designation Disclosure:** XGBoost on all features was pre-designated as the primary supervised model prior to locked-test evaluation. Feature group ablations (including `PCA_ONLY`) are descriptive characterization experiments evaluated under frozen hyperparameters and do not redefine the primary model post-hoc based on test set performance.
 
 ---
 
