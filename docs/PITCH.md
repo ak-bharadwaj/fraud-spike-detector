@@ -19,7 +19,7 @@
 | 2:20 - 3:10 (50s)   | 4. Benchmark Precision, Recall, Latency & Calibration     | Tab 2: Evaluation & Evidence    |
 | 3:10 - 3:50 (40s)   | 5. 6-Way Ablation, Drift, Evasion & Bootstrap Uncertainty | Tab 2: Evaluation & Evidence    |
 | 3:50 - 4:30 (40s)   | 6. Portfolio FP/FN Financial Cost Analysis                | Tab 2: Evaluation & Evidence    |
-| 4:30 - 5:00 (30s)   | 7. Failure Story & Explicit Engineering Boundaries        | Tab 3: Replay & Audit Trail     |
+| 4:30 - 5:00 (30s)   | 7. Failure Story & Explicit Engineering Boundaries        | Tab 3: Reproducibility & Audit  |
 +---------------------+-----------------------------------------------------------+---------------------------------+
 ```
 
@@ -80,7 +80,7 @@
 > 1. **Historical Fix Story:** In `run_001`, a pseudo-probability division bug caused improper calibration, which was resolved in `run_004`.
 > 2. **Small-N Holdout:** Honest reporting of wide 95% CIs `[0.2000, 0.8000]` given N=5 holdout events.
 > 3. **Zero-Event Anomaly Coverage:** Unrepresented anomaly classes in the synthetic holdout are reported as `NO_EVENTS_IN_DATASET`.
-> 4. **Evasion Boundary:** Low-amplitude harmonic oscillation (`EVT-HOLDOUT-005`, $M=1.64\sigma$) remains below decision threshold $\tau=5.00$—an explicit model boundary.
+> 4. **Evasion Boundary:** Low-amplitude harmonic oscillation (`EVT-HOLDOUT-005`, max score $M=4.39\sigma$) remains below decision threshold $\tau=5.00$—an explicit model boundary.
 > 
 > Thank you."*
 

@@ -29,7 +29,7 @@ This document provides a structured, step-by-step demonstration walkthrough for 
 ### Step 2: Live Detection Pipeline Walkthrough (60 Seconds)
 * **Goal:** Demonstrate end-to-end processing pipeline, statistical scoring, confidence, and alert state transitions.
 * **Actions:**
-  1. Navigate to **Tab 1: ⚡ Live Detection Console**.
+  1. Navigate to **Tab 1: ⚡ Deterministic Synthetic Stream Demo**.
   2. Click **▶ Start Live Demo** (or use **⏭ Step Window**).
   3. Observe the **Detection Workflow Pipeline** visualization at the top highlighting each active processing stage:
      `Transactions` ➔ `Features` ➔ `Baseline + Evidence` ➔ `Statistical Deviation Score` ➔ `Confidence` ➔ `State Machine` ➔ `Alert` ➔ `SQLite Audit`.
@@ -38,7 +38,7 @@ This document provides a structured, step-by-step demonstration walkthrough for 
      * Show Risk Score ($M < 5.00\sigma$), Evidence State (`SUFFICIENT`), and State (`NORMAL`).
   5. **Watch Window 5 (Sudden Volume Spike Anomaly):**
      * Highlight transaction volume spiking to ~75 txs/min.
-     * Point out Standardized Deviation Score jumping past the static threshold ($M = 6.50\sigma \ge 5.00\sigma$).
+     * Point out Standardized Deviation Score jumping past the static threshold ($M = 20.00\sigma \ge 5.00\sigma$).
      * Show State Machine transition: `NORMAL` ➔ `ALERT`.
      * Point out the emitted **Alert Card** and read the **Plain-English Explanation Panel ("What Happened?")**:
        > *"CRITICAL: Merchant M1 volume (75 txs/min) breached static threshold 5.00σ with 1-window persistence. Alert emitted to audit trail!"*
@@ -52,7 +52,7 @@ This document provides a structured, step-by-step demonstration walkthrough for 
 ### Step 3: Evaluation & Evidence Inspection (45 Seconds)
 * **Goal:** Present measured benchmark performance on the locked holdout dataset.
 * **Actions:**
-  1. Navigate to **Tab 2: 📊 Evaluation & Evidence**.
+  1. Navigate to **Tab 2: 📊 Locked Evaluation Evidence** (Track B Benchmark, Track A Holdout, Scientific Evidence).
   2. Review headline Holdout KPIs:
      * **Precision:** `0.8000` (80.0%, 4/5 TP/alerts, 95% CI: `[0.2000, 0.8000]`, TP: 4, FP: 1)
      * **Recall:** `0.8000` (80.0%, 4/5 TP/events, 95% CI: `[0.2000, 0.8000]`, FN: 1, Total Events: 5)
@@ -83,4 +83,4 @@ To independently verify the complete pytest benchmark suite from the terminal:
 ```bash
 python -m pytest tests/ -v
 ```
-All 273+ unit and architectural boundary tests execute deterministically and pass with zero failures.
+All 303 unit and architectural boundary tests execute deterministically and pass with zero failures.

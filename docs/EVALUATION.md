@@ -82,7 +82,7 @@ Tests representative evasive attack trajectories physically embedded in `data/ho
    * *Mechanism:* Stepwise volume progression ramping to $M = 6.50\sigma$.
    * *Outcome:* Consecutive steps breach threshold -> Alert emitted ($\text{TP}=1$).
 4. **Oscillating Sub-Threshold (`EVT-HOLDOUT-005`):**
-   * *Mechanism:* Sub-threshold harmonic oscillation staying strictly below decision threshold ($M = 1.64\sigma < 5.00\sigma$).
+   * *Mechanism:* Sub-threshold harmonic oscillation staying strictly below decision threshold (max score $M = 4.39\sigma < 5.00\sigma$).
    * *Outcome:* Max score stays below threshold -> State machine remains `NORMAL` ($\text{FN}=1$).
 
 ---

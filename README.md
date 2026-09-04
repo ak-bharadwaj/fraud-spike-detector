@@ -157,7 +157,7 @@ Executes the 3-way temporal split pipeline, fits models, runs 6-way ablation, an
 ```bash
 python -m pytest tests/ -v
 ```
-Runs all 298 unit, integration, and real-world pipeline tests.
+Runs all 303 unit, integration, and real-world pipeline tests.
 
 ---
 
@@ -181,7 +181,7 @@ fraud-spike-detector/
 │   ├── detector/            # StreamingDetectorPipeline
 │   ├── audit/               # SQLite audit persistence
 │   └── web/                 # Web server & interactive single-page UI
-├── tests/                   # Complete Pytest test suite (298 tests)
+├── tests/                   # Complete Pytest test suite (303 tests)
 ├── scripts/                 # Execution scripts
 │   ├── run_ui.py            # Standalone web UI launcher
 │   └── train_realworld.py   # E2E real-world ML benchmark training pipeline
