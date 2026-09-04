@@ -61,7 +61,7 @@
 ### 5. 6-Way Ablation, Drift, Evasion & Bootstrap Uncertainty (3:10 - 3:50 | 40 Seconds)
 > *"We rigorously stress-tested our detector across both tracks:
 > 
-> 1. **Principled Feature Ablation:** On real credit card data across 6 variants, Time & Amount alone yield F1 = 0.0053 (-0.7736), confirming that anonymized PCA dimensions (`V1`–`V28`) contain the dominant predictive fraud information. Unsupervised Isolation Forest alone yields F1 = 0.0977 (-0.6812), proving the necessity of supervised XGBoost.
+> 1. **Principled Feature Ablation:** On real credit card data across 6 variants, Time & Amount alone yield F1 = 0.0053 (-0.7736), confirming that anonymized PCA dimensions (`V1`–`V28`) contain the dominant predictive fraud information. Unsupervised Isolation Forest alone yields F1 = 0.0977 (-0.6812), and the full ensemble (`FULL_ENSEMBLE`) was an evaluated comparator that did not improve primary XGBoost (F1 = 0.7789 vs XGBoost F1 = 0.7879).
 > 2. **Detector-Aware Evasion:** Verified representative evasion patterns (threshold-hugging, persistence evasion, staircase ramp).
 > 3. **Bootstrap Uncertainty:** 1,000 resamples yield exact 95% CIs of `[0.7142, 0.9298]` for real-world precision, `[0.6274, 0.8667]` for recall, and `[0.6857, 0.8687]` for F1."*
 

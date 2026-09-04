@@ -117,7 +117,7 @@ Ablation study on the held-out test set demonstrates the individual contribution
 
 | Variant ID | Features | Description | Precision | Recall | F1 Score | $\Delta\text{F1}$ | AUC-PR |
 |---|---|---|---|---|---|---|---|
-| **`FULL_ENSEMBLE`** | 30 | IF + XGBoost on all 30 features | 0.8605 | 0.7115 | **0.7789** | +0.0000 | 0.7489 |
+| **`FULL_ENSEMBLE`** | 30 | IF + XGBoost on all 30 features (evaluated comparator; did not improve primary) | 0.8605 | 0.7115 | **0.7789** | +0.0000 | 0.7489 |
 | **`XGB_ONLY`** | 30 | XGBoost alone on all features (Headline) | 0.8298 | 0.7500 | **0.7879** | +0.0089 | 0.7703 |
 | **`IF_ONLY`** | 30 | Isolation Forest alone (unsupervised) | 0.0542 | 0.5000 | **0.0977** | -0.6812 | 0.0429 |
 | **`PCA_ONLY`** | 28 | V1–V28 PCA features only (no Time/Amount)| 0.9250 | 0.7115 | **0.8043** | +0.0254 | 0.7519 |
