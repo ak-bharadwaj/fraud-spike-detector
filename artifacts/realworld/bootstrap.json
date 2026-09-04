@@ -1,32 +1,41 @@
 {
-  "precision": {
-    "mean": 0.8293914536410837,
-    "std": 0.054588118118184654,
-    "ci_lower": 0.7142063492063492,
-    "ci_upper": 0.9298347613219095,
-    "n_samples": 1000
-  },
-  "recall": {
-    "mean": 0.7502596250111355,
-    "std": 0.06195289503216405,
-    "ci_lower": 0.627389705882353,
-    "ci_upper": 0.8666981132075472,
-    "n_samples": 1000
-  },
-  "f1": {
-    "mean": 0.7860872056759964,
-    "std": 0.046314174771551246,
-    "ci_lower": 0.6856766917293233,
-    "ci_upper": 0.8687088274044796,
-    "n_samples": 1000
-  },
-  "auc_roc": {
-    "mean": 0.982666779152014,
-    "std": 0.005950514131228163,
-    "ci_lower": 0.9691695256746197,
-    "ci_upper": 0.9931051002541461,
-    "n_samples": 1000
-  },
-  "n_bootstrap": 1000,
-  "seed": 42
+  "experiment_id": "EXP-REALWORLD-CCF-001",
+  "dataset_hash": "76274b691b16a6c49d3f159c883398e03ccd6d1ee12d9d8ee38f4b4b98551a89",
+  "config_hash": "344c229df0400d5d35a602b12c141bdda77181efbac3bb307d16fad523c4821d",
+  "detector_version": "realworld-xgb-v1",
+  "seed": 42,
+  "artifact_type": "bootstrap_ci",
+  "data_split": "LOCKED_TEST",
+  "bootstrap_ci": {
+    "precision": {
+      "mean": 0.8293914536410837,
+      "std": 0.054588118118184654,
+      "ci_lower": 0.7142063492063492,
+      "ci_upper": 0.9298347613219095,
+      "n_samples": 1000
+    },
+    "recall": {
+      "mean": 0.7502596250111355,
+      "std": 0.06195289503216405,
+      "ci_lower": 0.627389705882353,
+      "ci_upper": 0.8666981132075472,
+      "n_samples": 1000
+    },
+    "f1": {
+      "mean": 0.7860872056759964,
+      "std": 0.046314174771551246,
+      "ci_lower": 0.6856766917293233,
+      "ci_upper": 0.8687088274044796,
+      "n_samples": 1000
+    },
+    "auc_roc": {
+      "mean": 0.982666779152014,
+      "std": 0.005950514131228163,
+      "ci_lower": 0.9691695256746197,
+      "ci_upper": 0.9931051002541461,
+      "n_samples": 1000
+    },
+    "n_bootstrap": 1000,
+    "seed": 42
+  }
 }

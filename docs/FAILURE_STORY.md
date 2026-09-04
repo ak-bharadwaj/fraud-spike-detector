@@ -49,7 +49,7 @@ We corrected the post-holdout descriptive calibration methodology in `run_004_ca
 | run_001_original | 414998f               | SUPERSEDED              | Calibration math & fallback bug |
 | run_002_corrected| bc29c36 / 5841ddb     | SUPERSEDED              | Pre-reconstruction holdout      |
 | run_003_reconst  | bc29c36 / 5841ddb     | SUPERSEDED              | Pre-confidence composite run    |
-| run_004_canonical| 2f860e8 (HEAD)        | ACCEPTED_CANONICAL      | Canonical Master Plan execution |
+| run_004_canonical| 2f860e8               | ACCEPTED_CANONICAL      | Canonical Master Plan execution |
 +------------------+-----------------------+-------------------------+---------------------------------+
 ```
 

@@ -1,4 +1,11 @@
 {
+  "experiment_id": "EXP-REALWORLD-CCF-001",
+  "dataset_hash": "76274b691b16a6c49d3f159c883398e03ccd6d1ee12d9d8ee38f4b4b98551a89",
+  "config_hash": "344c229df0400d5d35a602b12c141bdda77181efbac3bb307d16fad523c4821d",
+  "detector_version": "realworld-xgb-v1",
+  "seed": 42,
+  "artifact_type": "split_manifest",
+  "split": "CALIBRATION",
   "count": 42718,
   "fraud_count": 56,
   "ratio": 0.14998929099355002,

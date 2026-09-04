@@ -38,13 +38,12 @@ ALL_FEATURE_COLS = ["Time", "Amount"] + [f"V{i}" for i in range(1, 29)]
 
 
 class KaggleCreditCardAdapter:
-    """Loads and transforms the ULB / Kaggle Credit Card Fraud dataset for ML evaluation.
+    """Loads and transforms the ULB / Kaggle Credit Card Fraud dataset for Track B ML evaluation.
 
     The adapter handles:
     1. Loading the raw CSV from a local path or auto-downloading via kagglehub.
-    2. Enforcing a strict 3-way temporal split: TRAIN (70%), CALIBRATION (15%), TEST (15%).
+    2. Enforcing a strict 3-way temporal split: TRAIN (70%), CALIBRATION (15%), LOCKED TEST (15%).
     3. Extracting feature matrices (X, y) for principled feature ablation studies.
-    4. Converting raw rows to project Transaction contracts for pipeline compatibility.
     """
 
     BASE_TIMESTAMP = datetime(2023, 9, 1, 0, 0, 0, tzinfo=timezone.utc)

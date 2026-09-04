@@ -27,8 +27,6 @@ import hashlib
 import json
 import os
 import sys
-import time
-from datetime import datetime, timezone
 from pathlib import Path
 
 import numpy as np
@@ -296,8 +294,6 @@ def main():
     models_dir = output_dir / "models"
     models_dir.mkdir(parents=True, exist_ok=True)
 
-    start_time = time.time()
-
     # ===== STAGE 1: Load Dataset & Build Manifest =====
     print_header("STAGE 1: Loading Dataset & Generating Dataset Manifest")
     adapter = KaggleCreditCardAdapter(csv_path=args.csv_path, seed=args.seed)
@@ -328,12 +324,35 @@ def main():
     print(f"  LOCKED TEST (15%): {len(test_df):>8,d} txs ({int(y_test.sum()):>4d} fraud, {int((y_test==0).sum()):>8,d} legit)")
     print(f"  Temporal order strictly preserved. Zero test contamination.")
 
-    with open(output_dir / "train_manifest.json", "w") as f:
-        json.dump(dataset_manifest["splits"]["train"], f, indent=2)
-    with open(output_dir / "calibration_manifest.json", "w") as f:
-        json.dump(dataset_manifest["splits"]["calibration"], f, indent=2)
-    with open(output_dir / "test_manifest.json", "w") as f:
-        json.dump(dataset_manifest["splits"]["test"], f, indent=2)
+    # Compute canonical configuration hash and common provenance header (§39 compliance)
+    config_payload = {
+        "seed": args.seed,
+        "n_bootstrap": args.n_bootstrap,
+        "xgb": {"n_estimators": 300, "max_depth": 6, "learning_rate": 0.1},
+        "if": {"n_estimators": 300, "contamination": 0.002},
+        "ensemble": {"w_if": 0.3, "w_xgb": 0.7},
+        "feature_groups": ML_FEATURE_GROUPS,
+    }
+    config_hash = hashlib.sha256(json.dumps(config_payload, sort_keys=True).encode("utf-8")).hexdigest()
+
+    common_provenance = {
+        "experiment_id": "EXP-REALWORLD-CCF-001",
+        "dataset_hash": dataset_manifest["dataset_sha256"],
+        "config_hash": config_hash,
+        "detector_version": "realworld-xgb-v1",
+        "seed": args.seed,
+    }
+
+    # Write provenance-compliant split manifests (§39 compliance)
+    for split_key, file_name in [("train", "train_manifest.json"), ("calibration", "calibration_manifest.json"), ("test", "test_manifest.json")]:
+        split_data = {
+            **common_provenance,
+            "artifact_type": "split_manifest",
+            "split": split_key.upper() if split_key != "test" else "LOCKED_TEST",
+            **dataset_manifest["splits"][split_key],
+        }
+        with open(output_dir / file_name, "w") as f:
+            json.dump(split_data, f, indent=2)
 
     # ===== STAGE 3: Train & Calibrate Models =====
     print_header("STAGE 3: Training & Calibrating ML Models (TRAIN + CALIBRATION)")
@@ -436,14 +455,11 @@ def main():
 
     # ===== STAGE 9: Build Canonical EXP-REALWORLD-CCF-001 Report =====
     print_header("STAGE 9: Generating Real-World Benchmark Report & Manifests")
-    elapsed = time.time() - start_time
 
     report = {
         "experiment_id": "EXP-REALWORLD-CCF-001",
         "track": "realworld",
         "synthetic_baseline_unchanged": True,
-        "timestamp": datetime.now(timezone.utc).isoformat(),
-        "elapsed_seconds": float(elapsed),
         "dataset_manifest": dataset_manifest,
         "models": {
             "primary_xgboost": {
@@ -476,18 +492,15 @@ def main():
         "calibration": calibration,
         "bootstrap_ci": bootstrap,
         "provenance": {
-            "seed": args.seed,
+            **common_provenance,
             "model_hashes": model_hashes,
-            "dataset_sha256": dataset_manifest["dataset_sha256"],
-            "experiment_id": "EXP-REALWORLD-CCF-001",
             "locked_threshold": float(xgb_opt_threshold),
             "calibration_method": "Platt scaling (sigmoid on CALIBRATION split)",
         },
     }
 
-    # Compute deterministic SHA-256 hash over evaluation payload (excluding runtime-variable timestamp & elapsed_seconds)
-    deterministic_payload = {k: v for k, v in report.items() if k not in ("timestamp", "elapsed_seconds")}
-    report_json_pre = json.dumps(deterministic_payload, indent=2, sort_keys=True, default=str)
+    # Compute deterministic SHA-256 hash over canonical evaluation payload (zero wall-clock dependence)
+    report_json_pre = json.dumps(report, indent=2, sort_keys=True, default=str)
     report_hash = hashlib.sha256(report_json_pre.encode("utf-8")).hexdigest()
     report["provenance"]["artifact_sha256"] = report_hash
 
@@ -496,14 +509,33 @@ def main():
         json.dump(report, f, indent=2, default=str)
     print(f"  Saved: {report_path}")
 
+    # Write §39 provenance-compliant standalone artifacts
+    ablation_artifact = {
+        **common_provenance,
+        "artifact_type": "ablation",
+        "data_split": "LOCKED_TEST",
+        "ablation": ablation_results,
+    }
     with open(output_dir / "ablation.json", "w") as f:
-        json.dump(ablation_results, f, indent=2, default=str)
+        json.dump(ablation_artifact, f, indent=2, default=str)
 
+    calibration_artifact = {
+        **common_provenance,
+        "artifact_type": "calibration",
+        "data_split": "LOCKED_TEST",
+        "calibration": calibration,
+    }
     with open(output_dir / "calibration.json", "w") as f:
-        json.dump(calibration, f, indent=2, default=str)
+        json.dump(calibration_artifact, f, indent=2, default=str)
 
+    bootstrap_artifact = {
+        **common_provenance,
+        "artifact_type": "bootstrap_ci",
+        "data_split": "LOCKED_TEST",
+        "bootstrap_ci": bootstrap,
+    }
     with open(output_dir / "bootstrap.json", "w") as f:
-        json.dump(bootstrap, f, indent=2, default=str)
+        json.dump(bootstrap_artifact, f, indent=2, default=str)
 
     # ===== FINAL SUMMARY =====
     print_header("FINAL REAL-WORLD BENCHMARK SUMMARY (EXP-REALWORLD-CCF-001)")

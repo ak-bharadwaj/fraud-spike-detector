@@ -4,15 +4,15 @@ Provides three production-grade ML scoring strategies for the Real-World Benchma
 
 1. IsolationForestScorer — Unsupervised anomaly detection with CALIBRATION-fitted score scaling
 2. XGBoostFraudScorer — Supervised fraud classification with CALIBRATION-fitted Platt scaling
-3. EnsembleFraudScorer — Weighted combination of calibrated IF anomaly + XGBoost probabilities
+3. EnsembleFraudScorer — Weighted combination of percentile-normalized IF anomaly scores + Platt-calibrated XGBoost probabilities
 
 Experimental Isolation Invariants (Refinement #5 & #6):
 - TRAIN split (70%): Used strictly to fit base models (IF and XGBoost).
 - CALIBRATION split (15%): Used strictly to fit probability calibration (Platt scaling / sigmoid)
   and score normalization. Zero contamination of locked TEST split.
 - LOCKED TEST split (15%): Evaluated in a single final pass. Zero hyperparameter tuning.
-- Ensemble score combination: `P_ensemble = w_if * P_if_calibrated + w_xgb * P_xgb_calibrated`.
-  Both inputs are normalized calibrated probabilities in [0, 1].
+- Ensemble score combination: `S_ensemble = w_if * S_if_normalized + w_xgb * P_xgb_calibrated`.
+  Calculates a weighted ensemble risk score in [0, 1].
 """
 
 import hashlib
@@ -42,7 +42,7 @@ class IsolationForestScorer(AnomalyScorer):
 
     - Fits forest on normal TRAIN transactions.
     - Fits min-max / percentile normalization strictly on CALIBRATION split.
-    - Outputs calibrated anomaly probabilities in [0, 1].
+    - Outputs percentile-normalized anomaly scores in [0, 1].
     """
 
     def __init__(
@@ -314,10 +314,10 @@ class XGBoostFraudScorer(AnomalyScorer):
 
 
 class EnsembleFraudScorer(AnomalyScorer):
-    """Weighted ensemble combining calibrated IF anomaly scores and XGBoost probabilities.
+    """Weighted ensemble combining percentile-normalized IF anomaly scores and Platt-calibrated XGBoost probabilities.
 
     Formula:
-        P_ensemble = w_if * P_if_calibrated + w_xgb * P_xgb_calibrated
+        S_ensemble = w_if * S_if_normalized + w_xgb * P_xgb_calibrated
     """
 
     def __init__(
