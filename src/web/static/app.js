@@ -226,8 +226,30 @@ function populateEvaluationSummary(report) {
 
   classes.forEach(c => {
     const item = perAnom[c.key] || {};
-    const status = item.status || (item.total_events > 0 ? "VALIDATED" : "NO_EVENTS_IN_DATASET");
+    const status = item.status || "N/A — not present in artifact";
     const isValidated = status === "VALIDATED";
+
+    const eventIdDisplay = item.event_id !== undefined && item.event_id !== null 
+      ? item.event_id 
+      : (item.ground_truth_events && item.ground_truth_events.length > 0 
+          ? item.ground_truth_events.join(", ") 
+          : "N/A — not present in artifact");
+
+    const tpDisplay = item.events_detected !== undefined && item.events_detected !== null 
+      ? item.events_detected 
+      : (item.tp !== undefined && item.tp !== null ? item.tp : "N/A — not present in artifact");
+
+    const fpDisplay = item.fp !== undefined && item.fp !== null ? item.fp : "N/A — not present in artifact";
+    const fnDisplay = item.fn !== undefined && item.fn !== null ? item.fn : "N/A — not present in artifact";
+
+    const recallDisplay = item.recall !== undefined && item.recall !== null 
+      ? (item.recall * 100).toFixed(1) + '%' 
+      : "N/A — not present in artifact";
+
+    const latencyDisplay = item.median_latency_seconds !== undefined && item.median_latency_seconds !== null 
+      ? item.median_latency_seconds.toFixed(2) + 's' 
+      : "N/A — not present in artifact";
+
     const tr = document.createElement("tr");
 
     tr.innerHTML = `
@@ -237,12 +259,12 @@ function populateEvaluationSummary(report) {
           ${status}
         </span>
       </td>
-      <td>${item.event_id || (item.ground_truth_events ? item.ground_truth_events.join(", ") : (isValidated ? "EVT-HOLDOUT-001" : "N/A"))}</td>
-      <td>${item.events_detected !== undefined ? item.events_detected : (item.tp !== undefined ? item.tp : 0)}</td>
-      <td>${item.fp !== undefined ? item.fp : 0}</td>
-      <td>${item.fn !== undefined ? item.fn : 0}</td>
-      <td>${item.recall !== undefined && item.recall !== null ? (item.recall * 100).toFixed(1) + '%' : 'N/A'}</td>
-      <td>${item.median_latency_seconds !== undefined && item.median_latency_seconds !== null ? item.median_latency_seconds.toFixed(2) + 's' : 'N/A'}</td>
+      <td>${eventIdDisplay}</td>
+      <td>${tpDisplay}</td>
+      <td>${fpDisplay}</td>
+      <td>${fnDisplay}</td>
+      <td>${recallDisplay}</td>
+      <td>${latencyDisplay}</td>
     `;
     tbody.appendChild(tr);
   });

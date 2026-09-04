@@ -326,6 +326,7 @@ def test_no_hardcoded_track_b_frontend_constants():
         "0.9825",
         "0.7703",
         "0.01%",
+        "EVT-HOLDOUT-001",
         "284,807",
         "42,721",
         "42,661",
