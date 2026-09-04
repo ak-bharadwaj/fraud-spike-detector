@@ -15,9 +15,10 @@
       <div class="brand-icon">🛡️</div>
       <div class="brand-title">
         <h1>Fraud-Spike Detector</h1>
-        <span>Merchant Risk Intelligence Console</span>
+        <span>Audit-first merchant risk intelligence</span>
       </div>
-        <div class="header-badges">
+    </div>
+    <div class="header-badges">
       <span class="badge badge-version" id="headerVersion">v1.1.0</span>
       <span class="badge badge-frozen" id="headerStatus">FROZEN RELEASE</span>
       <span class="badge" style="background:rgba(59, 130, 246, 0.15); color:var(--accent-blue); border:1px solid rgba(59, 130, 246, 0.3);">SYNTHETIC / DETERMINISTIC DEMONSTRATION</span>
@@ -85,6 +86,17 @@
         </div>
       </section>
 
+      <!-- Demo Disclosure Banner -->
+      <div style="background:rgba(59, 130, 246, 0.08); border:1px solid rgba(59, 130, 246, 0.25); border-radius:8px; padding:0.75rem 1rem; margin-bottom:1.25rem; display:flex; justify-content:space-between; align-items:center;">
+        <div>
+          <strong style="color:var(--accent-blue); font-size:0.95rem;">DETERMINISTIC SYNTHETIC STREAM</strong>
+          <div style="font-size:0.8rem; color:var(--text-muted);">Real detector execution • synthetic input • reproducible output</div>
+        </div>
+        <div style="font-size:0.8rem; color:var(--text-muted); text-align:right; max-width:550px;">
+          This screen executes the streaming detector against a deterministic synthetic transaction stream. It is a reproducible demonstration, not a live payment feed.
+        </div>
+      </div>
+
       <!-- Demo Controls Bar -->
       <div class="controls-bar">
         <div class="btn-group">
@@ -92,13 +104,20 @@
           <button class="btn btn-secondary" id="btnStepDemo">⏭ Step Window (1m)</button>
           <button class="btn btn-secondary" id="btnResetDemo">🔄 Reset Demo</button>
         </div>
-        <div>
-          <label style="font-size:0.8rem; color:var(--text-muted); margin-right:0.5rem;">Merchant Target:</label>
-          <select class="select-control" id="selectMerchant">
-            <option value="M1">M1 — Stable Merchant</option>
-            <option value="M2">M2 — Organic Growth Merchant</option>
-            <option value="M3">M3 — Volatile Baseline Merchant</option>
-          </select>
+        <div style="display:flex; align-items:center; gap:1.5rem;">
+          <div id="demoClockStatus" style="font-size:0.85rem; font-family:monospace; color:var(--accent-cyan);">
+            <span>⏱️ Window <strong id="lblWindowIndex">#0</strong></span>
+            <span style="margin:0 0.3rem;">|</span>
+            <span id="lblWindowTime">2026-01-01T12:00:00Z</span>
+          </div>
+          <div>
+            <label style="font-size:0.8rem; color:var(--text-muted); margin-right:0.5rem;">Merchant Target:</label>
+            <select class="select-control" id="selectMerchant">
+              <option value="M1">M1 — Stable Merchant</option>
+              <option value="M2">M2 — Organic Growth Merchant</option>
+              <option value="M3">M3 — Volatile Baseline Merchant</option>
+            </select>
+          </div>
         </div>
       </div>
 
@@ -210,9 +229,15 @@
 
       <!-- Track B Primary Real-World Benchmark Cards -->
       <div style="margin-bottom:1.5rem;">
-        <div style="font-size:1.1rem; font-weight:700; color:var(--text-main); margin-bottom:0.75rem; display:flex; align-items:center; gap:0.5rem;">
-          <span>📊 LOCKED EVALUATION EVIDENCE</span>
-          <span class="badge badge-frozen" style="font-size:0.75rem;">TRACK B: REAL-WORLD PUBLIC BENCHMARK (EXP-REALWORLD-CCF-001)</span>
+        <div style="font-size:1.1rem; font-weight:700; color:var(--text-main); margin-bottom:0.3rem; display:flex; align-items:center; justify-content:space-between;">
+          <div style="display:flex; align-items:center; gap:0.5rem;">
+            <span>📊 LOCKED EVALUATION EVIDENCE</span>
+            <span class="badge badge-frozen" style="font-size:0.75rem;">TRACK B: REAL-WORLD PUBLIC BENCHMARK (EXP-REALWORLD-CCF-001)</span>
+          </div>
+          <span style="font-size:0.8rem; color:var(--text-muted); font-weight:500;">Values loaded from committed backend artifacts</span>
+        </div>
+        <div style="font-size:0.8rem; color:var(--text-muted); margin-bottom:0.75rem;">
+          Locked test characterization • 284,807 total dataset transactions • <strong>42,721 locked TEST transactions</strong> • 52 fraud cases • Primary XGBoost Model
         </div>
         <div class="grid-4">
           <div class="card">
@@ -223,7 +248,7 @@
           <div class="card">
             <div class="card-title">Real-World Test Recall</div>
             <div class="metric-big" style="color:var(--accent-blue);">0.7500 <span class="metric-unit">(75.0%)</span></div>
-            <div class="metric-sub">95% CI: <strong>[0.6274, 0.8667]</strong> | FN: <strong>13</strong> | Test Fraud Txs: <strong>52</strong></div>
+            <div class="metric-sub">95% CI: <strong>[0.6274, 0.8667]</strong> | FN: <strong>13</strong> | TN: <strong>42,661</strong></div>
           </div>
           <div class="card">
             <div class="card-title">Real-World F1 & AUC-ROC</div>
@@ -240,9 +265,12 @@
 
       <!-- Track A Streaming Validation Section -->
       <div style="margin-bottom:1.5rem;">
-        <div style="font-size:0.95rem; font-weight:700; color:var(--text-muted); margin-bottom:0.75rem; display:flex; align-items:center; gap:0.5rem;">
-          <span>TRACK A: STREAMING ARCHITECTURE VALIDATION (EXP-DAY9-HOLDOUT-CORRECTED-CONFIDENCE-004)</span>
+        <div style="font-size:0.95rem; font-weight:700; color:var(--text-muted); margin-bottom:0.3rem; display:flex; align-items:center; gap:0.5rem;">
+          <span>TRACK A: STREAMING ARCHITECTURE VALIDATION — SYNTHETIC HOLDOUT</span>
           <span class="badge badge-defense" style="font-size:0.7rem;">5 SYNTHETIC EVENTS (DISCLOSED WIDE CI)</span>
+        </div>
+        <div style="font-size:0.8rem; color:var(--text-muted); margin-bottom:0.75rem;">
+          Synthetic holdout architecture validation • 5 synthetic fraud events • StatisticalDeviationScorer ($\tau=5.0\sigma, P=1, C=5$)
         </div>
         <div class="grid-4">
           <div class="card">
@@ -265,8 +293,6 @@
             <div class="metric-big" id="evalLatency">- <span class="metric-unit">s</span></div>
             <div class="metric-sub">P95: <strong id="evalP95">-</strong> | Total Cost: <strong id="evalCost">-</strong></div>
           </div>
-        </div>
-      </div>="evalCost">-</strong></div>
         </div>
       </div>
 

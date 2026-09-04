@@ -376,6 +376,11 @@ async function resetDemo(merchantId) {
   const mId = typeof merchantId === "string" ? merchantId : document.getElementById("selectMerchant").value;
   try {
     await fetch(`/api/demo/reset?merchant_id=${mId}`, { method: "POST" });
+    const wIdxEl = document.getElementById("lblWindowIndex");
+    if (wIdxEl) wIdxEl.textContent = "#0";
+    const wTimeEl = document.getElementById("lblWindowTime");
+    if (wTimeEl) wTimeEl.textContent = "2026-01-01T12:00:00Z";
+    
     document.getElementById("valRiskScore").innerHTML = `0.00 <span class="metric-unit">σ</span>`;
     document.getElementById("valThresholdCheck").textContent = "Sub-threshold (Normal)";
     document.getElementById("valConfidence").innerHTML = `1.00 <span class="metric-unit">/ 1.0</span>`;
@@ -390,6 +395,12 @@ async function resetDemo(merchantId) {
 }
 
 function renderDemoStep(data) {
+  // Update Window Index & Deterministic Timestamp clock
+  const wIdxEl = document.getElementById("lblWindowIndex");
+  if (wIdxEl) wIdxEl.textContent = `#${data.window_index !== undefined ? data.window_index : 0}`;
+  const wTimeEl = document.getElementById("lblWindowTime");
+  if (wTimeEl && data.timestamp) wTimeEl.textContent = data.timestamp;
+
   // Update state machine badge
   const st = data.state_machine_status || "NORMAL";
   const badge = document.getElementById("badgeState");
