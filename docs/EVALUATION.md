@@ -10,7 +10,7 @@ To provide both deterministic streaming auditability and learned real-world frau
 
 1. **Track A — Frozen Synthetic Streaming Track (`EXP-DAY9-HOLDOUT-CORRECTED-CONFIDENCE-004`):**
    - **Model:** `StatisticalDeviationScorer` ($\tau = 5.00\sigma, P = 1, C = 5$)
-   - **Purpose:** Validates real-time streaming state machine (NORMAL ➔ CANDIDATE ➔ ALERT ➔ COOLDOWN), minute-aligned sliding windowing, online expected values ($E[X]$), robust MAD scale ($S[X]$), 100% SQLite auditability, and failure recovery.
+   - **Purpose:** Validates real-time streaming state machine (NORMAL ➔ CANDIDATE ➔ ALERT ➔ COOLDOWN), minute-aligned sequential windowing, online expected values ($E[X]$), robust MAD scale ($S[X]$), 100% SQLite auditability, and failure recovery.
    - **Dataset:** 5-event locked synthetic holdout stream (`data/holdout/`).
 
 2. **Track B — Real-World Public Benchmark Track (`EXP-REALWORLD-CCF-001`):**
@@ -73,7 +73,7 @@ Financial impact is evaluated using the Master Plan Section 34 cost parameters:
 Tests representative evasive attack trajectories physically embedded in `data/holdout/`:
 
 1. **Threshold-Hugging Evasion (`EVT-HOLDOUT-002`):**
-   * *Mechanism:* Score hovers near decision boundary ($M = 4.80\sigma$).
+   * *Mechanism:* Configured target magnitude was $4.80\sigma$; observed score trajectory crossed decision boundary, peaking at $7.0\sigma$.
    * *Outcome:* Breached static threshold $\tau = 5.00\sigma$ peak -> Alert emitted ($\text{TP}=1$).
 2. **Persistence Evasion (`EVT-HOLDOUT-003`):**
    * *Mechanism:* Single-window burst ($M = 5.60\sigma$) followed by sub-threshold drop.

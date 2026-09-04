@@ -28,14 +28,14 @@
 ## 📜 Complete Timed Presentation Script
 
 ### 1. Problem & Risk-Management Framing (0:00 - 0:40 | 40 Seconds)
-> *"Good morning. When fraud attacks hit payment gateways like Razorpay, they erupt in hyper-dense bursts across volume, velocity, amount distribution, and device pools. Traditional batch models react too slowly, exposing merchants to massive chargeback loss (₹800+ per missed event). Conversely, naive static thresholding triggers catastrophic alert fatigue with ₹50 operational review costs per false positive.
+> *"Good morning. When fraud attacks hit payment gateways like Razorpay, they erupt in hyper-dense bursts across volume, velocity, amount distribution, and device pools. Traditional batch models react too slowly, exposing merchants to unmonitored financial risk exposure. Conversely, naive static thresholding triggers catastrophic alert fatigue with heavy operational review overhead per false alarm.
 > 
 > Our solution is Fraud-Spike Detector—an event-driven, audit-first risk intelligence engine operating strictly under a defense-only boundary: producing interpretable risk scores and automated alerts for human risk operations teams without ever auto-blocking payment flows."*
 
 ---
 
 ### 2. System Architecture & Dual-Track Pipeline (0:40 - 1:20 | 40 Seconds)
-> *"Architecturally, our system is built around a dual-track evaluation pipeline. In Track A, incoming payment streams are ingested through a deterministic, time-ordered event bus. For every 1-minute sliding window, our Feature Engine computes rolling multi-dimensional statistics—volume, velocity, robust median/MAD amounts, customer cardinality, and device entropy. Baseline updates execute strictly AFTER historical score calculation ($t_{\text{past}} < t_{\text{current}}$), eliminating baseline contamination during active attacks.
+> *"Architecturally, our system is built around a dual-track evaluation pipeline. In Track A, incoming payment streams are ingested through a deterministic, time-ordered event bus. For every minute-aligned sequential 1-minute window, our Feature Engine computes rolling multi-dimensional statistics—volume, velocity, robust median/MAD amounts, customer cardinality, and device entropy. Baseline updates execute strictly AFTER historical score calculation ($t_{\text{past}} < t_{\text{current}}$), eliminating baseline contamination during active attacks.
 > 
 > In Track B, we complement real-time streaming with a real-world public benchmark evaluation: training a primary XGBoost classifier (Platt-calibrated strictly on CALIBRATION split) on 284,807 transactions with strict 3-way temporal splitting."*
 
@@ -44,7 +44,7 @@
 ### 3. Live Detection & SQLite Audit Trail (1:20 - 2:20 | 60 Seconds)
 > *"Our frozen streaming detector, `StatisticalDeviationScorer`, evaluates composite Z-score deviation magnitude $M_{\text{composite}} = \max_k M_k$ against static decision threshold $\tau = 5.00\sigma$ ($P=1, C=5$). EWMA exponential smoothing ($\alpha=0.3$, alpha=0.3) was evaluated strictly in development sweeps as part of our research trade-off portfolio.
 > 
-> Qualifying scores enter an Alert State Machine requiring persistence ($P=1$ window) to confirm alerts and cooldown ($C=5$ windows) to eliminate alert fatigue. In **Tab 1: Live Stream Monitor**, watch as Merchant `M1` transaction volume surges at Window 5—the Risk Score breaches threshold $\tau=5.0$, transitioning state from `NORMAL` $\to$ `CANDIDATE` $\to$ `ALERT` with 100% SQLite audit log persistence."*
+> Qualifying scores enter an Alert State Machine. With our frozen configuration at $P=1$, a qualifying score moves directly from `NORMAL` $\to$ `ALERT`; after emitting an alert, the merchant enters the 5-window `COOLDOWN` state to eliminate alert fatigue. In **Tab 1: Live Stream Monitor**, watch as Merchant `M1` transaction volume surges at Window 5—the Risk Score breaches threshold $\tau=5.0$, transitioning state from `NORMAL` $\to$ `ALERT` with 100% SQLite audit log persistence."*
 
 ---
 
@@ -66,7 +66,7 @@
 ---
 
 ### 6. Portfolio FP/FN Financial Cost Analysis (3:50 - 4:30 | 40 Seconds)
-> *"Using our financial cost model (₹50 per false positive review, ₹800 base exposure per missed event), our frozen detector achieved a total portfolio cost of **₹850.00** on the synthetic holdout stream.
+> *"In our illustrative financial cost model (assigning a ₹50 review cost per false positive and a ₹800 base exposure per missed event), our frozen detector achieved a total portfolio cost of **₹850.00** on the synthetic holdout stream.
 > 
 > On the real-world dataset, achieving 82.98% precision with 8 False Positives across 42,721 transactions limits manual analyst review overhead to ₹400.00, with FN exposure calculated dynamically as the actual sum of missed amounts (₹2,372.40 across 13 missed frauds), yielding a total portfolio cost of **₹2,772.40**."*
 

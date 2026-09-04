@@ -20,6 +20,6 @@
     },
     "detector_version": "1.1.0"
   },
-  "selection_rationale": "Derived optimal configuration minimizing total cost and maximizing F1 from complete development grid search with post-holdout composite confidence integration.",
+  "selection_rationale": "Selected on DEVELOPMENT via the frozen grid-search objective; post-holdout analyses were descriptive characterizations and did not modify detector parameters.",
   "freeze_timestamp": "2026-01-07T00:00:00Z"
 }
