@@ -7,3 +7,4 @@
 - [2026-10-05 08:58] chore: prune stale branches references
 - [2026-10-06 11:31] refactor: decouple service dependencies
 - [2026-10-06 21:34] docs: update technical specification
+- [2026-10-06 10:00] chore: normalize import ordering
