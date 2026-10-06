@@ -5,3 +5,4 @@
 - [2026-10-04 13:52] docs: add architecture decision record
 - [2026-10-04 10:03] refactor: normalize response envelope
 - [2026-10-05 08:58] chore: prune stale branches references
+- [2026-10-06 11:31] refactor: decouple service dependencies
