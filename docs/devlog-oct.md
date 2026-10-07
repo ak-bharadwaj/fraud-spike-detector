@@ -10,3 +10,4 @@
 - [2026-10-06 10:00] chore: normalize import ordering
 - [2026-10-06 18:00] test: validate concurrent access patterns
 - [2026-10-07 11:54] refactor: consolidate error types
+- [2026-10-07 19:29] fix: correct timezone handling
