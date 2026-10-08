@@ -14,3 +14,4 @@
 - [2026-10-08 19:35] docs: update onboarding guide
 - [2026-10-08 08:47] chore: archive completed milestones
 - [2026-10-08 18:58] test: add coverage for boundary conditions
+- [2026-10-08 08:57] chore: update dependency constraints
