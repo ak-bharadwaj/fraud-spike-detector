@@ -12,3 +12,4 @@
 - [2026-10-07 11:54] refactor: consolidate error types
 - [2026-10-07 19:29] fix: correct timezone handling
 - [2026-10-08 19:35] docs: update onboarding guide
+- [2026-10-08 08:47] chore: archive completed milestones
