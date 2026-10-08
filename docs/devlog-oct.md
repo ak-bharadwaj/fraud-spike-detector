@@ -11,3 +11,4 @@
 - [2026-10-06 18:00] test: validate concurrent access patterns
 - [2026-10-07 11:54] refactor: consolidate error types
 - [2026-10-07 19:29] fix: correct timezone handling
+- [2026-10-08 19:35] docs: update onboarding guide
