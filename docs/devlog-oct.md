@@ -16,3 +16,4 @@
 - [2026-10-08 18:58] test: add coverage for boundary conditions
 - [2026-10-08 08:57] chore: update dependency constraints
 - [2026-10-08 15:39] refactor: consolidate error types
+- [2026-10-09 12:46] fix: correct timezone handling
