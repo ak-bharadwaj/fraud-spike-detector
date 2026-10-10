@@ -18,3 +18,4 @@
 - [2026-10-08 15:39] refactor: consolidate error types
 - [2026-10-09 12:46] fix: correct timezone handling
 - [2026-10-10 20:53] feat: add structured logging
+- [2026-10-10 12:12] fix: resolve edge case in validation layer
