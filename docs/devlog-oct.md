@@ -21,3 +21,4 @@
 - [2026-10-10 12:12] fix: resolve edge case in validation layer
 - [2026-10-10 09:49] docs: clarify configuration parameters
 - [2026-10-11 20:41] feat: implement graceful shutdown hook
+- [2026-10-12 09:30] chore: remove unused feature flags
