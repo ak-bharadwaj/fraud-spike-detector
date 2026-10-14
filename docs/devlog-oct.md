@@ -23,3 +23,4 @@
 - [2026-10-11 20:41] feat: implement graceful shutdown hook
 - [2026-10-12 09:30] chore: remove unused feature flags
 - [2026-10-12 14:06] test: add regression test for #142
+- [2026-10-14 12:59] feat: add structured logging
