@@ -24,3 +24,4 @@
 - [2026-10-12 09:30] chore: remove unused feature flags
 - [2026-10-12 14:06] test: add regression test for #142
 - [2026-10-14 12:59] feat: add structured logging
+- [2026-10-14 20:17] fix: resolve edge case in validation layer
