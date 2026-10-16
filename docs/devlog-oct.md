@@ -30,3 +30,4 @@
 - [2026-10-15 21:32] feat: add health check endpoint
 - [2026-10-16 18:15] feat: add structured logging
 - [2026-10-16 16:15] fix: resolve edge case in validation layer
+- [2026-10-16 20:52] docs: clarify configuration parameters
