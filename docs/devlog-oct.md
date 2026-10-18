@@ -33,3 +33,4 @@
 - [2026-10-16 20:52] docs: clarify configuration parameters
 - [2026-10-17 20:22] test: validate concurrent access patterns
 - [2026-10-18 13:37] feat: add health check endpoint
+- [2026-10-18 21:14] fix: handle malformed request gracefully
