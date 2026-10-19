@@ -38,3 +38,4 @@
 - [2026-10-18 09:45] refactor: decompose monolithic handler
 - [2026-10-18 15:23] docs: document retry mechanism
 - [2026-10-18 15:23] chore: remove unused feature flags
+- [2026-10-19 09:09] feat: add health check endpoint
