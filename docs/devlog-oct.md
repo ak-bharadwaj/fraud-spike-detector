@@ -40,3 +40,4 @@
 - [2026-10-18 15:23] chore: remove unused feature flags
 - [2026-10-19 09:09] feat: add health check endpoint
 - [2026-10-20 15:56] refactor: improve query performance
+- [2026-10-20 20:51] fix: resolve memory leak in worker
