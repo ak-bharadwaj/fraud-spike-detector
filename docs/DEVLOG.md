@@ -14,3 +14,6 @@ Development notes and progress tracking.
 
 ### 2026-10-15
 - refactor: streamlined initialization sequence
+
+### 2026-10-20
+- docs: documented caching strategy decisions
