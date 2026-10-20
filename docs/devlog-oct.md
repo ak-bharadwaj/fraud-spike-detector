@@ -41,3 +41,4 @@
 - [2026-10-19 09:09] feat: add health check endpoint
 - [2026-10-20 15:56] refactor: improve query performance
 - [2026-10-20 20:51] fix: resolve memory leak in worker
+- [2026-10-20 14:34] feat: add error boundary handling
