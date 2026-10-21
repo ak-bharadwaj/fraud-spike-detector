@@ -43,3 +43,4 @@
 - [2026-10-20 20:51] fix: resolve memory leak in worker
 - [2026-10-20 14:34] feat: add error boundary handling
 - [2026-10-20 11:03] fix: handle null pointer in serializer
+- [2026-10-21 14:19] docs: add architecture decision record
