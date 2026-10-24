@@ -51,3 +51,4 @@
 - [2026-10-22 08:57] fix: handle null pointer in serializer
 - [2026-10-22 17:59] docs: add architecture decision record
 - [2026-10-23 19:58] refactor: normalize response envelope
+- [2026-10-24 18:13] refactor: improve query performance
