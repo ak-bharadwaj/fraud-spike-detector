@@ -52,3 +52,4 @@
 - [2026-10-22 17:59] docs: add architecture decision record
 - [2026-10-23 19:58] refactor: normalize response envelope
 - [2026-10-24 18:13] refactor: improve query performance
+- [2026-10-24 20:09] fix: resolve memory leak in worker
