@@ -57,3 +57,4 @@
 - [2026-10-25 21:38] docs: clarify configuration parameters
 - [2026-10-25 16:19] refactor: simplify state transition logic
 - [2026-10-25 12:53] docs: update deployment runbook
+- [2026-10-25 09:47] chore: prune stale branches references
