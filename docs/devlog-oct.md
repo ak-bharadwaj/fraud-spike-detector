@@ -54,3 +54,4 @@
 - [2026-10-24 18:13] refactor: improve query performance
 - [2026-10-24 20:09] fix: resolve memory leak in worker
 - [2026-10-24 14:23] feat: add error boundary handling
+- [2026-10-25 21:38] docs: clarify configuration parameters
