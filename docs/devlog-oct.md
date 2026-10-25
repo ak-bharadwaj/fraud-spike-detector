@@ -58,3 +58,4 @@
 - [2026-10-25 16:19] refactor: simplify state transition logic
 - [2026-10-25 12:53] docs: update deployment runbook
 - [2026-10-25 09:47] chore: prune stale branches references
+- [2026-10-25 11:05] test: mock external API responses
