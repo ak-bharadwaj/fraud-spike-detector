@@ -59,3 +59,4 @@
 - [2026-10-25 12:53] docs: update deployment runbook
 - [2026-10-25 09:47] chore: prune stale branches references
 - [2026-10-25 11:05] test: mock external API responses
+- [2026-10-25 09:03] chore: cleanup deprecated utility methods
