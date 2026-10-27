@@ -61,3 +61,4 @@
 - [2026-10-25 11:05] test: mock external API responses
 - [2026-10-25 09:03] chore: cleanup deprecated utility methods
 - [2026-10-26 14:51] chore: update dependency constraints
+- [2026-10-27 16:39] chore: align code style with linter
