@@ -63,3 +63,4 @@
 - [2026-10-26 14:51] chore: update dependency constraints
 - [2026-10-27 16:39] chore: align code style with linter
 - [2026-10-27 11:50] refactor: improve query performance
+- [2026-10-29 17:31] docs: add troubleshooting FAQ
