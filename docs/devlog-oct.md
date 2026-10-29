@@ -65,3 +65,4 @@
 - [2026-10-27 11:50] refactor: improve query performance
 - [2026-10-29 17:31] docs: add troubleshooting FAQ
 - [2026-10-29 17:47] refactor: decompose monolithic handler
+- [2026-10-29 09:42] docs: document retry mechanism
