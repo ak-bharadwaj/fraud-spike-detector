@@ -20,3 +20,6 @@ Development notes and progress tracking.
 
 ### 2026-10-25
 - chore: organized project file structure
+
+### 2026-10-30
+- docs: updated API versioning notes
