@@ -68,3 +68,4 @@
 - [2026-10-29 09:42] docs: document retry mechanism
 - [2026-10-29 15:07] chore: remove unused feature flags
 - [2026-10-30 14:53] chore: align code style with linter
+- [2026-10-30 18:00] refactor: improve query performance
