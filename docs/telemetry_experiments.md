@@ -722,3 +722,5 @@
 - [2026-11-01T00:15:22+05:30] feat(eval): add precision-recall curve benchmarks for streaming detector
 
 - [2026-11-01T00:25:40+05:30] perf(pipeline): vectorize rolling window entropy calculations
+
+- [2026-11-01T00:32:10+05:30] test(anomaly): stress-test sliding window isolation forest under sudden spikes
