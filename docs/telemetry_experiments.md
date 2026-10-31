@@ -718,3 +718,5 @@
 - [2026-06-26T13:23:26Z] refactor(wal): stream write-ahead log directly into memory mapped segment
 - [2026-06-26T15:10:06Z] feat(crypto): implement constant-time comparison for HMAC authentication
 - [2026-06-26T16:27:23Z] fix(gc): eliminate root reference leak in transient session context
+
+- [2026-11-01T00:15:22+05:30] feat(eval): add precision-recall curve benchmarks for streaming detector
