@@ -720,3 +720,5 @@
 - [2026-06-26T16:27:23Z] fix(gc): eliminate root reference leak in transient session context
 
 - [2026-11-01T00:15:22+05:30] feat(eval): add precision-recall curve benchmarks for streaming detector
+
+- [2026-11-01T00:25:40+05:30] perf(pipeline): vectorize rolling window entropy calculations
